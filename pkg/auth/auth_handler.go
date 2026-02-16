@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/common"
 	"github.com/evgeniums/go-utils/pkg/config"
 	"github.com/evgeniums/go-utils/pkg/logger"
@@ -20,8 +21,8 @@ type AuthContext interface {
 	CheckRequestContent(smsMessage *string, skipSms *bool) error
 	GetRequestPath() string
 	GetRequestMethod() string
-	GetResourceId(resourceType string) string
-	ResourceIds() map[string]string
+	GetResourceId(resourceType string) api.ResourceId
+	ResourceIds() api.ResourceIds
 
 	GetRequestClientIp() string
 	GetRequestUserAgent() string

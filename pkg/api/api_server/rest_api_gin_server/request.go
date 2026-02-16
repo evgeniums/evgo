@@ -183,10 +183,11 @@ func (r *Request) CheckRequestContent(smsMessage *string, skipSms *bool) error {
 	return r.Endpoint().PrecheckRequestBeforeAuth(r, smsMessage, skipSms)
 }
 
-func (r *Request) ResourceIds() map[string]string {
-	m := make(map[string]string, 0)
+func (r *Request) ResourceIds() api.ResourceIds {
+
+	m := api.NewResourceIdsBase()
 	for _, param := range r.ginCtx.Params {
-		m[param.Key] = param.Value
+		m.SetId(api.NewResourceIdBase(param.Key, param.Value))
 	}
 	return m
 }
@@ -195,8 +196,8 @@ func (r *Request) GetRequestPath() string {
 	return api_server.FullRequestServicePath(r)
 }
 
-func (r *Request) GetResourceId(resourceType string) string {
-	return r.ginCtx.Param(resourceType)
+func (r *Request) GetResourceId(resourceType string) api.ResourceId {
+	return api.NewResourceIdBase(resourceType, r.ginCtx.Param(resourceType))
 }
 
 func (r *Request) Validate(cmd interface{}) error {

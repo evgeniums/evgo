@@ -18,7 +18,7 @@ func (e *ListServicePoolsEndpoint) HandleRequest(request api_server.Request) err
 
 	// find service
 	resp := &pool_api.ListServicePoolsResponse{}
-	resp.Items, err = e.service.Pools.GetServiceBindings(request, request.GetResourceId("service"))
+	resp.Items, err = e.service.Pools.GetServiceBindings(request, request.GetResourceId("service").Value())
 	if err != nil {
 		c.SetMessage("failed to get service bindings")
 		return c.SetError(err)

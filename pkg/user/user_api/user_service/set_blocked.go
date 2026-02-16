@@ -21,7 +21,7 @@ func (s *SetBlockedEndpoint) HandleRequest(request api_server.Request) error {
 		return err
 	}
 
-	err = Setter(s.users, request).SetBlocked(request, request.GetResourceId(s.userTypeName), cmd.BLOCKED)
+	err = Setter(s.users, request).SetBlocked(request, request.GetResourceId(s.userTypeName).Value(), cmd.BLOCKED)
 	if err != nil {
 		return c.SetError(err)
 	}

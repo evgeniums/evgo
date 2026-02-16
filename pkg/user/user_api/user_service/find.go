@@ -18,7 +18,7 @@ func (e *FindEndpoint[U]) HandleRequest(request api_server.Request) error {
 	defer request.TraceOutMethod()
 
 	resp := &user_api.UserResponse[U]{}
-	resp.User, err = Users(e.service, request).Find(request, request.GetResourceId(e.service.UserTypeName))
+	resp.User, err = Users(e.service, request).Find(request, request.GetResourceId(e.service.UserTypeName).Value())
 	if err != nil {
 		return c.SetError(err)
 	}

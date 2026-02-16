@@ -21,7 +21,7 @@ func (s *SetEmailEndpoint) HandleRequest(request api_server.Request) error {
 		return err
 	}
 
-	err = Setter(s.users, request).SetEmail(request, request.GetResourceId(s.userTypeName), cmd.EMAIL)
+	err = Setter(s.users, request).SetEmail(request, request.GetResourceId(s.userTypeName).Value(), cmd.EMAIL)
 	if err != nil {
 		return c.SetError(err)
 	}

@@ -16,7 +16,7 @@ func (e *DeletePoolEndpoint) HandleRequest(request api_server.Request) error {
 	defer request.TraceOutMethod()
 
 	// delete pool
-	err := e.service.Pools.DeletePool(request, request.GetResourceId("pool"))
+	err := e.service.Pools.DeletePool(request, request.GetResourceId("pool").Value())
 	if err != nil {
 		c.SetMessage("failed to delete pool")
 		return c.SetError(err)

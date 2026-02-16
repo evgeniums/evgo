@@ -36,7 +36,7 @@ func (e *UpdatePoolEndpoint) HandleRequest(request api_server.Request) error {
 	}
 
 	// update pool
-	poolId := request.GetResourceId("pool")
+	poolId := request.GetResourceId("pool").Value()
 	p, err := e.service.Pools.UpdatePool(request, poolId, cmd.Fields)
 	if err != nil {
 		c.SetMessage("failed to update pool")

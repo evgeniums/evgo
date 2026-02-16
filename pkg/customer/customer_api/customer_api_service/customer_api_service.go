@@ -46,7 +46,7 @@ type CustomerService = Service[*customer.Customer]
 
 func NewCustomerService(customers *customer.Manager) *CustomerService {
 
-	s := NewService[*customer.Customer](customers)
+	s := NewService(customers)
 
 	customerTableConfig := &api_server.DynamicTableConfig{Model: &customer.Customer{}, Operation: s.ListOperation()}
 	s.AddDynamicTables(customerTableConfig)

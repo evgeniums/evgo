@@ -1,6 +1,6 @@
 module github.com/evgeniums/go-utils
 
-go 1.18
+go 1.21
 
 require (
 	github.com/dchest/uniuri v1.2.0
@@ -11,7 +11,6 @@ require (
 	github.com/go-playground/validator/v10 v10.11.2
 	github.com/google/go-querystring v1.1.0
 	github.com/gorilla/schema v1.2.0
-	github.com/jackc/pgconn v1.14.1
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
 	github.com/jellydator/ttlcache/v3 v3.1.0
 	github.com/jessevdk/go-flags v1.5.0
@@ -22,6 +21,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.8.2
 	github.com/tidwall/jsonc v0.3.2
+	go.mongodb.org/mongo-driver v1.16.1
 	golang.org/x/crypto v0.22.0
 	golang.org/x/exp v0.0.0-20230126173853-a67bb567ff2e
 	golang.org/x/term v0.19.0
@@ -40,7 +40,6 @@ require (
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
-	go.mongodb.org/mongo-driver v1.16.1 // indirect
 )
 
 require (
@@ -57,13 +56,8 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/goccy/go-json v0.10.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
-	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgproto3/v2 v2.3.2 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect
-	github.com/jackc/pgtype v1.11.0 // indirect
-	github.com/jackc/pgx/v4 v4.16.1 // indirect
 	github.com/jackc/pgx/v5 v5.5.1
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
@@ -72,7 +66,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/lib/pq v1.10.3 // indirect
 	github.com/lukasjarosch/go-docx v0.4.7
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect

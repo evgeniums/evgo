@@ -34,7 +34,7 @@ func (e *UpdateServiceEndpoint) HandleRequest(request api_server.Request) error 
 	}
 
 	// update service
-	serviceId := request.GetResourceId("service")
+	serviceId := request.GetResourceId("service").Value()
 	s, err := e.service.Pools.UpdateService(request, serviceId, cmd.Fields)
 	if err != nil {
 		c.SetMessage("failed to update service")

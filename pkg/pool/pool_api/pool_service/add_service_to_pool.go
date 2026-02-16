@@ -25,7 +25,7 @@ func (e *AddServiceToPoolEndpoint) HandleRequest(request api_server.Request) err
 	}
 
 	// add service to pool
-	poolId := request.GetResourceId("pool")
+	poolId := request.GetResourceId("pool").Value()
 	err = e.service.Pools.AddServiceToPool(request, poolId, cmd.SERVICE_ID, cmd.ROLE)
 	if err != nil {
 		c.SetMessage("failed to add service to pool")

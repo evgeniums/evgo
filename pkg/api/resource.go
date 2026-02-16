@@ -7,6 +7,21 @@ import (
 	"github.com/evgeniums/go-utils/pkg/utils"
 )
 
+type ResourceId interface {
+	Type() string
+	Value() string
+	SetType(val string)
+	SetValue(val string)
+}
+
+type ResourceIds interface {
+	HasId(name string) bool
+	GetId(name string) ResourceId
+	SetId(id ResourceId)
+	UnsetId(name string)
+	Clear()
+}
+
 type Resource interface {
 	Host() string
 	SetHost(val string)
@@ -14,6 +29,9 @@ type Resource interface {
 	Type() string
 	Id() string
 	SetId(val string, rebuild ...bool)
+
+	ResourceId() ResourceId
+	SetResourceId(val ResourceId, rebuild ...bool)
 
 	HasId() bool
 	SetHasId(val bool)
@@ -50,8 +68,8 @@ type Resource interface {
 	FullActualTenancyPath(tenancyId string) string
 	ServicePathPrototype() string
 	ServiceActualPath() string
-	BuildActualPath(actualResourceIds map[string]string, service ...bool) string
-	FillActualPaths(actualResourceIds map[string]string)
+	BuildActualPath(actualResourceIds ResourceIds, service ...bool) string
+	FillActualPaths(actualResourceIds ResourceIds)
 	ResetIds()
 
 	RebuildPaths()
@@ -64,17 +82,46 @@ type Resource interface {
 	CloneChain(withOperations bool) Resource
 }
 
+type ResourceIdBase struct {
+	typ   string
+	value string
+}
+
+func NewResourceIdBase(typ string, value ...string) ResourceId {
+	r := &ResourceIdBase{typ: typ}
+	if len(value) > 0 {
+		r.value = value[0]
+	}
+	return r
+}
+
+func (r *ResourceIdBase) Type() string {
+	return r.typ
+}
+
+func (r *ResourceIdBase) Value() string {
+	return r.value
+}
+
+func (r *ResourceIdBase) SetType(typ string) {
+	r.typ = typ
+}
+
+func (r *ResourceIdBase) SetValue(val string) {
+	r.value = val
+}
+
 type ResourceConfig struct {
 	Host    string
 	HasId   bool
 	Service bool
-	Id      string
-	Tenancy bool
+	// Id        string
+	Tenancy   bool
+	IdWrapper ResourceId
 }
 
 type ResourceBase struct {
 	ResourceConfig
-	resourceType         string
 	pathPrototype        string
 	actualPath           string
 	fullPathPrototype    string
@@ -111,13 +158,18 @@ func NewTenancyResource(tenancyResourceName ...string) *ResourceBase {
 func (r *ResourceBase) Init(resourceType string, config ...ResourceConfig) {
 	r.children = make([]Resource, 0)
 	r.operations = make([]Operation, 0)
-	r.resourceType = resourceType
 	r.ResourceConfig = utils.OptionalArg(ResourceConfig{}, config...)
 	r.inTenancy = r.ResourceConfig.Tenancy
 	if r.ResourceConfig.Tenancy {
 		r.tenancyResource = r
 	}
 	r.parameterSubstitution = utils.ConcatStrings(":", resourceType)
+	if r.ResourceConfig.IdWrapper == nil {
+		r.ResourceConfig.IdWrapper = &ResourceIdBase{typ: resourceType}
+	} else {
+		r.ResourceConfig.IdWrapper.SetType(resourceType)
+	}
+
 	r.RebuildPaths()
 }
 
@@ -222,21 +274,34 @@ func (r *ResourceBase) ServiceActualPath() string {
 }
 
 func (r *ResourceBase) Type() string {
-	return r.resourceType
+	return r.IdWrapper.Type()
 }
 
 func (r *ResourceBase) Id() string {
-	return r.ResourceConfig.Id
+	return r.IdWrapper.Value()
 }
 
-func (r *ResourceBase) SetId(val string, rebuild ...bool) {
-	r.ResourceConfig.Id = val
-	if val != "" {
+func (r *ResourceBase) updateId(rebuild ...bool) {
+	if r.IdWrapper.Value() != "" {
 		r.SetHasId(true)
 	}
 	if utils.OptionalArg(true, rebuild...) {
 		r.RebuildPaths()
 	}
+}
+
+func (r *ResourceBase) SetId(val string, rebuild ...bool) {
+	r.IdWrapper.SetValue(val)
+	r.updateId(rebuild...)
+}
+
+func (r *ResourceBase) SetResourceId(val ResourceId, rebuild ...bool) {
+	r.IdWrapper = val
+	r.updateId(rebuild...)
+}
+
+func (r *ResourceBase) ResourceId() ResourceId {
+	return r.IdWrapper
 }
 
 func (r *ResourceBase) HasId() bool {
@@ -421,7 +486,7 @@ func (r *ResourceBase) ChainResourceId(resourceType string) string {
 	return ""
 }
 
-func (r *ResourceBase) BuildActualPath(actualResourceIds map[string]string, service ...bool) string {
+func (r *ResourceBase) BuildActualPath(actualResourceIds ResourceIds, service ...bool) string {
 
 	servicePath := utils.OptionalArg(false, service...)
 	if servicePath && !r.IsServicePart() {
@@ -430,9 +495,9 @@ func (r *ResourceBase) BuildActualPath(actualResourceIds map[string]string, serv
 
 	path := "/"
 	if r.HasId() {
-		id, ok := actualResourceIds[r.Type()]
-		if ok {
-			path = utils.ConcatStrings("/", id)
+		id := actualResourceIds.GetId(r.Type())
+		if id != nil {
+			path = utils.ConcatStrings("/", id.Value())
 		}
 	} else {
 		path = utils.ConcatStrings("/", r.Type())
@@ -449,12 +514,12 @@ func (r *ResourceBase) BuildActualPath(actualResourceIds map[string]string, serv
 	return path
 }
 
-func (r *ResourceBase) FillActualPaths(actualResourceIds map[string]string) {
+func (r *ResourceBase) FillActualPaths(actualResourceIds ResourceIds) {
 
 	if r.HasId() {
-		selfId, ok := actualResourceIds[r.Type()]
-		if ok {
-			r.SetId(selfId, false)
+		selfId := actualResourceIds.GetId(r.Type())
+		if selfId != nil {
+			r.SetId(selfId.Value(), false)
 		}
 	}
 
@@ -479,7 +544,9 @@ func (r *ResourceBase) ResetIds() {
 }
 
 func (r *ResourceBase) Clone(withOperations bool) Resource {
-	resource := NewResource(r.resourceType, r.ResourceConfig)
+	cfg := r.ResourceConfig
+	cfg.IdWrapper = nil
+	resource := NewResource(r.Type(), cfg)
 	if r.HasId() {
 		resource.SetId(r.Id())
 	}
@@ -494,7 +561,7 @@ func (r *ResourceBase) Clone(withOperations bool) Resource {
 }
 
 func (r *ResourceBase) CloneChain(withOperations bool) Resource {
-	resource := NewResource(r.resourceType, r.ResourceConfig)
+	resource := NewResource(r.Type(), r.ResourceConfig)
 	if r.HasId() {
 		resource.SetId(r.Id())
 	}
@@ -512,7 +579,7 @@ func (r *ResourceBase) CloneChain(withOperations bool) Resource {
 }
 
 func (r *ResourceBase) ChainHasResourceType(resourceType string) bool {
-	if r.resourceType == resourceType {
+	if r.Type() == resourceType {
 		return true
 	}
 	if r.parent != nil {
@@ -551,4 +618,34 @@ func AddChildResource(resource Resource, childName string) Resource {
 	child := NewResource(childName)
 	resource.AddChild(child)
 	return child
+}
+
+type ResourceIdsBase struct {
+	ids map[string]ResourceId
+}
+
+func NewResourceIdsBase() *ResourceIdsBase {
+	return &ResourceIdsBase{ids: make(map[string]ResourceId)}
+}
+
+func (r *ResourceIdsBase) HasId(name string) bool {
+	_, ok := r.ids[name]
+	return ok
+}
+
+func (r *ResourceIdsBase) GetId(name string) ResourceId {
+	val := r.ids[name]
+	return val
+}
+
+func (r *ResourceIdsBase) SetId(val ResourceId) {
+	r.ids[val.Type()] = val
+}
+
+func (r *ResourceIdsBase) UnsetId(name string) {
+	delete(r.ids, name)
+}
+
+func (r *ResourceIdsBase) Clear() {
+	clear(r.ids)
 }

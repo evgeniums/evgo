@@ -25,7 +25,7 @@ func (s *SetCustomerEndpoint) HandleRequest(request api_server.Request) error {
 	}
 
 	// apply
-	err = s.service.Tenancies.SetCustomer(request, request.GetResourceId(tenancy_api.TenancyResource), cmd.CustomerId())
+	err = s.service.Tenancies.SetCustomer(request, request.GetResourceId(tenancy_api.TenancyResource).Value(), cmd.CustomerId())
 	if err != nil {
 		return c.SetError(err)
 	}

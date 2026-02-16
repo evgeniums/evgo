@@ -16,7 +16,7 @@ func (e *RemoveServiceFromAllPoolsEndpoint) HandleRequest(request api_server.Req
 	defer request.TraceOutMethod()
 
 	// do operation
-	serviceId := request.GetResourceId("service")
+	serviceId := request.GetResourceId("service").Value()
 	err := e.service.Pools.RemoveServiceFromAllPools(request, serviceId)
 	if err != nil {
 		c.SetMessage("failed to remove services from all pools")

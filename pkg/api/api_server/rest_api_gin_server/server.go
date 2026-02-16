@@ -386,9 +386,9 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 			tenancyInPath := request.GetResourceId(s.TENANCY_PARAMETER)
 			request.SetLoggerField("tenancy", tenancyInPath)
 			if s.SHADOW_TENANCY_PATH {
-				tenancy, err = s.tenancies.TenancyByShadowPath(tenancyInPath)
+				tenancy, err = s.tenancies.TenancyByShadowPath(tenancyInPath.Value())
 			} else {
-				tenancy, err = s.tenancies.TenancyByPath(tenancyInPath)
+				tenancy, err = s.tenancies.TenancyByPath(tenancyInPath.Value())
 			}
 			if err != nil {
 				request.SetGenericErrorCode(generic_error.ErrorCodeNotFound)
@@ -420,7 +420,7 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 			}
 			if err == nil {
 				if s.TENANCY_ALLOWED_IP_LIST {
-					if !s.tenancies.HasIpAddressByPath(tenancyInPath, request.clientIp, s.TENANCY_ALLOWED_IP_LIST_TAG) {
+					if !s.tenancies.HasIpAddressByPath(tenancyInPath.Value(), request.clientIp, s.TENANCY_ALLOWED_IP_LIST_TAG) {
 						err = errors.New("IP address is not in whitelist")
 						request.SetGenericErrorCode(generic_error.ErrorCodeForbidden)
 					}

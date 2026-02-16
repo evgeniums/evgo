@@ -79,7 +79,7 @@ func GetTokenFromCache(ctx auth.AuthContext) (*OperationCacheToken, error) {
 	operationId := ctx.GetResourceId(OperationResource)
 	ctx.SetLoggerField("confirmation_id", operationId)
 	cacheToken := &OperationCacheToken{}
-	cacheKey := OperationIdCacheKey(operationId)
+	cacheKey := OperationIdCacheKey(operationId.Value())
 	found, err := ctx.Cache().Get(cacheKey, cacheToken)
 	if err != nil {
 		c.SetMessage("failed to get cache token")
@@ -104,7 +104,7 @@ func DeleteTokenFromCache(ctx auth.AuthContext) {
 	// get token from cache
 	operationId := ctx.GetResourceId(OperationResource)
 	ctx.SetLoggerField("confirmation_id", operationId)
-	cacheKey := OperationIdCacheKey(operationId)
+	cacheKey := OperationIdCacheKey(operationId.Value())
 	err := ctx.Cache().Unset(cacheKey)
 	if err != nil {
 		c.Logger().Warn("failed to delete cache token")

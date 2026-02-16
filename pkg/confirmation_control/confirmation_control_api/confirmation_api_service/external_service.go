@@ -103,7 +103,7 @@ func (e *CheckConfirmationEndpoint) HandleRequest(request api_server.Request) er
 
 	// invoke callback
 	resp := &confirmation_control_api.CheckConfirmationResponse{}
-	resp.RedirectUrl, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(request, confirmationId, result)
+	resp.RedirectUrl, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(request, confirmationId.Value(), result)
 	request.SetLoggerField("redirect_url", resp.RedirectUrl)
 	if err != nil {
 		c.SetMessage("failed to invoke callback")
@@ -191,7 +191,7 @@ func (e *FailedConfirmationEndpoint) HandleRequest(request api_server.Request) e
 
 	// invoke callback
 	resp := &confirmation_control_api.CheckConfirmationResponse{}
-	resp.RedirectUrl, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(request, confirmationId, result)
+	resp.RedirectUrl, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(request, confirmationId.Value(), result)
 	request.SetLoggerField("redirect_url", confirmationId)
 	if err != nil {
 		c.SetMessage("failed to invoke callback")

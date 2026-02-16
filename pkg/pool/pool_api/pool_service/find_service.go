@@ -19,7 +19,7 @@ func (e *FindServiceEndpoint) HandleRequest(request api_server.Request) error {
 	defer request.TraceOutMethod()
 
 	// find service
-	s, err := e.service.Pools.FindService(request, request.GetResourceId("service"))
+	s, err := e.service.Pools.FindService(request, request.GetResourceId("service").Value())
 	if err != nil {
 		c.SetMessage("failed to find service")
 		return c.SetError(err)

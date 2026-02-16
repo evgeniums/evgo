@@ -25,7 +25,7 @@ func (s *SetDbRoleEndpoint) HandleRequest(request api_server.Request) error {
 	}
 
 	// apply
-	err = s.service.Tenancies.SetDbRole(request, request.GetResourceId(tenancy_api.TenancyResource), cmd.Role())
+	err = s.service.Tenancies.SetDbRole(request, request.GetResourceId(tenancy_api.TenancyResource).Value(), cmd.Role())
 	if err != nil {
 		return c.SetError(err)
 	}

@@ -25,7 +25,7 @@ func (s *ChangePoolOrDbEndpoint) HandleRequest(request api_server.Request) error
 	}
 
 	// apply
-	err = s.service.Tenancies.ChangePoolOrDb(request, request.GetResourceId(tenancy_api.TenancyResource), cmd.PoolId(), cmd.DbName())
+	err = s.service.Tenancies.ChangePoolOrDb(request, request.GetResourceId(tenancy_api.TenancyResource).Value(), cmd.PoolId(), cmd.DbName())
 	if err != nil {
 		return c.SetError(err)
 	}

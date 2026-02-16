@@ -22,7 +22,7 @@ func (s *SetNameEndpoint[T]) HandleRequest(request api_server.Request) error {
 		return err
 	}
 
-	err = Setter(s.service.Controller, request).SetName(request, request.GetResourceId(s.service.UserTypeName), cmd.Name())
+	err = Setter(s.service.Controller, request).SetName(request, request.GetResourceId(s.service.UserTypeName).Value(), cmd.Name())
 	if err != nil {
 		return c.SetError(err)
 	}

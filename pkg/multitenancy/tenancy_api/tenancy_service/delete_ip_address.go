@@ -22,7 +22,7 @@ func (s *DeleteIpAddressEndpoint) HandleRequest(request api_server.Request) erro
 		return err
 	}
 
-	err = s.service.Tenancies.DeleteIpAddress(request, request.GetResourceId(tenancy_api.TenancyResource), cmd.Ip, cmd.Tag)
+	err = s.service.Tenancies.DeleteIpAddress(request, request.GetResourceId(tenancy_api.TenancyResource).Value(), cmd.Ip, cmd.Tag)
 	if err != nil {
 		return c.SetError(err)
 	}

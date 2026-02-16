@@ -343,7 +343,7 @@ func (m *PoolControllerBase) UpdateService(ctx op_context.Context, id string, fi
 	if err != nil {
 		return nil, err
 	}
-	if obj == nil {
+	if s == nil {
 		ctx.SetGenericErrorCode(ErrorCodeServiceNotFound)
 		return nil, c.SetError(errors.New("service not found"))
 	}

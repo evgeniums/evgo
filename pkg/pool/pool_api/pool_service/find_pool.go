@@ -17,7 +17,7 @@ func (e *FindPoolEndpoint) HandleRequest(request api_server.Request) error {
 	defer request.TraceOutMethod()
 
 	// find pool
-	p, err := e.service.Pools.FindPool(request, request.GetResourceId("pool"))
+	p, err := e.service.Pools.FindPool(request, request.GetResourceId("pool").Value())
 	if err != nil {
 		c.SetMessage("failed to find pool")
 		return c.SetError(err)

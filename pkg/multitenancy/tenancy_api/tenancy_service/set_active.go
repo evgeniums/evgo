@@ -24,9 +24,9 @@ func (s *SetActiveEndpoint) HandleRequest(request api_server.Request) error {
 	}
 
 	if cmd.IsActive() {
-		err = s.service.Tenancies.Activate(request, request.GetResourceId(tenancy_api.TenancyResource))
+		err = s.service.Tenancies.Activate(request, request.GetResourceId(tenancy_api.TenancyResource).Value())
 	} else {
-		err = s.service.Tenancies.Deactivate(request, request.GetResourceId(tenancy_api.TenancyResource))
+		err = s.service.Tenancies.Deactivate(request, request.GetResourceId(tenancy_api.TenancyResource).Value())
 	}
 	if err != nil {
 		return c.SetError(err)
