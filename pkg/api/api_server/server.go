@@ -22,9 +22,6 @@ type Server interface {
 	// Run server.
 	Run(fin background_worker.Finisher)
 
-	// Add operation endpoint to server.
-	AddEndpoint(ep Endpoint, multitenancy ...bool)
-
 	// Check if hateoas links are enabled.
 	IsHateoas() bool
 
@@ -42,6 +39,8 @@ type Server interface {
 
 	// Get pool service used for server configuration
 	ConfigPoolService() pool.PoolService
+
+	RegisterService(Service) error
 }
 
 func AddServiceToServer(s Server, service Service) {

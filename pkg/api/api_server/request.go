@@ -47,13 +47,6 @@ func (r *RequestBase) SetEndpoint(endpoint Endpoint) {
 	r.endpoint = endpoint
 }
 
-// func (r *RequestBase) Init(app app_context.Context, log logger.Logger, db db.DB, endpoint Endpoint, fields ...logger.Fields) {
-// 	baseCtx := default_op_context.NewContext()
-// 	baseCtx.Init(app, log, db, fields...)
-// 	r.Construct(baseCtx)
-// 	r.endpoint = endpoint
-// }
-
 func (r *RequestBase) Endpoint() Endpoint {
 	return r.endpoint
 }

@@ -7,7 +7,6 @@ import (
 	"net/netip"
 	"strings"
 
-	"github.com/evgeniums/go-utils/pkg/access_control"
 	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
 	"github.com/evgeniums/go-utils/pkg/app_context"
@@ -61,6 +60,28 @@ func (g *GrpcServerRunner) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+type UnaryHandler struct {
+	endpoint            api_server.Endpoint
+	server              *Server
+	grpcUnaryServerInfo *grpc.UnaryServerInfo
+	newProtoMessage     func() interface{}
+
+	transportToLogic func(interface{}) RequestMessage
+	logicToTransport func(interface{}) interface{}
+}
+
+func (u *UnaryHandler) SetTransportToLogicMessageMapper(mapper func(interface{}) RequestMessage) {
+	u.transportToLogic = mapper
+}
+
+func (u *UnaryHandler) SetLogicToTransportMessageMapper(mapper func(interface{}) interface{}) {
+	u.logicToTransport = mapper
+}
+
+func (u *UnaryHandler) SetTransportMessageBuilder(builder func() interface{}) {
+	u.newProtoMessage = builder
+}
+
 type Server struct {
 	ServerConfig
 	app_context.WithAppBase
@@ -84,6 +105,9 @@ type Server struct {
 
 	hostname string
 	crashed  bool
+
+	handlers map[string]UnaryHandler
+	services map[string]api_server.Service
 }
 
 func NewServer() *Server {
@@ -236,6 +260,9 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	auth.AttachToErrorManager(s)
 
 	s.tenancies = tenancyManager
+
+	s.handlers = map[string]UnaryHandler{}
+	s.services = map[string]api_server.Service{}
 
 	if s.IsMultitenancy() {
 		ctx.Logger().Info("REST API server: enabling multitenancy mode")
@@ -501,25 +528,43 @@ func RequestInializingInterceptor() grpc.UnaryServerInterceptor {
 // 	}
 // }
 
-func (s *Server) AddEndpoint(ep api_server.Endpoint, withMultitenancy ...bool) {
+func (s *Server) FullMethodName(service api_server.Service, ep api_server.Endpoint) string {
+	return fmt.Sprintf("/%s/%s", service.Name(), ep.Name())
+}
+
+func (s *Server) GrpcUnaryHandler(service api_server.Service, ep api_server.Endpoint) *UnaryHandler {
+	handler, ok := s.handlers[s.FullMethodName(service, ep)]
+	if !ok {
+		return nil
+	}
+	return &handler
+}
+
+func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint, methods []grpc.MethodDesc) {
 
 	if ep.TestOnly() && !s.Testing() {
 		return
 	}
 
 	ep.AttachToErrorManager(s)
-
-	method := access_control.Access2HttpMethod(ep.AccessType())
-	if method == "" {
-		panic(fmt.Sprintf("Invalid HTTP method in endpoint %s for access %d", ep.Name(), ep.AccessType()))
-	}
-
-	if s.IsMultitenancy() && utils.OptionalArg(false, withMultitenancy...) {
+	if s.IsMultitenancy() {
 		s.tenancyResource.AddChild(ep.Resource().ServiceResource())
 	}
 
-	// path := fmt.Sprintf("%s/%s%s", s.PATH_PREFIX, s.ApiVersion(), ep.Resource().FullPathPrototype())
-	// s.ginEngine.Handle(method, path, requestHandler(s, ep))
+	fullMethodName := s.FullMethodName(service, ep)
+	info := &grpc.UnaryServerInfo{
+		Server:     s.grpcServer,
+		FullMethod: fullMethodName,
+	}
+	handler := UnaryHandler{endpoint: ep, server: s, grpcUnaryServerInfo: info}
+	s.handlers[fullMethodName] = handler
+
+	grpcMethod := grpc.MethodDesc{
+		MethodName: "CustomMethod",
+		Handler:    handler.handle,
+	}
+
+	methods = append(methods, grpcMethod)
 }
 
 func (s *Server) MakeResponseError(gerr generic_error.Error) (int, generic_error.Error) {
@@ -527,50 +572,84 @@ func (s *Server) MakeResponseError(gerr generic_error.Error) (int, generic_error
 	return code, gerr
 }
 
-// package main
+type grpcContextKey string
 
-// import (
-// 	"context"
-// 	"fmt"
-// 	"net"
+const requestContextKey grpcContextKey = "request"
 
-// 	"google.golang.org/grpc"
-// 	"google.golang.org/grpc/codes"
-// 	"google.golang.org/grpc/status"
-// )
+func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 
-// // 1. Define your server struct
-// type myServer struct{}
+	request, ok := ctx.Value(requestContextKey).(*Request)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "invalid type of gRPC request")
+	}
+	request.SetEndpoint(u.endpoint)
 
-// // 2. Define the handler function for your "invisible" method
-// func (s *myServer) CustomHandler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-// 	// If you use a real proto message, pass it to dec().
-// 	// For raw access, you can sometimes use a generic message type.
-// 	fmt.Println("CustomMethod was called!")
-// 	return nil, status.Error(codes.OK, "Success from non-proto method")
-// }
+	var msg interface{}
+	if u.newProtoMessage == nil {
+		// TODO make message automatically
+	} else {
+		msg = u.newProtoMessage()
+	}
+	if msg != nil {
+		if err := dec(msg); err != nil {
+			return nil, err
+		}
+	}
 
-// func main() {
-// 	lis, _ := net.Listen("tcp", ":50051")
-// 	s := grpc.NewServer()
+	finalHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
 
-// 	// 3. Manually define the ServiceDesc
-// 	serviceDesc := &grpc.ServiceDesc{
-// 		ServiceName: "example.DynamicService",
-// 		HandlerType: (*interface{})(nil),
-// 		Methods: []grpc.MethodDesc{
-// 			{
-// 				MethodName: "CustomMethod",
-// 				Handler:    (s.Server().(*myServer)).CustomHandler, // Reference your handler
-// 			},
-// 		},
-// 		Streams:  []grpc.StreamDesc{},
-// 		Metadata: "manual-registration",
-// 	}
+		if u.transportToLogic == nil {
+			request.message = &RequestMessageBase{message: req}
+		} else {
+			request.message = u.transportToLogic(req)
+		}
+		err := u.endpoint.HandleRequest(request)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to handle gRPC request")
+		}
 
-// 	// 4. Register the service using the custom descriptor
-// 	s.RegisterService(serviceDesc, &myServer{})
+		var response interface{}
+		if request.Response().Message() != nil {
+			if u.logicToTransport == nil {
+				response = request.Response().Message
+			} else {
+				response = u.logicToTransport(request.Response().Message)
+			}
+		}
 
-// 	fmt.Println("Server starting on :50051...")
-// 	s.Serve(lis)
-// }
+		return response, status.Error(codes.OK, "success")
+	}
+
+	if interceptor == nil {
+		return finalHandler(ctx, msg)
+	}
+
+	return interceptor(ctx, msg, u.grpcUnaryServerInfo, finalHandler)
+}
+
+func (s *Server) RegisterService(service api_server.Service) error {
+
+	methods := []grpc.MethodDesc{}
+
+	service.EachOperation(func(op api.Operation) error {
+		ep, ok := op.(api_server.Endpoint)
+		if !ok {
+			return fmt.Errorf("invalid opertaion type, must be endpoint: %s", op.Name())
+		}
+		s.AddEndpoint(service, ep, methods)
+		return nil
+	})
+
+	serviceDesc := &grpc.ServiceDesc{
+		ServiceName: service.Name(),
+		HandlerType: (*interface{})(nil),
+		Methods:     methods,
+		Streams:     []grpc.StreamDesc{},
+		Metadata:    "manual-registration",
+	}
+
+	s.grpcServer.RegisterService(serviceDesc, nil)
+	s.services[service.Name()] = service
+
+	return nil
+}

@@ -547,3 +547,14 @@ func (s *Server) AuthParameterSetter(authMethodProtocol string) AuthParameterSet
 func (s *Server) GinEngine() *gin.Engine {
 	return s.ginEngine
 }
+
+func (s *Server) RegisterService(service api_server.Service) error {
+	return service.EachOperation(func(op api.Operation) error {
+		ep, ok := op.(api_server.Endpoint)
+		if !ok {
+			return fmt.Errorf("invalid opertaion type, must be endpoint: %s", op.Name())
+		}
+		s.AddEndpoint(ep, service.SupportsMultitenancy())
+		return nil
+	})
+}

@@ -1,9 +1,8 @@
 package api_server
 
 import (
-	"fmt"
-
 	"github.com/evgeniums/go-utils/pkg/api"
+	"github.com/evgeniums/go-utils/pkg/common"
 	"github.com/evgeniums/go-utils/pkg/generic_error"
 	"github.com/evgeniums/go-utils/pkg/utils"
 )
@@ -13,6 +12,7 @@ type ServiceEachEndpointHandler = func(ep Endpoint)
 // Interface of service that implements one or more groups of API endpoints.
 type Service interface {
 	generic_error.ErrorsExtender
+	common.WithName
 	api.Resource
 
 	SetSupportsMultitenancy(enable bool)
@@ -26,6 +26,7 @@ type Service interface {
 }
 
 type ServiceBase struct {
+	common.WithNameBase
 	api.ResourceBase
 	generic_error.ErrorsExtenderBase
 	server        Server
@@ -70,13 +71,5 @@ func (s *ServiceBase) AttachToServer(server Server) error {
 			server.DynamicTables().AddTable(dynamicTable)
 		}
 	}
-
-	return s.EachOperation(func(op api.Operation) error {
-		ep, ok := op.(Endpoint)
-		if !ok {
-			return fmt.Errorf("invalid opertaion type, must be endpoint: %s", op.Name())
-		}
-		server.AddEndpoint(ep, s.SupportsMultitenancy())
-		return nil
-	})
+	return server.RegisterService(s)
 }

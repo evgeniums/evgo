@@ -11,7 +11,6 @@ import (
 	"github.com/evgeniums/go-utils/pkg/logger"
 	"github.com/evgeniums/go-utils/pkg/utils"
 	"github.com/evgeniums/go-utils/pkg/validator"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -24,27 +23,27 @@ type CallContext struct {
 
 type RequestMessage interface {
 	ResourceIds() api.ResourceIds
-	Content() []byte
-	Payload() proto.Message
+	BinaryContent() []byte
+	LogicMessage() interface{}
 }
 
-type RequestMessageBase[T proto.Message] struct {
-	payload T
+type RequestMessageBase struct {
+	message interface{}
 }
 
-func NewRequestMessage[T proto.Message](message T) *RequestMessageBase[T] {
-	return &RequestMessageBase[T]{payload: message}
+func NewRequestMessage() *RequestMessageBase {
+	return &RequestMessageBase{}
 }
 
-func (m *RequestMessageBase[T]) Content() []byte {
+func (m *RequestMessageBase) BinaryContent() []byte {
 	return nil
 }
 
-func (m *RequestMessageBase[T]) Payload() proto.Message {
-	return m.payload
+func (m *RequestMessageBase) LogicMessage() any {
+	return m.message
 }
 
-func (m *RequestMessageBase[T]) ResourceIds() api.ResourceIds {
+func (m *RequestMessageBase) ResourceIds() api.ResourceIds {
 	return nil
 }
 
@@ -214,7 +213,7 @@ func (r *Request) GetRequestContent() []byte {
 	if r.message == nil {
 		return nil
 	}
-	return r.message.Content()
+	return r.message.BinaryContent()
 }
 
 func AuthKey(key string, directKeyName ...bool) string {
@@ -319,5 +318,5 @@ func (r *Request) MessageFromRequest(builder func() interface{}) interface{} {
 	if r.message == nil {
 		return nil
 	}
-	return r.message.Payload()
+	return r.message.LogicMessage()
 }
