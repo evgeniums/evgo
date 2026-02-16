@@ -331,7 +331,7 @@ func (s *Server) Run(fin background_worker.Finisher) {
 
 const OriginType = "grpc"
 
-func ContextDataInterceptor() grpc.UnaryServerInterceptor {
+func RequestInializingInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// request := &Request{}
 

@@ -46,8 +46,7 @@ func (e *CallbackConfirmationEndpoint) HandleRequest(request api_server.Request)
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd := &confirmation_control_api.CallbackConfirmationCmd{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[confirmation_control_api.CallbackConfirmationCmd](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

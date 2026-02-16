@@ -266,7 +266,7 @@ func (r *Request) ParseValidateBody(cmd interface{}) error {
 	return nil
 }
 
-func (r *Request) ParseValidate(cmd interface{}) error {
+func (r *Request) ParseAndValidate(cmd interface{}) error {
 
 	if access_control.HttpContentInQuery(r.Endpoint().AccessType()) {
 		return r.ParseValidateQuery(cmd)
@@ -295,4 +295,8 @@ func (r *Request) FormFile() (*multipart.FileHeader, error) {
 		return nil, err
 	}
 	return file, nil
+}
+
+func (r *Request) MessageFromRequest(builder func() interface{}) interface{} {
+	return builder()
 }

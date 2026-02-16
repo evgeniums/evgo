@@ -16,7 +16,7 @@ func (s *AddIpAddressEndpoint) HandleRequest(request api_server.Request) error {
 
 	// parse command
 	cmd := &tenancy_api.IpAddressCmd{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[tenancy_api.IpAddressCmd](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

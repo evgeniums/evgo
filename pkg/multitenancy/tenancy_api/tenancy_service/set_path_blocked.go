@@ -18,7 +18,7 @@ func (s *SetPathBlockedEndpoint) HandleRequest(request api_server.Request) error
 
 	// parse command
 	cmd := &multitenancy.BlockPathCmd{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[multitenancy.BlockPathCmd](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

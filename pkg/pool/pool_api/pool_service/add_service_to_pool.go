@@ -17,8 +17,7 @@ func (e *AddServiceToPoolEndpoint) HandleRequest(request api_server.Request) err
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd := &pool.PoolServiceAssociationCmd{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[pool.PoolServiceAssociationCmd](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

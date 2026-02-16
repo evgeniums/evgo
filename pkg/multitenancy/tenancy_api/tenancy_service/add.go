@@ -18,7 +18,7 @@ func (e *AddEndpoint) HandleRequest(request api_server.Request) error {
 
 	// parse command
 	cmd := &multitenancy.TenancyData{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[multitenancy.TenancyData](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

@@ -16,8 +16,7 @@ func (e *DeleteEndpoint) HandleRequest(request api_server.Request) error {
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd := &tenancy_api.DeleteTenancyCmd{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[tenancy_api.DeleteTenancyCmd](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

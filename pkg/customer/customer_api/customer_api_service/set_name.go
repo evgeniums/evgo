@@ -17,7 +17,7 @@ func (s *SetNameEndpoint[T]) HandleRequest(request api_server.Request) error {
 	defer request.TraceOutMethod()
 
 	cmd := &common.WithNameBase{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[common.WithNameBase](request)
 	if err != nil {
 		return err
 	}

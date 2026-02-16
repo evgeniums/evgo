@@ -17,8 +17,9 @@ func (e *AddEndpoint[U]) HandleRequest(request api_server.Request) error {
 	c := request.TraceInMethod("users.Add")
 	defer request.TraceOutMethod()
 
+	// TODO implement special case to fill object from request
 	cmd := e.setterBuilder()
-	err := request.ParseValidate(cmd)
+	err := request.ParseAndValidate(cmd)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

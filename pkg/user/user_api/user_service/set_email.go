@@ -15,8 +15,7 @@ func (s *SetEmailEndpoint) HandleRequest(request api_server.Request) error {
 	c := request.TraceInMethod("users.SetEmail")
 	defer request.TraceOutMethod()
 
-	cmd := &user.UserEmail{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[user.UserEmail](request)
 	if err != nil {
 		return err
 	}

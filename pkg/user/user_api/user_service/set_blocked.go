@@ -15,8 +15,7 @@ func (s *SetBlockedEndpoint) HandleRequest(request api_server.Request) error {
 	c := request.TraceInMethod("users.SetBlocked")
 	defer request.TraceOutMethod()
 
-	cmd := &user.UserBlocked{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[user.UserBlocked](request)
 	if err != nil {
 		return err
 	}

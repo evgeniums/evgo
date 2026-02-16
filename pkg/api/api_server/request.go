@@ -1,6 +1,7 @@
 package api_server
 
 import (
+	"errors"
 	"mime/multipart"
 
 	"github.com/evgeniums/go-utils/pkg/api"
@@ -8,6 +9,7 @@ import (
 	"github.com/evgeniums/go-utils/pkg/auth"
 	"github.com/evgeniums/go-utils/pkg/common"
 	"github.com/evgeniums/go-utils/pkg/db"
+	"github.com/evgeniums/go-utils/pkg/generic_error"
 	"github.com/evgeniums/go-utils/pkg/logger"
 	"github.com/evgeniums/go-utils/pkg/op_context/default_op_context"
 	"github.com/evgeniums/go-utils/pkg/validator"
@@ -22,9 +24,11 @@ type Request interface {
 	Response() Response
 	Endpoint() Endpoint
 
-	ParseValidate(cmd interface{}) error
+	ParseAndValidate(cmd interface{}) error
 	FormData() map[string][]string
 	FormFile() (*multipart.FileHeader, error)
+
+	MessageFromRequest(builder func() interface{}) interface{}
 }
 
 type RequestBase struct {
@@ -73,7 +77,7 @@ func ParseDbQuery(request Request, model interface{}, queryName string, cmd ...a
 	c := request.TraceInMethod("ParseDbQuery", logger.Fields{"query_name": queryName})
 	defer request.TraceOutMethod()
 
-	err := request.ParseValidate(q)
+	err := request.ParseAndValidate(q)
 	if err != nil {
 		c.SetMessage("failed to parse/verify query")
 		return nil, c.SetError(err)
@@ -108,4 +112,35 @@ func UniqueFormData(request Request) map[string]string {
 	}
 
 	return res
+}
+
+func MessageFromRequest[T any](request Request, init ...func(*T)) (*T, error) {
+	msg := request.MessageFromRequest(
+		func() interface{} {
+			m := new(T)
+			if len(init) > 0 {
+				init[0](m)
+			}
+			return m
+		},
+	)
+	if msg == nil {
+		request.SetGenericErrorCode(generic_error.ErrorCodeFormat)
+		return nil, errors.New("no message in request")
+	}
+	ptr, ok := msg.(*T)
+	if !ok {
+		request.SetGenericErrorCode(generic_error.ErrorCodeFormat)
+		return nil, errors.New("failed to cast request")
+	}
+	return ptr, nil
+}
+
+func ParseValidateRequest[T any](request Request, init ...func(*T)) (*T, error) {
+	msg, err := MessageFromRequest[T](request)
+	if err != nil {
+		return nil, err
+	}
+	err = request.ParseAndValidate(msg)
+	return msg, err
 }

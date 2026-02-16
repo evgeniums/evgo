@@ -23,8 +23,7 @@ func (e *DynamicTableEndpoint) HandleRequest(request Request) error {
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd := &DynamicTableQuery{}
-	err := request.ParseValidate(cmd)
+	cmd, err := ParseValidateRequest[DynamicTableQuery](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

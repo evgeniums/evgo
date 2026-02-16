@@ -9,6 +9,7 @@ require (
 	github.com/evgeniums/viper v0.0.0-20230408104246-ba679b16578b
 	github.com/gin-gonic/gin v1.9.0
 	github.com/go-playground/validator/v10 v10.11.2
+	github.com/golang/protobuf v1.5.4
 	github.com/google/go-querystring v1.1.0
 	github.com/gorilla/schema v1.2.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3

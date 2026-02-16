@@ -11,6 +11,7 @@ import (
 	"github.com/evgeniums/go-utils/pkg/logger"
 	"github.com/evgeniums/go-utils/pkg/utils"
 	"github.com/evgeniums/go-utils/pkg/validator"
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -24,6 +25,27 @@ type CallContext struct {
 type RequestMessage interface {
 	ResourceIds() api.ResourceIds
 	Content() []byte
+	Payload() proto.Message
+}
+
+type RequestMessageBase[T proto.Message] struct {
+	payload T
+}
+
+func NewRequestMessage[T proto.Message](message T) *RequestMessageBase[T] {
+	return &RequestMessageBase[T]{payload: message}
+}
+
+func (m *RequestMessageBase[T]) Content() []byte {
+	return nil
+}
+
+func (m *RequestMessageBase[T]) Payload() proto.Message {
+	return m.payload
+}
+
+func (m *RequestMessageBase[T]) ResourceIds() api.ResourceIds {
+	return nil
 }
 
 type Request struct {
@@ -185,7 +207,7 @@ func (r *Request) Close(successMessage ...string) {
 	}
 
 	r.RequestBase.Close("")
-	// r.server.logRequest(r.Logger(), r.start, r.ctx, r.LoggerFields())
+	// r.server.logRequest(r)
 }
 
 func (r *Request) GetRequestContent() []byte {
@@ -263,13 +285,11 @@ func (r *Request) Validate(cmd interface{}) error {
 	return nil
 }
 
-func (r *Request) ParseValidate(cmd interface{}) error {
+func (r *Request) ParseAndValidate(cmd interface{}) error {
 
 	if cmd == nil {
 		return nil
 	}
-
-	// TODO use cmd builder depending on context
 
 	c := r.TraceInMethod("Request.ParseValidate")
 	defer r.TraceOutMethod()
@@ -293,4 +313,11 @@ func (r *Request) FormFile() (*multipart.FileHeader, error) {
 func (r *Request) GetTenancyId() string {
 	// TODO Implement GetTenancy()
 	return ""
+}
+
+func (r *Request) MessageFromRequest(builder func() interface{}) interface{} {
+	if r.message == nil {
+		return nil
+	}
+	return r.message.Payload()
 }

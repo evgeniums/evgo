@@ -89,8 +89,7 @@ func (e *CheckConfirmationEndpoint) HandleRequest(request api_server.Request) er
 	var result = &confirmation_control.ConfirmationResult{}
 	if e.service.CheckCode {
 		// parse command
-		cmd := &confirmation_control.ConfirmationResult{}
-		err := request.ParseValidate(cmd)
+		cmd, err := api_server.ParseValidateRequest[confirmation_control.ConfirmationResult](request)
 		if err != nil {
 			c.SetLoggerField("request_content", string(request.GetRequestContent()))
 			c.SetMessage("failed to parse/validate command")
@@ -178,8 +177,7 @@ func (e *FailedConfirmationEndpoint) HandleRequest(request api_server.Request) e
 	request.SetLoggerField("confirmation_id", confirmationId)
 
 	// parse command
-	result := &confirmation_control.ConfirmationResult{}
-	err = request.ParseValidate(result)
+	result, err := api_server.ParseValidateRequest[confirmation_control.ConfirmationResult](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return c.SetError(err)

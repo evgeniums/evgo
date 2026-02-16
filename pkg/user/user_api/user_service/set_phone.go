@@ -15,8 +15,7 @@ func (s *SetPhoneEndpoint) HandleRequest(request api_server.Request) error {
 	c := request.TraceInMethod("users.SetPhone")
 	defer request.TraceOutMethod()
 
-	cmd := &user.UserPhone{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[user.UserPhone](request)
 	if err != nil {
 		return err
 	}

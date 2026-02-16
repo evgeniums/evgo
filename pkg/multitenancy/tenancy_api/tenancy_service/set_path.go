@@ -17,8 +17,7 @@ func (s *SetPathEndpoint) HandleRequest(request api_server.Request) error {
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd := &multitenancy.WithPath{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[multitenancy.WithPath](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err
@@ -51,8 +50,7 @@ func (s *SetShadowPathEndpoint) HandleRequest(request api_server.Request) error 
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd := &multitenancy.WithPath{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[multitenancy.WithPath](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

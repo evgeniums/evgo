@@ -17,7 +17,7 @@ func (s *SetActiveEndpoint) HandleRequest(request api_server.Request) error {
 
 	// parse command
 	cmd := &common.WithActiveBase{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[common.WithActiveBase](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

@@ -16,8 +16,7 @@ func (s *SetDescriptionEndpoint[T]) HandleRequest(request api_server.Request) er
 	c := request.TraceInMethod("customer.SetDescription")
 	defer request.TraceOutMethod()
 
-	cmd := &common.WithDescriptionBase{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[common.WithDescriptionBase](request)
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ func (s *SetDbRoleEndpoint) HandleRequest(request api_server.Request) error {
 
 	// parse command
 	cmd := &multitenancy.WithRole{}
-	err := request.ParseValidate(cmd)
+	cmd, err := api_server.ParseValidateRequest[multitenancy.WithRole](request)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err
