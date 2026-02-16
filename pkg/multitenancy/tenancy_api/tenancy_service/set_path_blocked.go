@@ -25,7 +25,7 @@ func (s *SetPathBlockedEndpoint) HandleRequest(request api_server.Request) error
 	}
 
 	// apply
-	err = s.service.Tenancies.SetPathBlocked(request, request.GetResourceId(tenancy_api.TenancyResource).Value(), cmd.Block, cmd.Mode)
+	err = s.service.Tenancies.SetPathBlocked(request, request.GetTenancyId(), cmd.Block, cmd.Mode)
 	if err != nil {
 		return c.SetError(err)
 	}

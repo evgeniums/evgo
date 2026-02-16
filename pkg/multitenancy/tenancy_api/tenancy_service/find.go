@@ -18,7 +18,7 @@ func (f *FindEndpoint) HandleRequest(request api_server.Request) error {
 
 	// find
 	resp := &tenancy_api.TenancyResponse{}
-	resp.TenancyItem, err = f.service.Tenancies.Find(request, request.GetResourceId(tenancy_api.TenancyResource).Value())
+	resp.TenancyItem, err = f.service.Tenancies.Find(request, request.GetTenancyId())
 	if err != nil {
 		c.SetMessage("failed to find tenancy")
 		return c.SetError(err)

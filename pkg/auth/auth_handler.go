@@ -24,6 +24,8 @@ type AuthContext interface {
 	GetResourceId(resourceType string) api.ResourceId
 	ResourceIds() api.ResourceIds
 
+	GetTenancyId() string
+
 	GetRequestClientIp() string
 	GetRequestUserAgent() string
 

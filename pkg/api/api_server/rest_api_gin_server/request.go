@@ -14,6 +14,7 @@ import (
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
 	"github.com/evgeniums/go-utils/pkg/http_request"
 	"github.com/evgeniums/go-utils/pkg/logger"
+	"github.com/evgeniums/go-utils/pkg/multitenancy/tenancy_api"
 	"github.com/evgeniums/go-utils/pkg/utils"
 	"github.com/evgeniums/go-utils/pkg/validator"
 	"github.com/gin-gonic/gin"
@@ -38,7 +39,8 @@ func (r *Request) Init(s *Server, ginCtx *gin.Context, ep api_server.Endpoint, f
 	r.start = time.Now()
 	r.server = s
 
-	r.RequestBase.Init(s.App(), s.App().Logger(), s.App().Db(), ep, fields...)
+	r.RequestBase.Init(s.App(), s.App().Logger(), s.App().Db(), fields...)
+	r.SetEndpoint(ep)
 	r.RequestBase.SetErrorManager(s)
 
 	r.clientIp = ginCtx.ClientIP()
@@ -198,6 +200,10 @@ func (r *Request) GetRequestPath() string {
 
 func (r *Request) GetResourceId(resourceType string) api.ResourceId {
 	return api.NewResourceIdBase(resourceType, r.ginCtx.Param(resourceType))
+}
+
+func (r *Request) GetTenancyId() string {
+	return r.GetResourceId(tenancy_api.TenancyResource).Value()
 }
 
 func (r *Request) Validate(cmd interface{}) error {

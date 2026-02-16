@@ -1,6 +1,6 @@
 module github.com/evgeniums/go-utils
 
-go 1.21
+go 1.24.0
 
 require (
 	github.com/dchest/uniuri v1.2.0
@@ -11,6 +11,7 @@ require (
 	github.com/go-playground/validator/v10 v10.11.2
 	github.com/google/go-querystring v1.1.0
 	github.com/gorilla/schema v1.2.0
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
 	github.com/jellydator/ttlcache/v3 v3.1.0
 	github.com/jessevdk/go-flags v1.5.0
@@ -19,13 +20,14 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/sirupsen/logrus v1.6.0
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/jsonc v0.3.2
 	go.mongodb.org/mongo-driver v1.16.1
-	golang.org/x/crypto v0.22.0
-	golang.org/x/exp v0.0.0-20230126173853-a67bb567ff2e
-	golang.org/x/term v0.19.0
-	golang.org/x/text v0.14.0
+	golang.org/x/crypto v0.46.0
+	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8
+	golang.org/x/term v0.38.0
+	golang.org/x/text v0.32.0
+	google.golang.org/grpc v1.79.1
 	gopkg.in/go-playground/assert.v1 v1.2.1
 	gorm.io/driver/postgres v1.5.4
 	gorm.io/driver/sqlite v1.4.4
@@ -40,12 +42,13 @@ require (
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260209200024-4cfbd4190f57 // indirect
 )
 
 require (
 	github.com/bsm/redislock v0.9.3
 	github.com/bytedance/sonic v1.8.1 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -84,12 +87,16 @@ require (
 	github.com/ugorji/go/codec v1.2.10 // indirect
 	gitlab.com/jonas.jasas/condchan v0.0.0-20190210165812-36637ad2b5bc // indirect
 	golang.org/x/arch v0.2.0 // indirect
-	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	google.golang.org/protobuf v1.28.1 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/mail.v2 v2.3.1
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+exclude google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
+
+replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20230526161137-0005af68ea54

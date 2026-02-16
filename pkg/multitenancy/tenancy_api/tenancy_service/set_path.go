@@ -25,7 +25,7 @@ func (s *SetPathEndpoint) HandleRequest(request api_server.Request) error {
 	}
 
 	// apply
-	err = s.service.Tenancies.SetPath(request, request.GetResourceId(tenancy_api.TenancyResource).Value(), cmd.Path())
+	err = s.service.Tenancies.SetPath(request, request.GetTenancyId(), cmd.Path())
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -59,7 +59,7 @@ func (s *SetShadowPathEndpoint) HandleRequest(request api_server.Request) error 
 	}
 
 	// apply
-	err = s.service.Tenancies.SetShadowPath(request, request.GetResourceId(tenancy_api.TenancyResource).Value(), cmd.ShadowPath())
+	err = s.service.Tenancies.SetShadowPath(request, request.GetTenancyId(), cmd.ShadowPath())
 	if err != nil {
 		return c.SetError(err)
 	}
