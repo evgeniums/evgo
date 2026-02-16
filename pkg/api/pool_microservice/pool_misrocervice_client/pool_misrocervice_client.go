@@ -66,6 +66,7 @@ func (p *PoolMicroserviceClient) Init(app app_with_pools.AppWithPools, configPat
 		return app.Logger().PushFatalStack("failed to load configuration of microservice api client", err)
 	}
 
+	// TODO use generic client, do not bind to HTTP
 	// init http client
 	err = p.WithHttpClient.Init(app.Cfg(), app.Logger(), app.Validator(), path)
 	if err != nil {
