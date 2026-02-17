@@ -10,7 +10,7 @@ type AuthSms struct {
 	token string
 }
 
-func (a *AuthSms) HandleResponse(resp Response) {
+func (a *AuthSms) HandleResponse(resp OperationResponse) {
 	if resp == nil {
 		return
 	}

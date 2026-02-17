@@ -19,11 +19,7 @@ type TenancyClient struct {
 	list_ip_addresses api.Operation
 }
 
-type OperationWrapper interface {
-	WrapOperaton(client api_client.Client, op api.Operation)
-}
-
-func NewTenancyClient(client api_client.Client) *TenancyClient {
+func NewTenancyClient(client api_client.Client, operationVisitors ...api.OperationVisitors) *TenancyClient {
 
 	c := &TenancyClient{}
 
@@ -48,6 +44,11 @@ func NewTenancyClient(client api_client.Client) *TenancyClient {
 	c.TenanciesResource.AddChild(existsResource)
 	c.exists = tenancy_api.Exists()
 	existsResource.AddOperation(c.exists)
+
+	api.VisitOperation(c.add, operationVisitors...)
+	api.VisitOperation(c.list, operationVisitors...)
+	api.VisitOperation(c.list_ip_addresses, operationVisitors...)
+	api.VisitOperation(c.exists, operationVisitors...)
 
 	return c
 }

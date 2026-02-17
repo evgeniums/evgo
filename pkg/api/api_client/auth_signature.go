@@ -21,7 +21,7 @@ type AuthSignature struct {
 	EndpoindsConfig auth.EndpointsAuthConfig
 }
 
-func (a *AuthSignature) HandleResponse(resp Response) {
+func (a *AuthSignature) HandleResponse(resp OperationResponse) {
 }
 
 func (a *AuthSignature) MakeHeaders(ctx op_context.Context, operation api.Operation, cmd interface{}) (map[string]string, error) {

@@ -30,7 +30,7 @@ type PoolClient struct {
 	list_services api.Operation
 }
 
-func NewPoolClient(client api_client.Client) *PoolClient {
+func NewPoolClient(client api_client.Client, operationVisitors ...api.OperationVisitors) *PoolClient {
 
 	c := &PoolClient{}
 	var serviceName string
@@ -52,6 +52,11 @@ func NewPoolClient(client api_client.Client) *PoolClient {
 	c.ServicesResource.AddOperations(c.add_service,
 		c.list_services,
 	)
+
+	api.VisitOperation(c.add_pool, operationVisitors...)
+	api.VisitOperation(c.list_pools, operationVisitors...)
+	api.VisitOperation(c.add_service, operationVisitors...)
+	api.VisitOperation(c.list_services, operationVisitors...)
 
 	return c
 }

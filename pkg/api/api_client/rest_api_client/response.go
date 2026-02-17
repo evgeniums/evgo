@@ -9,7 +9,7 @@ import (
 )
 
 type Response interface {
-	api_client.Response
+	api_client.OperationResponse
 	Code() int
 	Header() http.Header
 	Body() []byte

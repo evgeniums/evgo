@@ -41,7 +41,10 @@ func (s *ServiceClient) ApiClient() Client {
 	return s.client
 }
 
-type Response interface {
+type OperationResponse interface {
 	SetHeader(key string, value string)
 	GetHeader(key string) string
+	Code() int
+	Error() generic_error.Error
+	SetError(err generic_error.Error)
 }

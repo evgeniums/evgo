@@ -1,6 +1,7 @@
 package customer_api_client
 
 import (
+	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/api/api_client"
 	"github.com/evgeniums/go-utils/pkg/customer"
 	"github.com/evgeniums/go-utils/pkg/user/user_api/user_client"
@@ -19,6 +20,8 @@ func NewClient[T customer.User](client api_client.Client, userBuilder user_clien
 
 type CustomerClient = Client[*customer.Customer]
 
-func NewCustomerClient(client api_client.Client) *CustomerClient {
-	return NewClient(client, customer.NewCustomer)
+func NewCustomerClient(client api_client.Client, visitors ...api.OperationVisitors) *CustomerClient {
+	c := NewClient(client, customer.NewCustomer)
+	c.ApplyVisitors(visitors...)
+	return c
 }

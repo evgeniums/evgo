@@ -7,8 +7,7 @@ import (
 	"github.com/evgeniums/go-utils/pkg/utils"
 )
 
-type OperationHandler = func(ctx op_context.Context, operation Operation) error
-type TenancyOperationHandler = func(ctx multitenancy.TenancyContext, operation Operation) error
+type OperationHeaders = map[string]string
 
 type Operation interface {
 	Name() string
@@ -17,8 +16,18 @@ type Operation interface {
 	Resource() Resource
 
 	AccessType() access_control.AccessType
-	Exec(ctx op_context.Context, handler OperationHandler) error
-	ExecInTenancy(ctx multitenancy.TenancyContext, handler TenancyOperationHandler) error
+	Exec(ctx op_context.Context,
+		controller interface{},
+		requestMessage interface{},
+		resultMessage interface{},
+		headers OperationHeaders,
+		tenancyArg ...multitenancy.TenancyPath) (interface{}, error)
+	SetRunner(runner func(ctx op_context.Context,
+		controller interface{},
+		requestMessage interface{},
+		resultMessage interface{},
+		headers OperationHeaders,
+		tenancyArg ...multitenancy.TenancyPath) (interface{}, error))
 
 	TestOnly() bool
 	SetTestOnly(val bool)
@@ -29,6 +38,13 @@ type OperationBase struct {
 	resource   Resource
 	accessType access_control.AccessType
 	testOnly   bool
+
+	runner func(ctx op_context.Context,
+		controller interface{},
+		requestMessage interface{},
+		resultMessage interface{},
+		headers OperationHeaders,
+		tenancyArg ...multitenancy.TenancyPath) (interface{}, error)
 }
 
 func NewOperation(name string, accessType access_control.AccessType, testOnly ...bool) *OperationBase {
@@ -67,26 +83,54 @@ func (o *OperationBase) AccessType() access_control.AccessType {
 	return o.accessType
 }
 
-func (o *OperationBase) Exec(ctx op_context.Context, handler OperationHandler) error {
+func (o *OperationBase) Exec(ctx op_context.Context,
+	controller interface{},
+	requestMessage interface{},
+	resultMessage interface{},
+	headers OperationHeaders,
+	tenancyArg ...multitenancy.TenancyPath) (interface{}, error) {
 
-	c := ctx.TraceInMethod("Operation.Exec")
+	ctx.TraceInMethod("Operation.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := handler(ctx, o)
-	if err != nil {
-		return c.SetError(err)
+	if o.runner == nil {
+		return nil, nil
 	}
-	return nil
+
+	return o.runner(ctx, controller, requestMessage, resultMessage, headers, tenancyArg...)
 }
 
-func (o *OperationBase) ExecInTenancy(ctx multitenancy.TenancyContext, handler TenancyOperationHandler) error {
+func (o *OperationBase) SetRunner(runner func(ctx op_context.Context,
+	controller interface{},
+	requestMessage interface{},
+	resultMessage interface{},
+	headers OperationHeaders,
+	tenancyArg ...multitenancy.TenancyPath) (interface{}, error)) {
+	o.runner = runner
+}
 
-	c := ctx.TraceInMethod("Operation.ExecInTenancy")
-	defer ctx.TraceOutMethod()
+type OperationVisitor interface {
+	Visit(operation Operation)
+}
 
-	err := handler(ctx, o)
-	if err != nil {
-		return c.SetError(err)
+type OperationVisitors interface {
+	Visit(operation Operation)
+}
+
+type OperationVisitorsBase struct {
+	Visitors map[string]OperationVisitors
+}
+
+func (o *OperationVisitorsBase) Visit(operation Operation) {
+	v, ok := o.Visitors[operation.Name()]
+	if !ok {
+		return
 	}
-	return nil
+	v.Visit(operation)
+}
+
+func VisitOperation(operation Operation, visitors ...OperationVisitors) {
+	if len(visitors) > 0 {
+		visitors[0].Visit(operation)
+	}
 }
