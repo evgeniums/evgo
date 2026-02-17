@@ -11,6 +11,9 @@ import (
 	"github.com/evgeniums/go-utils/pkg/pool"
 )
 
+type AuthParameterGetter = func(r *Request, key string) string
+type AuthParameterSetter = func(r *Request, key string, value string)
+
 // Interface of generic server that implements some API.
 type Server interface {
 	generic_error.ErrorManager
@@ -65,4 +68,7 @@ func (s *ServerBaseConfig) ApiVersion() string {
 
 func (s *ServerBaseConfig) IsHateoas() bool {
 	return s.HATEOAS
+}
+
+type ServerBase struct {
 }

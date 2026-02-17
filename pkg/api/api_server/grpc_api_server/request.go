@@ -17,6 +17,7 @@ import (
 	"github.com/evgeniums/go-utils/pkg/op_context/default_op_context"
 	"github.com/evgeniums/go-utils/pkg/utils"
 	"github.com/evgeniums/go-utils/pkg/validator"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -172,22 +173,12 @@ func AuthKey(key string, directKeyName ...bool) string {
 }
 
 func (r *Request) SetAuthParameter(authMethodProtocol string, key string, value string, directKeyName ...bool) {
-	// handler := r.server.AuthParameterSetter(authMethodProtocol)
-	// if handler != nil {
-	// 	handler(r, key, value)
-	// 	return
-	// }
-	// r.ginCtx.Header(AuthKey(key, directKeyName...), value)
+	header := metadata.Pairs(AuthKey(key, directKeyName...), value)
+	grpc.SetHeader(r.ctx, header)
 }
 
 func (r *Request) GetAuthParameter(authMethodProtocol string, key string, directKeyName ...bool) string {
-	// handler := r.server.AuthParameterGetter(authMethodProtocol)
-	// if handler != nil {
-	// 	return handler(r, key)
-	// }
-	// return getHttpHeader(r.ginCtx, AuthKey(key, directKeyName...))
-
-	return ""
+	return r.getHeader(AuthKey(key, directKeyName...))
 }
 
 func (r *Request) CheckRequestContent(smsMessage *string, skipSms *bool) error {

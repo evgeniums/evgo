@@ -67,6 +67,7 @@ func (g *GrpcServerRunner) Shutdown(ctx context.Context) error {
 
 type Server struct {
 	ServerConfig
+	api_server.ServerBase
 	app_context.WithAppBase
 	generic_error.ErrorManagerBaseHttp
 	auth.WithAuthBase

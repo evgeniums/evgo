@@ -60,6 +60,7 @@ type AuthParameterSetter = func(r *Request, key string, value string)
 
 type Server struct {
 	ServerConfig
+	api_server.ServerBase
 	app_context.WithAppBase
 	generic_error.ErrorManagerBaseHttp
 	auth.WithAuthBase
