@@ -17,6 +17,18 @@ type Endpoint interface {
 
 	// Precheck request before some authorization methods
 	PrecheckRequestBeforeAuth(request Request, smsMessage *string, skipSms *bool) error
+
+	SetTransportToLogicMessageMapper(mapper func(interface{}) RequestMessage)
+
+	SetLogicToTransportMessageMapper(mapper func(interface{}) interface{})
+
+	SetTransportMessageBuilder(builder func() interface{})
+
+	NewTransportMessage() interface{}
+
+	TransportMessageToLogic(msg interface{}) RequestMessage
+
+	LogicMessageToTransport(msg interface{}) interface{}
 }
 
 type EndpointHandler = func(request Request)
@@ -25,6 +37,44 @@ type EndpointHandler = func(request Request)
 type EndpointBase struct {
 	api.Operation
 	generic_error.ErrorsExtenderBase
+
+	newTransportMessage func() interface{}
+
+	transportToLogic func(interface{}) RequestMessage
+	logicToTransport func(interface{}) interface{}
+}
+
+func (e *EndpointBase) SetTransportToLogicMessageMapper(mapper func(interface{}) RequestMessage) {
+	e.transportToLogic = mapper
+}
+
+func (e *EndpointBase) SetLogicToTransportMessageMapper(mapper func(interface{}) interface{}) {
+	e.logicToTransport = mapper
+}
+
+func (e *EndpointBase) SetTransportMessageBuilder(builder func() interface{}) {
+	e.newTransportMessage = builder
+}
+
+func (e *EndpointBase) NewTransportMessage() interface{} {
+	if e.newTransportMessage == nil {
+		return nil
+	}
+	return e.newTransportMessage
+}
+
+func (e *EndpointBase) TransportMessageToLogic(msg interface{}) RequestMessage {
+	if e.transportToLogic == nil {
+		return &RequestMessageBase{message: msg}
+	}
+	return e.transportToLogic(msg)
+}
+
+func (e *EndpointBase) LogicMessageToTransport(msg interface{}) interface{} {
+	if e.logicToTransport == nil {
+		return msg
+	}
+	return e.logicToTransport(msg)
 }
 
 func (e *EndpointBase) Construct(op api.Operation) {

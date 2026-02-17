@@ -25,32 +25,6 @@ import (
 
 type CallContext = context.Context
 
-type RequestMessage interface {
-	ResourceIds() api.ResourceIds
-	BinaryContent() []byte
-	LogicMessage() interface{}
-}
-
-type RequestMessageBase struct {
-	message interface{}
-}
-
-func NewRequestMessage() *RequestMessageBase {
-	return &RequestMessageBase{}
-}
-
-func (m *RequestMessageBase) BinaryContent() []byte {
-	return nil
-}
-
-func (m *RequestMessageBase) LogicMessage() any {
-	return m.message
-}
-
-func (m *RequestMessageBase) ResourceIds() api.ResourceIds {
-	return nil
-}
-
 type Request struct {
 	api_server.RequestBase
 
@@ -73,7 +47,7 @@ type Request struct {
 	statusMessage string
 	err           error
 
-	message RequestMessage
+	message api_server.RequestMessage
 
 	metadata metadata.MD
 }
@@ -115,8 +89,6 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 	if userAgents := r.metadata.Get("user-agent"); len(userAgents) > 0 {
 		r.userAgent = userAgents[0]
 	}
-
-	// TODO extract tenancy
 
 	if s.propagateContextId {
 		ctxId := r.getHeader(api.ForwardContext)

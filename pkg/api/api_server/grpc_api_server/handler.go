@@ -15,34 +15,13 @@ type UnaryHandler struct {
 	endpoint            api_server.Endpoint
 	server              *Server
 	grpcUnaryServerInfo *grpc.UnaryServerInfo
-	newProtoMessage     func() interface{}
-
-	transportToLogic func(interface{}) RequestMessage
-	logicToTransport func(interface{}) interface{}
-}
-
-func (u *UnaryHandler) SetTransportToLogicMessageMapper(mapper func(interface{}) RequestMessage) {
-	u.transportToLogic = mapper
-}
-
-func (u *UnaryHandler) SetLogicToTransportMessageMapper(mapper func(interface{}) interface{}) {
-	u.logicToTransport = mapper
-}
-
-func (u *UnaryHandler) SetTransportMessageBuilder(builder func() interface{}) {
-	u.newProtoMessage = builder
 }
 
 func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 
 	var request *Request
 
-	var msg interface{}
-	if u.newProtoMessage == nil {
-		// TODO make message automatically
-	} else {
-		msg = u.newProtoMessage()
-	}
+	msg := u.endpoint.NewTransportMessage()
 	if msg != nil {
 		if err := dec(msg); err != nil {
 			return nil, err
@@ -55,11 +34,7 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 		var callCtx op_context.CallContext
 
 		handle := func() (interface{}, error) {
-			if u.transportToLogic == nil {
-				request.message = &RequestMessageBase{message: req}
-			} else {
-				request.message = u.transportToLogic(req)
-			}
+			request.message = u.endpoint.TransportMessageToLogic(req)
 
 			err := u.endpoint.HandleRequest(request)
 			if err != nil {
@@ -68,11 +43,7 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 
 			var response interface{}
 			if request.Response().Message() != nil {
-				if u.logicToTransport == nil {
-					response = request.Response().Message
-				} else {
-					response = u.logicToTransport(request.Response().Message)
-				}
+				response = u.endpoint.LogicMessageToTransport(request.Response().Message())
 			}
 
 			return response, err

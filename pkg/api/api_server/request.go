@@ -15,6 +15,37 @@ import (
 	"github.com/evgeniums/go-utils/pkg/validator"
 )
 
+type RequestMessage interface {
+	ResourceIds() api.ResourceIds
+	BinaryContent() []byte
+	LogicMessage() interface{}
+	TransportMessage() interface{}
+}
+
+type RequestMessageBase struct {
+	message interface{}
+}
+
+func NewRequestMessage() *RequestMessageBase {
+	return &RequestMessageBase{}
+}
+
+func (m *RequestMessageBase) BinaryContent() []byte {
+	return nil
+}
+
+func (m *RequestMessageBase) LogicMessage() any {
+	return m.message
+}
+
+func (m *RequestMessageBase) TransportMessage() any {
+	return m.message
+}
+
+func (m *RequestMessageBase) ResourceIds() api.ResourceIds {
+	return nil
+}
+
 // Interface of request to server API.
 type Request interface {
 	auth.AuthContext
