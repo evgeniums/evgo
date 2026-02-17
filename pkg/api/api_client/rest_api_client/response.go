@@ -4,10 +4,12 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/evgeniums/go-utils/pkg/api/api_client"
 	"github.com/evgeniums/go-utils/pkg/generic_error"
 )
 
 type Response interface {
+	api_client.Response
 	Code() int
 	Header() http.Header
 	Body() []byte
@@ -42,6 +44,14 @@ func (r *HttpResponse) Code() int {
 
 func (r *HttpResponse) Header() http.Header {
 	return r.Raw.Header
+}
+
+func (r *HttpResponse) GetHeader(key string) string {
+	return r.Raw.Header.Get(key)
+}
+
+func (r *HttpResponse) SetHeader(key string, value string) {
+	r.Raw.Header.Set(key, value)
 }
 
 func (r *HttpResponse) Body() []byte {

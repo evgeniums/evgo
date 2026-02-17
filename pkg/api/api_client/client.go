@@ -52,3 +52,8 @@ func (s *ServiceClient) Client() Client {
 func (s *ServiceClient) ApiClient() Client {
 	return s.client
 }
+
+type Response interface {
+	SetHeader(key string, value string)
+	GetHeader(key string) string
+}

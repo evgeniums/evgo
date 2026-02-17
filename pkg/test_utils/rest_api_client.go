@@ -56,6 +56,15 @@ func (r *RestApiTestResponse) Header() http.Header {
 	return r.Raw.Header()
 }
 
+func (r *RestApiTestResponse) GetHeader(key string) string {
+	return r.Raw.Header().Get(key)
+}
+
+func (r *RestApiTestResponse) SetHeader(key string, value string) {
+
+	r.Raw.Header().Set(key, value)
+}
+
 func (r *RestApiTestResponse) Body() []byte {
 	if r.Raw.Body != nil {
 		r.body = r.Raw.Body.Bytes()
