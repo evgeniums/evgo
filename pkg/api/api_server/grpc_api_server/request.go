@@ -2,13 +2,19 @@ package grpc_api_server
 
 import (
 	"context"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"time"
 
 	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
+	"github.com/evgeniums/go-utils/pkg/auth"
+	"github.com/evgeniums/go-utils/pkg/generic_error"
 	"github.com/evgeniums/go-utils/pkg/logger"
+	"github.com/evgeniums/go-utils/pkg/multitenancy"
+	"github.com/evgeniums/go-utils/pkg/op_context"
+	"github.com/evgeniums/go-utils/pkg/op_context/default_op_context"
 	"github.com/evgeniums/go-utils/pkg/utils"
 	"github.com/evgeniums/go-utils/pkg/validator"
 	"google.golang.org/grpc/codes"
@@ -17,9 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type CallContext struct {
-	context.Context
-}
+type CallContext = context.Context
 
 type RequestMessage interface {
 	ResourceIds() api.ResourceIds
@@ -53,7 +57,7 @@ type Request struct {
 	response *Response
 
 	server *Server
-	ctx    CallContext
+	ctx    context.Context
 
 	start time.Time
 
@@ -67,42 +71,25 @@ type Request struct {
 
 	statusCode    codes.Code
 	statusMessage string
+	err           error
 
 	message RequestMessage
+
+	metadata metadata.MD
 }
 
-func HTTPToGRPC(httpCode int) codes.Code {
-	switch httpCode {
-	case http.StatusOK:
-		return codes.OK
-	case http.StatusBadRequest:
-		return codes.InvalidArgument
-	case http.StatusUnauthorized:
-		return codes.Unauthenticated
-	case http.StatusForbidden:
-		return codes.PermissionDenied
-	case http.StatusNotFound:
-		return codes.NotFound
-	case http.StatusConflict:
-		return codes.AlreadyExists
-	case http.StatusTooManyRequests:
-		return codes.ResourceExhausted
-	case http.StatusRequestTimeout:
-		return codes.DeadlineExceeded
-	case http.StatusNotImplemented:
-		return codes.Unimplemented
-	case http.StatusServiceUnavailable:
-		return codes.Unavailable
-	case http.StatusGatewayTimeout:
-		return codes.DeadlineExceeded
+func (r *Request) getHeaders(name string) []string {
+	return r.metadata.Get(name)
+}
 
-	case http.StatusInternalServerError:
-		return codes.Internal
-
-	default:
-		return codes.Unknown
+func (r *Request) getHeader(name string) string {
+	h := r.getHeaders(name)
+	if len(h) > 0 {
+		return h[0]
 	}
+	return ""
 }
+
 func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) error {
 
 	r.start = time.Now()
@@ -113,22 +100,11 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 
 	r.params = make(map[string]any)
 
-	md, ok := metadata.FromIncomingContext(ctx)
+	var ok bool
+	r.metadata, ok = metadata.FromIncomingContext(ctx)
 	if !ok {
 		// TODO log error
 		return status.Error(codes.Unauthenticated, "metadata missing")
-	}
-
-	getHeaders := func(name string) []string {
-		return md.Get(name)
-	}
-
-	getHeader := func(name string) string {
-		h := getHeaders(name)
-		if len(h) > 0 {
-			return h[0]
-		}
-		return ""
 	}
 
 	p, ok := peer.FromContext(ctx)
@@ -136,19 +112,19 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 		r.clientIp = p.Addr.String()
 	}
 
-	if userAgents := md.Get("user-agent"); len(userAgents) > 0 {
+	if userAgents := r.metadata.Get("user-agent"); len(userAgents) > 0 {
 		r.userAgent = userAgents[0]
 	}
 
 	// TODO extract tenancy
 
 	if s.propagateContextId {
-		ctxId := getHeader(api.ForwardContext)
+		ctxId := r.getHeader(api.ForwardContext)
 		if ctxId != "" {
 			r.SetID(ctxId)
 			r.SetLoggerField("context", ctxId)
 		}
-		forwardedOpSource := getHeader(api.ForwardOpSource)
+		forwardedOpSource := r.getHeader(api.ForwardOpSource)
 		if forwardedOpSource != "" {
 			r.forwardedOpSource = forwardedOpSource
 			r.SetLoggerField("forwarded_op_source", forwardedOpSource)
@@ -206,7 +182,7 @@ func (r *Request) Close(successMessage ...string) {
 	}
 
 	r.RequestBase.Close("")
-	// r.server.logRequest(r)
+	r.server.logRequest(r.Logger(), r.start, r, r.LoggerFields())
 }
 
 func (r *Request) GetRequestContent() []byte {
@@ -319,4 +295,148 @@ func (r *Request) MessageFromRequest(builder func() interface{}) interface{} {
 		return nil
 	}
 	return r.message.LogicMessage()
+}
+
+func (r *Request) StatusCode() codes.Code {
+	return r.statusCode
+}
+
+func (r *Request) StatusMessage() string {
+	return r.statusMessage
+}
+
+func (r *Request) ClientIp() string {
+	return r.clientIp
+}
+
+func (r *Request) UserAgent() string {
+	return r.userAgent
+}
+
+func (r *Request) Method() string {
+	return r.Endpoint().Name()
+}
+
+func (r *Request) Error() error {
+	return r.err
+}
+
+func (r *Request) Context() context.Context {
+	return r.ctx
+}
+
+func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Request, op_context.CallContext, error) {
+
+	request := &Request{}
+	request.SetEndpoint(ep)
+
+	var err error
+
+	// create and init request
+	request.Init(s, ctx)
+	epName := ep.Name()
+	request.SetName(epName)
+	request.SetLoggerField("endpoint", ep.Resource().ServicePathPrototype())
+
+	c := request.TraceInMethod("Server.Handle")
+
+	// extract tenancy if applicable
+	var tenancy multitenancy.Tenancy
+	if s.IsMultitenancy() && ep.Resource().IsInTenancy() {
+		requestTenancy := request.GetTenancyId()
+		request.SetLoggerField("tenancy", requestTenancy)
+		if s.SHADOW_TENANCY_PATH {
+			tenancy, err = s.tenancies.TenancyByShadowPath(requestTenancy)
+		} else {
+			tenancy, err = s.tenancies.TenancyByPath(requestTenancy)
+		}
+		if err != nil {
+			request.SetGenericErrorCode(generic_error.ErrorCodeNotFound)
+			c.SetMessage("unknown tenancy")
+		} else {
+
+			if !tenancy.IsActive() {
+				request.SetGenericErrorCode(generic_error.ErrorCodeNotFound)
+				err = errors.New("tenancy is not active")
+			} else {
+
+				blocked := false
+				if !s.ALLOW_BLOCKED_TENANCY_PATH {
+					if s.SHADOW_TENANCY_PATH {
+						blocked = tenancy.IsBlockedShadowPath()
+					} else {
+						blocked = tenancy.IsBlockedPath()
+					}
+				}
+				if blocked {
+					request.SetGenericErrorCode(generic_error.ErrorCodeNotFound)
+					err = errors.New("tenancy path is blocked")
+				} else {
+					if s.AUTH_FROM_TENANCY_DB {
+						request.SetTenancy(tenancy)
+					}
+				}
+			}
+		}
+		if err == nil {
+			if s.TENANCY_ALLOWED_IP_LIST {
+				if !s.tenancies.HasIpAddressByPath(requestTenancy, request.clientIp, s.TENANCY_ALLOWED_IP_LIST_TAG) {
+					err = errors.New("IP address is not in whitelist")
+					request.SetGenericErrorCode(generic_error.ErrorCodeForbidden)
+				}
+			}
+		}
+	}
+
+	// process auth
+	if err == nil {
+		err = s.Auth().HandleRequest(request, ep.Resource().ServicePathPrototype(), ep.AccessType())
+		if err != nil {
+			request.SetGenericErrorCode(auth.ErrorCodeUnauthorized)
+		}
+	}
+	if s.propagateAuthUser && (request.AuthUser() == nil || request.AuthUser().GetID() == "") {
+		userId := request.getHeader(api.ForwardUserId)
+		userLogin := request.getHeader(api.ForwardUserLogin)
+		userDisplay := request.getHeader(api.ForwardUserDisplay)
+		if userId != "" || userLogin != "" || userDisplay != "" {
+			authUser := auth.NewAuthUser(userId, userLogin, userDisplay)
+			request.SetAuthUser(authUser)
+		}
+		sessionClient := request.getHeader(api.ForwardSessionClient)
+		if sessionClient != "" {
+			request.SetClientId(sessionClient)
+		}
+	}
+
+	origin := default_op_context.NewOrigin(s.App())
+	if origin.Name() != "" {
+		origin.SetName(utils.ConcatStrings(origin.Name(), "/", s.Name()))
+	} else {
+		origin.SetName(s.Name())
+	}
+	if request.AuthUser() != nil {
+		origin.SetUser(auth.AuthUserDisplay(request))
+	}
+	originSource := request.clientIp
+	if request.forwardedOpSource != "" {
+		originSource = request.forwardedOpSource
+	}
+	origin.SetSource(originSource)
+	origin.SetSessionClient(request.GetClientId())
+	origin.SetUserType(s.OPLOG_USER_TYPE)
+	request.SetOrigin(origin)
+
+	// TODO process access control
+	if err == nil {
+
+	}
+
+	// set tenancy
+	if tenancy != nil && !s.AUTH_FROM_TENANCY_DB {
+		request.SetTenancy(tenancy)
+	}
+
+	// done
+	return request, c, nil
 }

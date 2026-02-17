@@ -2,10 +2,14 @@ package grpc_api_server
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math"
 	"net"
+	"net/http"
 	"net/netip"
 	"strings"
+	"time"
 
 	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
@@ -27,8 +31,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var DefaultGrpcConfigSection string = "grpc"
-var TenancyHeader string = "x-tenant-id"
+const OriginType = "grpc"
+const DefaultGrpcConfigSection string = "grpc"
+const TenancyHeader string = "x-tenant-id"
 
 type ServerConfig struct {
 	api_server.ServerBaseConfig
@@ -58,28 +63,6 @@ type GrpcServerRunner struct {
 func (g *GrpcServerRunner) Shutdown(ctx context.Context) error {
 	g.GracefulStop()
 	return nil
-}
-
-type UnaryHandler struct {
-	endpoint            api_server.Endpoint
-	server              *Server
-	grpcUnaryServerInfo *grpc.UnaryServerInfo
-	newProtoMessage     func() interface{}
-
-	transportToLogic func(interface{}) RequestMessage
-	logicToTransport func(interface{}) interface{}
-}
-
-func (u *UnaryHandler) SetTransportToLogicMessageMapper(mapper func(interface{}) RequestMessage) {
-	u.transportToLogic = mapper
-}
-
-func (u *UnaryHandler) SetLogicToTransportMessageMapper(mapper func(interface{}) interface{}) {
-	u.logicToTransport = mapper
-}
-
-func (u *UnaryHandler) SetTransportMessageBuilder(builder func() interface{}) {
-	u.newProtoMessage = builder
 }
 
 type Server struct {
@@ -176,73 +159,6 @@ func (s *Server) address() string {
 	}
 	return fmt.Sprintf("%s:%d", s.HOST, s.PORT)
 }
-
-// func (s *Server) logGinRequest(log logger.Logger, path string, start time.Time, ginCtx *gin.Context, extraFields ...logger.Fields) {
-
-// 	stop := time.Since(start)
-// 	latency := int(math.Ceil(float64(stop.Nanoseconds()) / 1000000.0))
-// 	statusCode := ginCtx.Writer.Status()
-// 	clientIP := ginCtx.ClientIP()
-// 	clientUserAgent := ginCtx.Request.UserAgent()
-// 	referer := ginCtx.Request.Referer()
-// 	dataLength := ginCtx.Writer.Size()
-// 	if dataLength < 0 {
-// 		dataLength = 0
-// 	}
-
-// 	fields := logger.Fields{
-// 		"hostname":    s.hostname,
-// 		"http_code":   statusCode,
-// 		"latency":     latency,
-// 		"client_ip":   clientIP,
-// 		"method":      ginCtx.Request.Method,
-// 		"path":        path,
-// 		"data_length": dataLength,
-// 		"user_agent":  clientUserAgent,
-// 		"server_name": s.Name(),
-// 	}
-// 	if referer != "" {
-// 		fields["referer"] = referer
-// 	}
-// 	logger.AppendFields(fields, extraFields...)
-
-// 	if len(ginCtx.Errors) > 0 {
-// 		log.Error(s.logPrefix, errors.New(ginCtx.Errors.ByType(gin.ErrorTypePrivate).String()), fields)
-// 	} else {
-// 		if statusCode >= http.StatusInternalServerError {
-// 			log.Error(s.logPrefix, errors.New("internal server error"), fields)
-// 		} else if statusCode >= http.StatusBadRequest {
-// 			log.Warn(s.logPrefix, fields)
-// 		} else {
-// 			log.Info(s.logPrefix, fields)
-// 		}
-// 	}
-
-// 	ginCtx.Set("logged", true)
-// }
-
-// func (s *Server) ginDefaultLogger() gin.HandlerFunc {
-// 	return func(ginCtx *gin.Context) {
-
-// 		path := ginCtx.Request.URL.Path
-// 		start := time.Now()
-
-// 		ginCtx.Next()
-
-// 		// skip if request was already logged
-// 		_, logged := ginCtx.Get("logged")
-// 		if logged {
-// 			return
-// 		}
-
-// 		if s.crashed {
-// 			s.crashed = false
-// 			s.logGinRequest(s.App().Logger(), path, start, ginCtx, logger.Fields{"status": "app_crashed"})
-// 		} else {
-// 			s.logGinRequest(s.App().Logger(), path, start, ginCtx, logger.Fields{"status": s.notFoundError.Code()})
-// 		}
-// 	}
-// }
 
 func (s *Server) IsMultitenancy() bool {
 	return !s.DISABLE_MULTITENANCY && multitenancy.IsMultiTenancy(s.tenancies)
@@ -356,178 +272,6 @@ func (s *Server) Run(fin background_worker.Finisher) {
 	}()
 }
 
-const OriginType = "grpc"
-
-func RequestInializingInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		// request := &Request{}
-
-		return nil, nil
-
-		// // 1. Extract IP (Assumes realip interceptor ran previously)
-		// if addr, ok := realip.FromContext(ctx); ok {
-		// 	ri.ClientIP = addr.String()
-		// }
-
-		// // 2. Extract Metadata (Headers)
-		// if md, ok := metadata.FromIncomingContext(ctx); ok {
-		// 	if ids := md.Get("x-device-id"); len(ids) > 0 {
-		// 		ri.DeviceID = ids[0]
-		// 	}
-		// 	if tokens := md.Get("authorization"); len(tokens) > 0 {
-		// 		ri.AuthToken = tokens[0]
-		// 	}
-		// }
-
-		// // 3. Inject into context and proceed
-		// newCtx := context.WithValue(ctx, RequestContextKey, ri)
-		// return handler(newCtx, req)
-	}
-}
-
-// func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
-// 	return func(ginCtx *gin.Context) {
-
-// 		var err error
-
-// 		// create and init request
-// 		request := &Request{}
-// 		request.Init(s, ginCtx, ep)
-// 		epName := ep.Name()
-// 		request.SetName(epName)
-// 		request.SetLoggerField("endpoint", ep.Resource().ServicePathPrototype())
-
-// 		c := request.TraceInMethod("Server.RequestHandler")
-
-// 		// dum request in verbose mode
-// 		if s.VERBOSE {
-// 			dumpBody := ginCtx.Request.ContentLength > 0 && int(ginCtx.Request.ContentLength) <= s.VERBOSE_BODY_MAX_LENGTH
-// 			b, _ := httputil.DumpRequest(ginCtx.Request, dumpBody)
-// 			c.Logger().Debug("Dump server HTTP request", logger.Fields{"request": string(b)})
-// 		}
-
-// 		// extract tenancy if applicable
-// 		var tenancy multitenancy.Tenancy
-// 		if s.IsMultitenancy() && ep.Resource().IsInTenancy() {
-// 			tenancyInPath := request.GetResourceId(s.TENANCY_PARAMETER)
-// 			request.SetLoggerField("tenancy", tenancyInPath)
-// 			if s.SHADOW_TENANCY_PATH {
-// 				tenancy, err = s.tenancies.TenancyByShadowPath(tenancyInPath.Value())
-// 			} else {
-// 				tenancy, err = s.tenancies.TenancyByPath(tenancyInPath.Value())
-// 			}
-// 			if err != nil {
-// 				request.SetGenericErrorCode(generic_error.ErrorCodeNotFound)
-// 				c.SetMessage("unknown tenancy")
-// 			} else {
-
-// 				if !tenancy.IsActive() {
-// 					request.SetGenericErrorCode(generic_error.ErrorCodeNotFound)
-// 					err = errors.New("tenancy is not active")
-// 				} else {
-
-// 					blocked := false
-// 					if !s.ALLOW_BLOCKED_TENANCY_PATH {
-// 						if s.SHADOW_TENANCY_PATH {
-// 							blocked = tenancy.IsBlockedShadowPath()
-// 						} else {
-// 							blocked = tenancy.IsBlockedPath()
-// 						}
-// 					}
-// 					if blocked {
-// 						request.SetGenericErrorCode(generic_error.ErrorCodeNotFound)
-// 						err = errors.New("tenancy path is blocked")
-// 					} else {
-// 						if s.AUTH_FROM_TENANCY_DB {
-// 							request.SetTenancy(tenancy)
-// 						}
-// 					}
-// 				}
-// 			}
-// 			if err == nil {
-// 				if s.TENANCY_ALLOWED_IP_LIST {
-// 					if !s.tenancies.HasIpAddressByPath(tenancyInPath.Value(), request.clientIp, s.TENANCY_ALLOWED_IP_LIST_TAG) {
-// 						err = errors.New("IP address is not in whitelist")
-// 						request.SetGenericErrorCode(generic_error.ErrorCodeForbidden)
-// 					}
-// 				}
-// 				// TODO white list for non tenancy mode
-// 			}
-// 		}
-
-// 		// process CSRF
-// 		if err == nil {
-// 			if s.csrf != nil {
-// 				_, err = s.csrf.Handle(request)
-// 			}
-// 		}
-
-// 		// process auth
-// 		if err == nil {
-// 			err = s.Auth().HandleRequest(request, ep.Resource().ServicePathPrototype(), ep.AccessType())
-// 			if err != nil {
-// 				request.SetGenericErrorCode(auth.ErrorCodeUnauthorized)
-// 			}
-// 		}
-// 		if s.propagateAuthUser && (request.AuthUser() == nil || request.AuthUser().GetID() == "") {
-// 			userId := ginCtx.GetHeader(api.ForwardUserId)
-// 			userLogin := ginCtx.GetHeader(api.ForwardUserLogin)
-// 			userDisplay := ginCtx.GetHeader(api.ForwardUserDisplay)
-// 			if userId != "" || userLogin != "" || userDisplay != "" {
-// 				authUser := auth.NewAuthUser(userId, userLogin, userDisplay)
-// 				request.SetAuthUser(authUser)
-// 			}
-// 			sessionClient := ginCtx.GetHeader(api.ForwardSessionClient)
-// 			if sessionClient != "" {
-// 				request.SetClientId(sessionClient)
-// 			}
-// 		}
-
-// 		origin := default_op_context.NewOrigin(s.App())
-// 		if origin.Name() != "" {
-// 			origin.SetName(utils.ConcatStrings(origin.Name(), "/", s.Name()))
-// 		} else {
-// 			origin.SetName(s.Name())
-// 		}
-// 		if request.AuthUser() != nil {
-// 			origin.SetUser(auth.AuthUserDisplay(request))
-// 		}
-// 		originSource := request.clientIp
-// 		if request.forwardedOpSource != "" {
-// 			originSource = request.forwardedOpSource
-// 		}
-// 		origin.SetSource(originSource)
-// 		origin.SetSessionClient(request.GetClientId())
-// 		origin.SetUserType(s.OPLOG_USER_TYPE)
-// 		request.SetOrigin(origin)
-
-// 		// TODO process access control
-// 		if err == nil {
-
-// 		}
-
-// 		// set tenancy
-// 		if tenancy != nil && !s.AUTH_FROM_TENANCY_DB {
-// 			request.SetTenancy(tenancy)
-// 		}
-
-// 		// call endpoint's request handler
-// 		if err == nil {
-// 			err = ep.HandleRequest(request)
-// 			if err != nil {
-// 				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-// 			}
-// 		}
-
-// 		// close context with sending response to client
-// 		if err != nil {
-// 			c.SetError(err)
-// 		}
-// 		request.TraceOutMethod()
-// 		request.Close()
-// 	}
-// }
-
 func (s *Server) FullMethodName(service api_server.Service, ep api_server.Endpoint) string {
 	return fmt.Sprintf("/%s/%s", service.Name(), ep.Name())
 }
@@ -560,7 +304,7 @@ func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint,
 	s.handlers[fullMethodName] = handler
 
 	grpcMethod := grpc.MethodDesc{
-		MethodName: "CustomMethod",
+		MethodName: fullMethodName,
 		Handler:    handler.handle,
 	}
 
@@ -570,61 +314,6 @@ func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint,
 func (s *Server) MakeResponseError(gerr generic_error.Error) (int, generic_error.Error) {
 	code := s.ErrorProtocolCode(gerr.Code())
 	return code, gerr
-}
-
-type grpcContextKey string
-
-const requestContextKey grpcContextKey = "request"
-
-func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-
-	request, ok := ctx.Value(requestContextKey).(*Request)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "invalid type of gRPC request")
-	}
-	request.SetEndpoint(u.endpoint)
-
-	var msg interface{}
-	if u.newProtoMessage == nil {
-		// TODO make message automatically
-	} else {
-		msg = u.newProtoMessage()
-	}
-	if msg != nil {
-		if err := dec(msg); err != nil {
-			return nil, err
-		}
-	}
-
-	finalHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
-
-		if u.transportToLogic == nil {
-			request.message = &RequestMessageBase{message: req}
-		} else {
-			request.message = u.transportToLogic(req)
-		}
-		err := u.endpoint.HandleRequest(request)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to handle gRPC request")
-		}
-
-		var response interface{}
-		if request.Response().Message() != nil {
-			if u.logicToTransport == nil {
-				response = request.Response().Message
-			} else {
-				response = u.logicToTransport(request.Response().Message)
-			}
-		}
-
-		return response, status.Error(codes.OK, "success")
-	}
-
-	if interceptor == nil {
-		return finalHandler(ctx, msg)
-	}
-
-	return interceptor(ctx, msg, u.grpcUnaryServerInfo, finalHandler)
 }
 
 func (s *Server) RegisterService(service api_server.Service) error {
@@ -645,11 +334,96 @@ func (s *Server) RegisterService(service api_server.Service) error {
 		HandlerType: (*interface{})(nil),
 		Methods:     methods,
 		Streams:     []grpc.StreamDesc{},
-		Metadata:    "manual-registration",
+		Metadata:    "",
 	}
 
 	s.grpcServer.RegisterService(serviceDesc, nil)
 	s.services[service.Name()] = service
 
 	return nil
+}
+
+type methodContext interface {
+	StatusCode() codes.Code
+	StatusMessage() string
+	ClientIp() string
+	UserAgent() string
+	Method() string
+	Error() error
+	Context() context.Context
+}
+
+func (s *Server) logRequest(log logger.Logger, start time.Time, callCtx methodContext, extraFields ...logger.Fields) {
+
+	stop := time.Since(start)
+	latency := int(math.Ceil(float64(stop.Nanoseconds()) / 1000000.0))
+
+	// TODO handle request size
+	// dataLength := callCtx.WireSize()
+	// if dataLength < 0 {
+	// 	dataLength = 0
+	// }
+
+	fields := logger.Fields{
+		"host":   s.hostname,
+		"code":   callCtx.StatusCode(),
+		"lat":    latency,
+		"ip":     callCtx.ClientIp(),
+		"method": callCtx.Method(),
+		// "size":   dataLength,
+		"agent":  callCtx.UserAgent(),
+		"server": s.Name(),
+	}
+	logger.AppendFields(fields, extraFields...)
+
+	if callCtx.Error() != nil {
+		if StatusError(callCtx.StatusCode()) {
+			log.Error(s.logPrefix, errors.New("internal server error"), fields)
+		} else if StatusWarn(callCtx.StatusCode()) {
+			log.Warn(s.logPrefix, fields)
+		} else {
+			log.Info(s.logPrefix, fields)
+		}
+	}
+}
+
+func HTTPToGRPC(httpCode int) codes.Code {
+	switch httpCode {
+	case http.StatusOK:
+		return codes.OK
+	case http.StatusBadRequest:
+		return codes.InvalidArgument
+	case http.StatusUnauthorized:
+		return codes.Unauthenticated
+	case http.StatusForbidden:
+		return codes.PermissionDenied
+	case http.StatusNotFound:
+		return codes.NotFound
+	case http.StatusConflict:
+		return codes.AlreadyExists
+	case http.StatusTooManyRequests:
+		return codes.ResourceExhausted
+	case http.StatusRequestTimeout:
+		return codes.DeadlineExceeded
+	case http.StatusNotImplemented:
+		return codes.Unimplemented
+	case http.StatusServiceUnavailable:
+		return codes.Unavailable
+	case http.StatusGatewayTimeout:
+		return codes.DeadlineExceeded
+
+	case http.StatusInternalServerError:
+		return codes.Internal
+
+	default:
+		return codes.Unknown
+	}
+}
+
+func StatusError(status codes.Code) bool {
+	return status >= codes.Internal
+}
+
+func StatusWarn(status codes.Code) bool {
+	return status != codes.OK
 }
