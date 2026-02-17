@@ -29,13 +29,13 @@ func (t *TenancyClient) AddIpAddress(ctx op_context.Context, id string, ipAddres
 	}
 
 	// prepare and exec handler
-	cmd := &tenancy_api.IpAddressCmd{
+	request := &tenancy_api.IpAddressCmd{
 		Ip:  ipAddress,
 		Tag: tag,
 	}
-	handler := api_client.NewHandlerCmd(cmd)
+	handler := api_client.NewHandlerRequest(request)
 	op := api.OperationAsResource(t.TenancyResource, tenancy_api.IpAddressResource, tenancyId, tenancy_api.AddIpAddress())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return err

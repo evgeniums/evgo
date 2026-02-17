@@ -22,11 +22,11 @@ func (t *TenancyClient) SetPath(ctx op_context.Context, id string, path string, 
 	}
 
 	// create command
-	handler := api_client.NewHandlerCmd(&multitenancy.WithPath{PATH: path})
+	handler := api_client.NewHandlerRequest(&multitenancy.WithPath{PATH: path})
 
 	// prepare and exec handler
 	op := api.OperationAsResource(t.TenancyResource, "path", tenancyId, tenancy_api.SetPath())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return c.SetError(err)
@@ -51,11 +51,11 @@ func (t *TenancyClient) SetShadowPath(ctx op_context.Context, id string, path st
 	}
 
 	// create command
-	handler := api_client.NewHandlerCmd(&multitenancy.WithPath{SHADOW_PATH: path})
+	handler := api_client.NewHandlerRequest(&multitenancy.WithPath{SHADOW_PATH: path})
 
 	// prepare and exec handler
 	op := api.OperationAsResource(t.TenancyResource, "shadow-path", tenancyId, tenancy_api.SetShadowPath())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return c.SetError(err)

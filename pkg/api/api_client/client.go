@@ -8,7 +8,7 @@ import (
 )
 
 type Client interface {
-	Exec(ctx op_context.Context, operation api.Operation, cmd interface{}, response interface{}, tenancyPath ...string) error
+	Exec(ctx op_context.Context, operation api.Operation, cmd interface{}, response interface{}, tenancy ...multitenancy.TenancyPath) error
 	Transport() interface{}
 	SetPropagateAuthUser(val bool)
 	SetPropagateContextId(val bool)
@@ -20,18 +20,6 @@ type ClientOperation interface {
 
 type TenancyClientOperation interface {
 	Exec(client Client, ctx multitenancy.TenancyContext, operation api.Operation) error
-}
-
-func MakeOperationHandler(client Client, clientOperation ClientOperation) api.OperationHandler {
-	return func(ctx op_context.Context, operation api.Operation) error {
-		return clientOperation.Exec(client, ctx, operation)
-	}
-}
-
-func MakeTenancyOperationHandler(client Client, clientOperation TenancyClientOperation) api.TenancyOperationHandler {
-	return func(ctx multitenancy.TenancyContext, operation api.Operation) error {
-		return clientOperation.Exec(client, ctx, operation)
-	}
 }
 
 type ServiceClient struct {

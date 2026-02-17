@@ -27,7 +27,7 @@ func (t *TenancyClient) Exists(ctx op_context.Context, fields db.Fields) (bool, 
 
 	// prepare and exec handler
 	handler := api_client.NewHandler(cmd, &api.ResponseExists{})
-	err = t.exists.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, t.exists)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return false, err

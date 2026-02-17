@@ -51,7 +51,7 @@ func (cl *ConfirmationCallbackClient) ConfirmationCallback(ctx multitenancy.Tena
 		ConfirmationResult: *result,
 	}
 	handler := api_client.NewHandlerInTenancy(cmd, &confirmation_control_api.CallbackConfirmationResponse{})
-	err = cl.callback_confirmation.ExecInTenancy(ctx, api_client.MakeTenancyOperationHandler(cl.ApiClient(), handler))
+	err = handler.Exec(cl.ApiClient(), ctx, cl.callback_confirmation)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return "", err

@@ -22,11 +22,11 @@ func (t *TenancyClient) SetRole(ctx op_context.Context, id string, role string, 
 	}
 
 	// create command
-	handler := api_client.NewHandlerCmd(&multitenancy.WithRole{ROLE: role})
+	handler := api_client.NewHandlerRequest(&multitenancy.WithRole{ROLE: role})
 
 	// prepare and exec handler
 	op := api.OperationAsResource(t.TenancyResource, "role", tenancyId, tenancy_api.SetRole())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return c.SetError(err)

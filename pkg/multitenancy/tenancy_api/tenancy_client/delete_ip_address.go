@@ -33,9 +33,9 @@ func (t *TenancyClient) DeleteIpAddress(ctx op_context.Context, id string, ipAdd
 		Ip:  ipAddress,
 		Tag: tag,
 	}
-	handler := api_client.NewHandlerCmd(cmd)
+	handler := api_client.NewHandlerRequest(cmd)
 	op := api.OperationAsResource(t.TenancyResource, tenancy_api.IpAddressResource, tenancyId, tenancy_api.DeleteIpAddress())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return err

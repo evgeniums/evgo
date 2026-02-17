@@ -131,7 +131,7 @@ type UserContext interface {
 }
 
 func Tenancy(ctx UserContext) string {
-	return multitenancy.ContextTenancy(ctx)
+	return multitenancy.ContextTenancyId(ctx)
 }
 
 type TenancyUserContext struct {

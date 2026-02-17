@@ -22,7 +22,7 @@ func (t *TenancyClient) Add(ctx op_context.Context, tenancy *multitenancy.Tenanc
 
 	// prepare and exec handler
 	handler := api_client.NewHandler(tenancy, &tenancy_api.TenancyResponse{})
-	err = t.add.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, t.add)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

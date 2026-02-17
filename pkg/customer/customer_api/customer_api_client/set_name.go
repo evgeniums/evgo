@@ -1,7 +1,6 @@
 package customer_api_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api/api_client"
 	"github.com/evgeniums/go-utils/pkg/common"
 	"github.com/evgeniums/go-utils/pkg/customer/customer_api"
 	"github.com/evgeniums/go-utils/pkg/op_context"
@@ -28,7 +27,8 @@ func (u *Client[T]) SetName(ctx op_context.Context, id string, name string, idIs
 	handler.Cmd.SetName(name)
 
 	// prepare and exec handler
-	err = u.UserOperation(userId, "name", customer_api.SetName()).Exec(ctx, api_client.MakeOperationHandler(u.Client(), handler))
+	op := u.UserOperation(userId, "name", customer_api.SetName())
+	err = handler.Exec(u.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return c.SetError(err)

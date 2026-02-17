@@ -48,7 +48,7 @@ func (u *UserClient[U]) FindUsers(ctx op_context.Context, filter *db.Filter) ([]
 		cmd:    cmd,
 		result: &api.ResponseList[U]{},
 	}
-	err = u.list.Exec(ctx, api_client.MakeOperationHandler(u.Client(), handler))
+	err = handler.Exec(u.Client(), ctx, u.list)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, 0, err

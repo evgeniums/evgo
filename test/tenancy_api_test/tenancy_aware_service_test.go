@@ -128,7 +128,7 @@ func (s *SampleClient) List(ctx op_context.Context) ([]*InTenancySample, error) 
 	handler := &ClientList{
 		result: &ListResponse{},
 	}
-	err = s.list.Exec(ctx, api_client.MakeOperationHandler(s.Client(), handler))
+	err = handler.Exec(s.Client(), ctx, s.list)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

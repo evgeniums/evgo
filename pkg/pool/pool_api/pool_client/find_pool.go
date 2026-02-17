@@ -47,7 +47,8 @@ func (p *PoolClient) FindPool(ctx op_context.Context, id string, idIsName ...boo
 	handler := &FindPool{
 		result: &pool_api.PoolResponse{},
 	}
-	err = api.NamedResourceOperation(p.PoolResource, pId, pool_api.FindPool()).Exec(ctx, api_client.MakeOperationHandler(p.Client(), handler))
+	op := api.NamedResourceOperation(p.PoolResource, pId, pool_api.FindPool())
+	err = handler.Exec(p.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

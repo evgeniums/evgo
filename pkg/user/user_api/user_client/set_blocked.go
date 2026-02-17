@@ -1,7 +1,6 @@
 package user_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api/api_client"
 	"github.com/evgeniums/go-utils/pkg/op_context"
 	"github.com/evgeniums/go-utils/pkg/user"
 	"github.com/evgeniums/go-utils/pkg/user/user_api"
@@ -27,7 +26,8 @@ func (u *UserClient[U]) SetBlocked(ctx op_context.Context, id string, blocked bo
 	handler.Cmd.BLOCKED = blocked
 
 	// prepare and exec handler
-	err = u.UserOperation(userId, "blocked", user_api.SetBlocked(u.userTypeName)).Exec(ctx, api_client.MakeOperationHandler(u.Client(), handler))
+	op := u.UserOperation(userId, "blocked", user_api.SetBlocked(u.userTypeName))
+	err = handler.Exec(u.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return c.SetError(err)

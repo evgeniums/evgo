@@ -43,7 +43,7 @@ func (cl *ConfirmationExternalClient) CheckConfirmation(ctx multitenancy.Tenancy
 	cmd := result
 	handler := api_client.NewHandlerInTenancy(cmd, &confirmation_control_api.CheckConfirmationResponse{})
 	op := api.NamedResourceOperation(cl.OperationResource, operationId, confirmation_control_api.CheckConfirmation())
-	err = op.ExecInTenancy(ctx, api_client.MakeTenancyOperationHandler(cl.ApiClient(), handler))
+	err = handler.Exec(cl.ApiClient(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return "", err
@@ -69,7 +69,7 @@ func (cl *ConfirmationExternalClient) PrepareCheckConfirmation(ctx multitenancy.
 	// prepare and exec handler
 	handler := api_client.NewHandlerInTenancyResult(&confirmation_control_api.PrepareCheckConfirmationResponse{})
 	op := api.NamedResourceOperation(cl.OperationResource, operationId, confirmation_control_api.PrepareCheckConfirmation())
-	err = op.ExecInTenancy(ctx, api_client.MakeTenancyOperationHandler(cl.ApiClient(), handler))
+	err = handler.Exec(cl.ApiClient(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return "", err

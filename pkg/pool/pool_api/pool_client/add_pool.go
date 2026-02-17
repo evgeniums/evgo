@@ -41,7 +41,7 @@ func (p *PoolClient) AddPool(ctx op_context.Context, pool pool.Pool) (pool.Pool,
 		cmd:    pool,
 		result: &pool_api.PoolResponse{},
 	}
-	err = p.add_pool.Exec(ctx, api_client.MakeOperationHandler(p.Client(), handler))
+	err = handler.Exec(p.Client(), ctx, p.add_pool)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

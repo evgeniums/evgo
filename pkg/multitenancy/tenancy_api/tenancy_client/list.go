@@ -27,7 +27,7 @@ func (t *TenancyClient) List(ctx op_context.Context, filter *db.Filter) ([]*mult
 
 	// prepare and exec handler
 	handler := api_client.NewHandler(cmd, &tenancy_api.ListTenanciesResponse{})
-	err = t.list.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, t.list)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, 0, err

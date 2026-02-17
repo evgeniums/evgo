@@ -61,7 +61,7 @@ func (cl *ConfirmationInternalClient) SendConfirmation(ctx multitenancy.TenancyC
 		}
 	}
 	handler := api_client.NewHandlerInTenancy(cmd, &confirmation_control_api.PrepareOperationResponse{})
-	err = cl.prepare_operation.ExecInTenancy(ctx, api_client.MakeTenancyOperationHandler(cl.ApiClient(), handler))
+	err = handler.Exec(cl.ApiClient(), ctx, cl.prepare_operation)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return "", err

@@ -22,11 +22,11 @@ func (t *TenancyClient) SetPathBlocked(ctx op_context.Context, id string, blocke
 	}
 
 	// create command
-	handler := api_client.NewHandlerCmd(&multitenancy.BlockPathCmd{Block: blocked, Mode: mode})
+	handler := api_client.NewHandlerRequest(&multitenancy.BlockPathCmd{Block: blocked, Mode: mode})
 
 	// prepare and exec handler
 	op := api.OperationAsResource(t.TenancyResource, "block-path", tenancyId, tenancy_api.SetPathBlocked())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return c.SetError(err)

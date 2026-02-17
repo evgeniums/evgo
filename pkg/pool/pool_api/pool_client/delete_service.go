@@ -45,7 +45,7 @@ func (p *PoolClient) DeleteService(ctx op_context.Context, id string, idIsName .
 	// prepare and exec handler
 	handler := &DeleteService{}
 	op := api.NamedResourceOperation(p.ServiceResource, sId, pool_api.DeleteService())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(p.Client(), handler))
+	err = handler.Exec(p.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return err

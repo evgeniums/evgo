@@ -57,7 +57,8 @@ func (p *PoolClient) UpdateService(ctx op_context.Context, id string, fields db.
 		result: &pool_api.ServiceResponse{},
 	}
 	handler.cmd.Fields = fields
-	err = api.NamedResourceOperation(p.ServiceResource, sId, pool_api.UpdateService()).Exec(ctx, api_client.MakeOperationHandler(p.Client(), handler))
+	op := api.NamedResourceOperation(p.ServiceResource, sId, pool_api.UpdateService())
+	err = handler.Exec(p.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

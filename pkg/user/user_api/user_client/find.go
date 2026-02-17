@@ -40,7 +40,7 @@ func (u *UserClient[U]) Find(ctx op_context.Context, id string) (U, error) {
 
 	// prepare and exec handler
 	op := api.NamedResourceOperation(u.UserResource, id, user_api.Find(u.userTypeName))
-	err := op.Exec(ctx, api_client.MakeOperationHandler(u.Client(), handler))
+	err := handler.Exec(u.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nilU, c.SetError(err)

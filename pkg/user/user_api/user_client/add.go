@@ -58,7 +58,7 @@ func (u *UserClient[U]) Add(ctx op_context.Context, login string, password strin
 		cmd:    cmd,
 		result: &user_api.UserResponse[U]{},
 	}
-	err = u.add.Exec(ctx, api_client.MakeOperationHandler(u.Client(), handler))
+	err = handler.Exec(u.Client(), ctx, u.add)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nilU, err

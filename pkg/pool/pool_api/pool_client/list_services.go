@@ -45,7 +45,7 @@ func (p *PoolClient) GetServices(ctx op_context.Context, filter *db.Filter) ([]*
 		cmd:    cmd,
 		result: &pool_api.ListServicesResponse{},
 	}
-	err = p.list_services.Exec(ctx, api_client.MakeOperationHandler(p.Client(), handler))
+	err = handler.Exec(p.Client(), ctx, p.list_services)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, 0, err

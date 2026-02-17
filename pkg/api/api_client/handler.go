@@ -5,42 +5,42 @@ import (
 	"github.com/evgeniums/go-utils/pkg/op_context"
 )
 
-type Handler[Cmd any, Result any] struct {
-	Cmd    *Cmd
-	Result *Result
+type Handler[Request any, Result any] struct {
+	Request *Request
+	Result  *Result
 }
 
-func (h *Handler[Cmd, Result]) Exec(client Client, ctx op_context.Context, operation api.Operation) error {
+func (h *Handler[Request, Result]) Exec(client Client, ctx op_context.Context, operation api.Operation) error {
 
 	c := ctx.TraceInMethod("Handler.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, h.Cmd, h.Result)
+	err := client.Exec(ctx, operation, h.Request, h.Result)
 	c.SetError(err)
 	return err
 }
 
-func NewHandler[Cmd any, Result any](cmd *Cmd, result *Result) *Handler[Cmd, Result] {
-	e := &Handler[Cmd, Result]{Cmd: cmd, Result: result}
+func NewHandler[Request any, Result any](request *Request, result *Result) *Handler[Request, Result] {
+	e := &Handler[Request, Result]{Request: request, Result: result}
 	return e
 }
 
-type HandlerCmd[Cmd any] struct {
-	Cmd *Cmd
+type HandlerRequest[Request any] struct {
+	Request *Request
 }
 
-func (h *HandlerCmd[Cmd]) Exec(client Client, ctx op_context.Context, operation api.Operation) error {
+func (h *HandlerRequest[Request]) Exec(client Client, ctx op_context.Context, operation api.Operation) error {
 
 	c := ctx.TraceInMethod("Handler.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, h.Cmd, nil)
+	err := client.Exec(ctx, operation, h.Request, nil)
 	c.SetError(err)
 	return err
 }
 
-func NewHandlerCmd[Cmd any](cmd *Cmd) *HandlerCmd[Cmd] {
-	e := &HandlerCmd[Cmd]{Cmd: cmd}
+func NewHandlerRequest[Request any](request *Request) *HandlerRequest[Request] {
+	e := &HandlerRequest[Request]{Request: request}
 	return e
 }
 

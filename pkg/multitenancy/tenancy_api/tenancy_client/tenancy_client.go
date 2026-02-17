@@ -19,6 +19,10 @@ type TenancyClient struct {
 	list_ip_addresses api.Operation
 }
 
+type OperationWrapper interface {
+	WrapOperaton(client api_client.Client, op api.Operation)
+}
+
 func NewTenancyClient(client api_client.Client) *TenancyClient {
 
 	c := &TenancyClient{}

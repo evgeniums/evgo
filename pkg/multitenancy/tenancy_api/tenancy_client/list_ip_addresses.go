@@ -27,7 +27,7 @@ func (t *TenancyClient) ListIpAddresses(ctx op_context.Context, filter *db.Filte
 
 	// prepare and exec handler
 	handler := api_client.NewHandler(cmd, &tenancy_api.ListIpAddressesResponse{})
-	err = t.list_ip_addresses.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, t.list_ip_addresses)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, 0, err

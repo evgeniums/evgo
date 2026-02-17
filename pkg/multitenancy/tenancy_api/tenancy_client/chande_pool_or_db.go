@@ -22,11 +22,11 @@ func (t *TenancyClient) ChangePoolOrDb(ctx op_context.Context, id string, poolId
 	}
 
 	// create command
-	handler := api_client.NewHandlerCmd(&multitenancy.WithPoolAndDb{POOL_ID: poolId, DBNAME: dbName})
+	handler := api_client.NewHandlerRequest(&multitenancy.WithPoolAndDb{POOL_ID: poolId, DBNAME: dbName})
 
 	// prepare and exec handler
 	op := api.OperationAsResource(t.TenancyResource, "pool-db", tenancyId, tenancy_api.ChangePoolOrDb())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return c.SetError(err)

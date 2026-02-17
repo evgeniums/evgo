@@ -23,11 +23,11 @@ func (t *TenancyClient) SetActive(ctx op_context.Context, id string, active bool
 	}
 
 	// create command
-	handler := api_client.NewHandlerCmd(&common.WithActiveBase{ACTIVE: active})
+	handler := api_client.NewHandlerRequest(&common.WithActiveBase{ACTIVE: active})
 
 	// prepare and exec handler
 	op := api.OperationAsResource(t.TenancyResource, "active", tenancyId, tenancy_api.SetActive())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return c.SetError(err)

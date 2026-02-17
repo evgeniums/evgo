@@ -48,7 +48,7 @@ func (p *PoolClient) GetServiceBindings(ctx op_context.Context, id string, idIsN
 	resource := p.resourceForServicePools(sId)
 	op := pool_api.ListServicePools()
 	resource.AddOperation(op)
-	err = op.Exec(ctx, api_client.MakeOperationHandler(p.Client(), handler))
+	err = handler.Exec(p.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

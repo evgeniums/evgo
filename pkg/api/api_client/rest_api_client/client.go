@@ -8,6 +8,7 @@ import (
 	"github.com/evgeniums/go-utils/pkg/auth"
 	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_login_phash"
 	"github.com/evgeniums/go-utils/pkg/generic_error"
+	"github.com/evgeniums/go-utils/pkg/multitenancy"
 	"github.com/evgeniums/go-utils/pkg/op_context"
 	"github.com/evgeniums/go-utils/pkg/utils"
 )
@@ -56,7 +57,7 @@ func (cl *Client) SetPropagateContextId(val bool) {
 	cl.propagateContextId = true
 }
 
-func (cl *Client) Exec(ctx op_context.Context, operation api.Operation, cmd interface{}, response interface{}, tenancyPath ...string) error {
+func (cl *Client) Exec(ctx op_context.Context, operation api.Operation, cmd interface{}, response interface{}, tenancyArg ...multitenancy.TenancyPath) error {
 
 	// TODO support hateoas links of resource
 
@@ -101,11 +102,11 @@ func (cl *Client) Exec(ctx op_context.Context, operation api.Operation, cmd inte
 
 	// evaluate path
 	var path string
-	tenancy := utils.OptionalString("", tenancyPath...)
-	if tenancy == "" {
+	tenancy := utils.OptionalArg(nil, tenancyArg...)
+	if tenancy == nil {
 		path = operation.Resource().FullActualPath()
 	} else {
-		path = operation.Resource().FullActualTenancyPath(tenancy)
+		path = operation.Resource().FullActualTenancyPath(tenancy.Path())
 	}
 
 	var resp Response

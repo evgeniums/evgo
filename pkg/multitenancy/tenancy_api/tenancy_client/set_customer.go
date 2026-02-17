@@ -22,11 +22,11 @@ func (t *TenancyClient) SetCustomer(ctx op_context.Context, id string, customerI
 	}
 
 	// create command
-	handler := api_client.NewHandlerCmd(&multitenancy.WithCustomerId{CUSTOMER_ID: customerId})
+	handler := api_client.NewHandlerRequest(&multitenancy.WithCustomerId{CUSTOMER_ID: customerId})
 
 	// prepare and exec handler
 	op := api.OperationAsResource(t.TenancyResource, "customer", tenancyId, tenancy_api.SetCustomer())
-	err = op.Exec(ctx, api_client.MakeOperationHandler(t.Client(), handler))
+	err = handler.Exec(t.Client(), ctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return c.SetError(err)

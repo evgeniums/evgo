@@ -17,6 +17,11 @@ import (
 	"github.com/evgeniums/go-utils/pkg/validator"
 )
 
+type TenancyPath interface {
+	common.WithID
+	Path() string
+}
+
 type Tenancy interface {
 	common.Object
 	common.WithActive
@@ -206,7 +211,7 @@ type TenancyContext interface {
 	WithTenancy
 }
 
-func ContextTenancy(ctx TenancyContext) string {
+func ContextTenancyId(ctx TenancyContext) string {
 	if ctx.GetTenancy() == nil {
 		return ""
 	}
