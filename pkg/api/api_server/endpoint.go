@@ -7,22 +7,15 @@ import (
 	"github.com/evgeniums/go-utils/pkg/utils"
 )
 
-// Interface of API endpoint.
-type Endpoint interface {
-	api.Operation
-	generic_error.ErrorsExtender
-
-	// Handle request to server API.
-	HandleRequest(request Request) error
-
-	// Precheck request before some authorization methods
-	PrecheckRequestBeforeAuth(request Request, smsMessage *string, skipSms *bool) error
-
+type EndpointMessageHandlers interface {
 	SetTransportToLogicMessageMapper(mapper func(interface{}) RequestMessage)
+	GetTransportToLogicMessageMapper() func(interface{}) RequestMessage
 
 	SetLogicToTransportMessageMapper(mapper func(interface{}) interface{})
+	GetLogicToTransportMessageMapper() func(interface{}) interface{}
 
 	SetTransportMessageBuilder(builder func() interface{})
+	GetTransportMessageBuilder() func() interface{}
 
 	NewTransportMessage() interface{}
 
@@ -31,50 +24,80 @@ type Endpoint interface {
 	LogicMessageToTransport(msg interface{}) interface{}
 }
 
-type EndpointHandler = func(request Request)
-
-// Base type for API endpoints.
-type EndpointBase struct {
-	api.Operation
-	generic_error.ErrorsExtenderBase
-
+type EndpointMessageHandlersBase struct {
 	newTransportMessage func() interface{}
 
 	transportToLogic func(interface{}) RequestMessage
 	logicToTransport func(interface{}) interface{}
 }
 
-func (e *EndpointBase) SetTransportToLogicMessageMapper(mapper func(interface{}) RequestMessage) {
+func (e *EndpointMessageHandlersBase) SetTransportToLogicMessageMapper(mapper func(interface{}) RequestMessage) {
 	e.transportToLogic = mapper
 }
 
-func (e *EndpointBase) SetLogicToTransportMessageMapper(mapper func(interface{}) interface{}) {
+func (e *EndpointMessageHandlersBase) GetTransportToLogicMessageMapper() func(interface{}) RequestMessage {
+	return e.transportToLogic
+}
+
+func (e *EndpointMessageHandlersBase) SetLogicToTransportMessageMapper(mapper func(interface{}) interface{}) {
 	e.logicToTransport = mapper
 }
 
-func (e *EndpointBase) SetTransportMessageBuilder(builder func() interface{}) {
+func (e *EndpointMessageHandlersBase) GetLogicToTransportMessageMapper() func(interface{}) interface{} {
+	return e.logicToTransport
+}
+
+func (e *EndpointMessageHandlersBase) SetTransportMessageBuilder(builder func() interface{}) {
 	e.newTransportMessage = builder
 }
 
-func (e *EndpointBase) NewTransportMessage() interface{} {
+func (e *EndpointMessageHandlersBase) NewTransportMessage() interface{} {
 	if e.newTransportMessage == nil {
 		return nil
 	}
+	return e.newTransportMessage()
+}
+
+func (e *EndpointMessageHandlersBase) GetTransportMessageBuilder() func() interface{} {
 	return e.newTransportMessage
 }
 
-func (e *EndpointBase) TransportMessageToLogic(msg interface{}) RequestMessage {
+func (e *EndpointMessageHandlersBase) TransportMessageToLogic(msg interface{}) RequestMessage {
 	if e.transportToLogic == nil {
 		return &RequestMessageBase{message: msg}
 	}
 	return e.transportToLogic(msg)
 }
 
-func (e *EndpointBase) LogicMessageToTransport(msg interface{}) interface{} {
+func (e *EndpointMessageHandlersBase) LogicMessageToTransport(msg interface{}) interface{} {
 	if e.logicToTransport == nil {
 		return msg
 	}
 	return e.logicToTransport(msg)
+}
+
+// Interface of API endpoint.
+type Endpoint interface {
+	api.Operation
+	generic_error.ErrorsExtender
+	EndpointMessageHandlers
+
+	SetMessageHandlers(handlers EndpointMessageHandlers)
+
+	// Handle request to server API.
+	HandleRequest(request Request) error
+
+	// Precheck request before some authorization methods
+	PrecheckRequestBeforeAuth(request Request, smsMessage *string, skipSms *bool) error
+}
+
+type EndpointHandler = func(request Request)
+
+// Base type for API endpoints.
+type EndpointBase struct {
+	api.Operation
+	generic_error.ErrorsExtenderBase
+	EndpointMessageHandlers
 }
 
 func (e *EndpointBase) Construct(op api.Operation) {
@@ -82,7 +105,12 @@ func (e *EndpointBase) Construct(op api.Operation) {
 }
 
 func (e *EndpointBase) Init(operationName string, accessType ...access_control.AccessType) {
+	e.EndpointMessageHandlers = &EndpointMessageHandlersBase{}
 	e.Construct(api.NewOperation(operationName, utils.OptionalArg(access_control.Get, accessType...)))
+}
+
+func (e *EndpointBase) SetMessageHandlers(handlers EndpointMessageHandlers) {
+	e.EndpointMessageHandlers = handlers
 }
 
 func (e *EndpointBase) PrecheckRequestBeforeAuth(request Request, smsMessage *string, skipSms *bool) error {

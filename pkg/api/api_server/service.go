@@ -73,3 +73,19 @@ func (s *ServiceBase) AttachToServer(server Server) error {
 	}
 	return server.RegisterService(s)
 }
+
+func (s *ServiceBase) SetEndpointMessageHandlers(handlers map[string]EndpointMessageHandlers) {
+	s.EachOperation(func(op api.Operation) error {
+		ep, ok := op.(Endpoint)
+		if !ok {
+			return nil
+		}
+		epHandlers, ok1 := handlers[ep.Name()]
+		if !ok1 {
+			return nil
+		}
+
+		ep.SetMessageHandlers(epHandlers)
+		return nil
+	})
+}

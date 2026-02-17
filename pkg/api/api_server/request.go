@@ -43,7 +43,7 @@ func (m *RequestMessageBase) TransportMessage() any {
 }
 
 func (m *RequestMessageBase) ResourceIds() api.ResourceIds {
-	return nil
+	return &api.ResourceIdsBase{}
 }
 
 // Interface of request to server API.
