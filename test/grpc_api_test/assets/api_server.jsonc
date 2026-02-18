@@ -1,0 +1,90 @@
+{
+    "testing" : "true",
+    "db":{
+        "db_provider": "sqlite",
+        "db_name" : "server_db.sqlite"
+    },
+    "logger" : {
+        "level" : "debug"
+    },
+    "sms": {
+        "default_provider": "mock_default",
+        "providers": {
+            "mock_default" : {
+                "protocol": "sms_mock"
+            }
+        }
+    },
+    "server": { 
+        "auth": {
+            "manager" : {
+                "methods": {
+                    "login_phash_token": {},
+                    "token": {
+                        "secret": "hdidyuvp98-32kj4p98y"
+                    },
+                    "sms": {
+                        "testing": true,
+                        "secret": "kj;oijkxwqpofe'poj",
+                        "max_tries":3
+                    },
+                    "noauth":{}
+                },
+                "schemas":[
+                    {
+                        "name" : "token_sms",
+                        "handlers" : [
+                            {"name":"check_token"},
+                            {"name":"sms"}
+                        ]
+                    }
+                ]
+            },
+            "default_schema": "token",
+            "endpoints": {
+                "/auth/login": [
+                    {
+                        "http_method": "POST",
+                        "schema":"login_phash_token"
+                    }
+                ],
+                "/status/check": [
+                    {
+                        "http_method": "GET",
+                        "schema": "noauth"
+                    }
+                ],
+                "/status/csrf": [
+                    {
+                        "access": 255,
+                        "schema": "noauth"
+                    }
+                ],
+                "/status/sms": [
+                    {
+                        "access": 255,
+                        "schema": "token_sms"
+                    }
+                ],
+                "/status/sms-alt": [
+                    {
+                        "access": 255,
+                        "schema": "token_sms"
+                    }
+                ]
+            }
+        },
+        "rest_api_server": {
+            "verbose":true,
+            "name": "Auth server",
+            "api_version" : "1.0.0",
+            "host": "127.0.0.1",
+            "port": 5000,
+            "trusted_proxies": ["127.0.0.1"],
+            "csrf": {
+                "secret": "0000000000000",
+                "ignore_paths": ["/status/check"]
+            }
+        }
+    }
+}

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package pool_service_grpc;
+
+option go_package = "pkg/pool/pool_service/pool_service_grpc";
+ 
+service PoolService {
+  rpc AddPool(Pool) returns (Pool);
+}
+
+message Pool {
+  string id = 1;
+  google.protobuf.Timestamp created_at=2;
+  google.protobuf.Timestamp updated_at=3;
+  string name =4;
+  string long_name =5;
+  string description =6;
+  string active =7;
+}

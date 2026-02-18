@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package tenancy_service_grpc;
+
+option go_package = "pkg/multitenancy/tenancy_service/tenancy_service_grpc";
+ 
+service MultitenancyService {
+  rpc AddTenant(Tenant) returns (Tenant);
+}
+
+message Tenant {
+  string id = 1;
+  google.protobuf.Timestamp created_at=2;
+  google.protobuf.Timestamp updated_at=3;
+  string name =4;
+  string long_name =5;
+  string description =6;
+  string active =7;
+}
