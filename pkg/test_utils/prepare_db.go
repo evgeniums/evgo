@@ -61,7 +61,7 @@ func DbDsnBuilder(t *testing.T, config *db.DBConfig) (string, error) {
 		return db_gorm.PostgresDsnBuilder(config)
 	case "sqlite":
 		dsn := SqlitePath(config)
-		t.Logf("Sqlite database DSN: %s", dsn)
+		t.Logf("Sqlite database DSN: %s\n", dsn)
 		return dsn, nil
 	}
 
