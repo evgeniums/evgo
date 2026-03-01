@@ -296,3 +296,10 @@ func MapToStruct(in interface{}, out interface{}, tag ...string) error {
 	// done
 	return nil
 }
+
+func CapitalizeAscii(s string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
