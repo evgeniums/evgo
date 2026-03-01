@@ -23,12 +23,17 @@ type Server interface {
 	SignatureManager() signature.SignatureManager
 }
 
+type ApiSeverBuilder = func() api_server.Server
+
 type Config struct {
 	Auth             auth.Auth
 	Server           api_server.Server
 	SmsManager       sms.SmsManager
 	SmsProviders     sms.ProviderFactory
 	SignatureManager signature.SignatureManager
+
+	ServerBuilder    ApiSeverBuilder
+	ServerConfigPath string
 
 	WithoutStatusService bool
 	WithoutDynamicTables bool
@@ -47,6 +52,8 @@ type pimpl struct {
 	smsProviders     sms.ProviderFactory
 	users            auth_session.WithUserSessionManager
 	signatureManager signature.SignatureManager
+	serverBuilder    ApiSeverBuilder
+	serverConfigPath string
 }
 
 type BareBonesServerBaseConfig struct {
@@ -77,6 +84,8 @@ func (s *BareBonesServerBase) Construct(users auth_session.WithUserSessionManage
 		s.pimpl.smsManager = cfg.SmsManager
 		s.pimpl.smsProviders = cfg.SmsProviders
 		s.pimpl.signatureManager = cfg.SignatureManager
+		s.pimpl.serverBuilder = cfg.ServerBuilder
+		s.pimpl.serverConfigPath = cfg.ServerConfigPath
 
 		s.WithoutDynamicTables = cfg.WithoutDynamicTables
 		s.WithoutStatusService = cfg.WithoutStatusService
@@ -128,18 +137,24 @@ func (s *BareBonesServerBase) Init(app app_context.Context, tenancyManager multi
 	// init REST API server
 	if s.pimpl.server == nil {
 
-		server := rest_api_gin_server.NewServer()
-		err = s.initFromPoolService(app, server)
+		configPath := s.pimpl.serverConfigPath
+		if s.pimpl.serverBuilder == nil {
+			s.pimpl.server = rest_api_gin_server.NewServer()
+			configPath = "rest_api_server"
+		} else {
+			s.pimpl.server = s.pimpl.serverBuilder()
+		}
+
+		err = s.initFromPoolService(app, s.pimpl.server)
 		if err != nil {
 			return err
 		}
 
-		serverPath := object_config.Key(path, "rest_api_server")
-		err = server.Init(app, s.pimpl.auth, tenancyManager, serverPath)
+		serverPath := object_config.Key(path, configPath)
+		err = s.pimpl.server.Init(app, s.pimpl.auth, tenancyManager, serverPath)
 		if err != nil {
-			return app.Logger().PushFatalStack("failed to init REST API server", err)
+			return app.Logger().PushFatalStack("failed to init API server", err)
 		}
-		s.pimpl.server = server
 	}
 
 	// add services
@@ -159,8 +174,8 @@ func (s *BareBonesServerBase) Init(app app_context.Context, tenancyManager multi
 	return nil
 }
 
-func (s *BareBonesServerBase) initFromPoolService(app app_context.Context, restApiServer *rest_api_gin_server.Server) error {
-	_, err := noauth_server.InitFromPoolService(app, restApiServer, &s.config)
+func (s *BareBonesServerBase) initFromPoolService(app app_context.Context, apiServer api_server.Server) error {
+	_, err := noauth_server.InitFromPoolService(app, apiServer, &s.config)
 	return err
 }
 

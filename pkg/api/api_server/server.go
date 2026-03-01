@@ -3,6 +3,7 @@ package api_server
 import (
 	"fmt"
 
+	"github.com/evgeniums/go-utils/pkg/app_context"
 	"github.com/evgeniums/go-utils/pkg/auth"
 	"github.com/evgeniums/go-utils/pkg/background_worker"
 	"github.com/evgeniums/go-utils/pkg/common"
@@ -18,6 +19,8 @@ type AuthParameterSetter = func(r *Request, key string, value string)
 type Server interface {
 	generic_error.ErrorManager
 	auth.WithAuth
+
+	Init(ctx app_context.Context, auth auth.Auth, tenancyManager multitenancy.Multitenancy, configPath ...string) error
 
 	// Get API version.
 	ApiVersion() string

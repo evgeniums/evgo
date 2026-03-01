@@ -96,7 +96,7 @@ func (s *NoAuthServer) Construct(config ...Config) {
 	}
 }
 
-func InitFromPoolService(app app_context.Context, restApiServer *rest_api_gin_server.Server, cfg PoolServiceConfigI) (*pool.PoolServiceBinding, error) {
+func InitFromPoolService(app app_context.Context, apiServer api_server.Server, cfg PoolServiceConfigI) (*pool.PoolServiceBinding, error) {
 
 	var service *pool.PoolServiceBinding
 
@@ -131,7 +131,7 @@ func InitFromPoolService(app app_context.Context, restApiServer *rest_api_gin_se
 		}
 
 		// load server configuration from service
-		restApiServer.SetConfigFromPoolService(service, cfg.IsPublic())
+		apiServer.SetConfigFromPoolService(service, cfg.IsPublic())
 	}
 
 	return service, nil
