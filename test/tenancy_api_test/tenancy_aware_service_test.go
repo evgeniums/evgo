@@ -25,7 +25,7 @@ func NewSampleService() *SampleService {
 
 	s := &SampleService{}
 
-	s.Init("samples", true)
+	s.Init("samples", "tenancy_test", true)
 	s.SampleResource = api.NewResource("sample")
 	s.AddChild(s.SampleResource)
 	s.SampleResource.AddOperation(List(s))
