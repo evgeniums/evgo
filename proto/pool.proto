@@ -17,5 +17,5 @@ message Pool {
   string name =4;
   string long_name =5;
   string description =6;
-  string active =7;
+  string active =8;
 }

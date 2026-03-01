@@ -48,6 +48,12 @@
                         "schema":"login_phash_token"
                     }
                 ],
+                "/status/echo": [
+                    {
+                        "http_method": "POST",
+                        "schema": "noauth"
+                    }
+                ],
                 "/status/check": [
                     {
                         "http_method": "GET",
@@ -74,17 +80,13 @@
                 ]
             }
         },
-        "rest_api_server": {
+        "grpc_api_server": {
             "verbose":true,
-            "name": "Auth server",
+            "name": "Grpc Server",
             "api_version" : "1.0.0",
             "host": "127.0.0.1",
             "port": 5000,
-            "trusted_proxies": ["127.0.0.1"],
-            "csrf": {
-                "secret": "0000000000000",
-                "ignore_paths": ["/status/check"]
-            }
+            "trusted_proxies": ["127.0.0.1/32"]
         }
     }
 }

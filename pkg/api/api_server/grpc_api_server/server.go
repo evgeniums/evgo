@@ -33,7 +33,6 @@ import (
 
 const OriginType = "grpc"
 const DefaultGrpcConfigSection string = "grpc"
-const TenancyHeader string = "x-tenant-id"
 
 type ServerConfig struct {
 	api_server.ServerBaseConfig
@@ -53,7 +52,7 @@ type ServerConfig struct {
 
 	REAL_IP_HEADER string `validate:"required" default:"X-Forwarded-For"`
 
-	TENANCY_HEADER string `validate:"omitempty,alphanum"`
+	TENANCY_HEADER string `validate:"omitempty,hostname_rfc1123|alphanum" default:"X-Tenancy-Id"`
 }
 
 type GrpcServerRunner struct {
@@ -95,11 +94,7 @@ type Server struct {
 }
 
 func NewServer() *Server {
-
 	s := &Server{}
-
-	s.TENANCY_HEADER = TenancyHeader
-
 	return s
 }
 
@@ -169,7 +164,7 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 
 	var err error
 	s.hostname = ctx.Hostname()
-	ctx.Logger().Info("REST API server: init gin server", logger.Fields{"hostname": s.hostname})
+	ctx.Logger().Info("Grpc API server: init API server", logger.Fields{"hostname": s.hostname})
 
 	s.WithAppBase.Init(ctx)
 	s.ErrorManagerBaseHttp.Init()
@@ -182,12 +177,12 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	s.services = map[string]api_server.Service{}
 
 	if s.IsMultitenancy() {
-		ctx.Logger().Info("REST API server: enabling multitenancy mode")
+		ctx.Logger().Info("Grpc API server: enabling multitenancy mode")
 		parent := api.NewResource(s.TENANCY_HEADER)
 		s.tenancyResource = api.NewResource(s.TENANCY_HEADER, api.ResourceConfig{HasId: true, Tenancy: true})
 		parent.AddChild(s.tenancyResource)
 	} else {
-		ctx.Logger().Info("REST API server: disabling multitenancy mode")
+		ctx.Logger().Info("Grpc API server: disabling multitenancy mode")
 	}
 
 	// load default configuration
@@ -218,13 +213,13 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	}
 
 	// setup crash recovery
-	crachRecoveryFunc := func(p any) (err error) {
+	crashRecoveryFunc := func(p any) (err error) {
 		s.crashed = true
 		// TODO log error
 		return status.Errorf(codes.Internal, "panic triggered: %v", p)
 	}
 	opts := []recovery.Option{
-		recovery.WithRecoveryHandler(crachRecoveryFunc),
+		recovery.WithRecoveryHandler(crashRecoveryFunc),
 	}
 
 	// create grpc server
@@ -262,7 +257,7 @@ func (s *Server) Run(fin background_worker.Finisher) {
 	fin.AddRunner(s.grpcServer, &background_worker.RunnerConfig{Name: optional.NewString(s.Name())})
 
 	go func() {
-		s.App().Logger().Info("Running gRPC API server", logger.Fields{"name": s.Name(), "address": listener.Addr})
+		s.App().Logger().Info("Running gRPC API server", logger.Fields{"name": s.Name(), "address": listener.Addr().String()})
 		err := s.grpcServer.Serve(listener)
 		if err != nil {
 			msg := "failed to run gRPC server"
@@ -270,11 +265,12 @@ func (s *Server) Run(fin background_worker.Finisher) {
 			s.App().Logger().Fatal(msg, err, logger.Fields{"name": s.Name()})
 			app_context.AbortFatal(s.App(), msg)
 		}
+		s.App().Logger().Info("gRPC API server stopped", logger.Fields{"name": s.Name()})
 	}()
 }
 
 func (s *Server) FullMethodName(service api_server.Service, ep api_server.Endpoint) string {
-	return fmt.Sprintf("/%s/%s", service.Name(), ep.Name())
+	return fmt.Sprintf("/%s.%s/%s", service.Package(), service.Name(), ep.Name())
 }
 
 func (s *Server) GrpcUnaryHandler(service api_server.Service, ep api_server.Endpoint) *UnaryHandler {
@@ -285,7 +281,7 @@ func (s *Server) GrpcUnaryHandler(service api_server.Service, ep api_server.Endp
 	return &handler
 }
 
-func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint, methods []grpc.MethodDesc) {
+func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint, methods *[]grpc.MethodDesc) {
 
 	if ep.TestOnly() && !s.Testing() {
 		return
@@ -302,14 +298,19 @@ func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint,
 		FullMethod: fullMethodName,
 	}
 	handler := UnaryHandler{endpoint: ep, server: s, grpcUnaryServerInfo: info}
+	_, hasEndpoint := s.handlers[fullMethodName]
+	if hasEndpoint {
+		s.App().Logger().Warn("Grpc API server: duplicate endpoint", logger.Fields{"method": fullMethodName})
+	}
 	s.handlers[fullMethodName] = handler
 
 	grpcMethod := grpc.MethodDesc{
-		MethodName: fullMethodName,
+		MethodName: ep.Name(),
 		Handler:    handler.handle,
 	}
+	*methods = append(*methods, grpcMethod)
 
-	methods = append(methods, grpcMethod)
+	s.App().Logger().Info("Grpc API server: register endpoint", logger.Fields{"method": fullMethodName})
 }
 
 func (s *Server) MakeResponseError(gerr generic_error.Error) (int, generic_error.Error) {
@@ -326,12 +327,14 @@ func (s *Server) RegisterService(service api_server.Service) error {
 		if !ok {
 			return fmt.Errorf("invalid opertaion type, must be endpoint: %s", op.Name())
 		}
-		s.AddEndpoint(service, ep, methods)
+		s.AddEndpoint(service, ep, &methods)
 		return nil
 	})
 
+	serviceName := service.Package() + "." + service.Name()
+
 	serviceDesc := &grpc.ServiceDesc{
-		ServiceName: service.Name(),
+		ServiceName: serviceName,
 		HandlerType: (*interface{})(nil),
 		Methods:     methods,
 		Streams:     []grpc.StreamDesc{},
@@ -341,6 +344,16 @@ func (s *Server) RegisterService(service api_server.Service) error {
 	s.grpcServer.RegisterService(serviceDesc, nil)
 	s.services[service.Name()] = service
 
+	/*	TODO Maybe run it after service initialization
+		serviceInfo := s.grpcServer.GetServiceInfo()
+		for serviceName, info := range serviceInfo {
+			fmt.Printf("Service: %s\n", serviceName)
+			for _, method := range info.Methods {
+				// Full path format: /package.Service/Method
+				fmt.Printf("  - Endpoint: /%s/%s\n", serviceName, method.Name)
+			}
+		}
+	*/
 	return nil
 }
 
@@ -366,25 +379,22 @@ func (s *Server) logRequest(log logger.Logger, start time.Time, callCtx methodCo
 	// }
 
 	fields := logger.Fields{
-		"host":   s.hostname,
-		"code":   callCtx.StatusCode(),
-		"lat":    latency,
-		"ip":     callCtx.ClientIp(),
-		"method": callCtx.Method(),
+		"host": s.hostname,
+		"code": callCtx.StatusCode(),
+		"lat":  latency,
+		"ip":   callCtx.ClientIp(),
 		// "size":   dataLength,
 		"agent":  callCtx.UserAgent(),
 		"server": s.Name(),
 	}
 	logger.AppendFields(fields, extraFields...)
 
-	if callCtx.Error() != nil {
-		if StatusError(callCtx.StatusCode()) {
-			log.Error(s.logPrefix, errors.New("internal server error"), fields)
-		} else if StatusWarn(callCtx.StatusCode()) {
-			log.Warn(s.logPrefix, fields)
-		} else {
-			log.Info(s.logPrefix, fields)
-		}
+	if StatusError(callCtx.StatusCode()) {
+		log.Error(s.logPrefix, errors.New("internal server error"), fields)
+	} else if StatusWarn(callCtx.StatusCode()) {
+		log.Warn(s.logPrefix, fields)
+	} else {
+		log.Info(s.logPrefix, fields)
 	}
 }
 
@@ -422,7 +432,12 @@ func HTTPToGRPC(httpCode int) codes.Code {
 }
 
 func StatusError(status codes.Code) bool {
-	return status >= codes.Internal
+	return status == codes.Internal ||
+		status == codes.DataLoss ||
+		status == codes.Unknown ||
+		status == codes.Unimplemented ||
+		status == codes.Unavailable ||
+		status == codes.DeadlineExceeded
 }
 
 func StatusWarn(status codes.Code) bool {

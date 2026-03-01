@@ -28,7 +28,7 @@ func TestCsrf(t *testing.T) {
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{
 		Error:    "anti_csrf_token_required",
 		HttpCode: http.StatusForbidden,
-		Message:  "Request must be protected with anti-CSRF token."})
+		Message:  "Request must be protected with anti-CSRF token"})
 	assert.Empty(t, client.CsrfToken)
 	assert.Empty(t, client.AccessToken)
 	assert.Empty(t, client.RefreshToken)
@@ -55,7 +55,7 @@ func TestCsrf(t *testing.T) {
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{
 		Error:    "anti_csrf_token_expired",
 		HttpCode: http.StatusForbidden,
-		Message:  "Anti-CSRF token expired."})
+		Message:  "Anti-CSRF token expired"})
 
 	resp = client.Get("/status/check", nil)
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{

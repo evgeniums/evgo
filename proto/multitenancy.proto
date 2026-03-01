@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
 
-package tenancy_service_grpc;
+package tenancy_service_grpc.v1;
 
 option go_package = "pkg/multitenancy/tenancy_service/tenancy_service_grpc";
  

@@ -151,6 +151,7 @@ func (r *Request) Close(successMessage ...string) {
 			r.SetErrorAsWarn(true)
 		}
 		r.statusCode = HTTPToGRPC(code)
+		r.statusMessage = r.GenericError().Message()
 		r.SetLoggerField("status", err.Code())
 	}
 
@@ -401,5 +402,5 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 	}
 
 	// done
-	return request, c, nil
+	return request, c, err
 }
