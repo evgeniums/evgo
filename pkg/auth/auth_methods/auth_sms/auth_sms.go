@@ -120,15 +120,15 @@ const ErrorCodeTooManyTries = "sms_too_many_tries"
 
 func (a *AuthSms) ErrorDescriptions() map[string]string {
 	m := map[string]string{
-		ErrorCodeSmsConfirmationRequired: "Request must be confirmed with SMS.",
-		ErrorCodeSmsTokenRequired:        "SMS token must be present in request.",
-		ErrorCodeTokenExpired:            "SMS token expired.",
-		ErrorCodeInvalidToken:            "Invalid SMS token.",
-		ErrorCodeInvalidSmsCode:          "Invalid SMS code.",
-		ErrorCodeWaitDelay:               "Wait before requesting new SMS code.",
-		ErrorCodeContentMismatch:         "Content of initial request and content of current request mismatch.",
-		ErrorCodeInvalidPhone:            "failed to send SMS confirmation because of invalid phone number.",
-		ErrorCodeTooManyTries:            "Too many code tries.",
+		ErrorCodeSmsConfirmationRequired: "Request must be confirmed with SMS",
+		ErrorCodeSmsTokenRequired:        "SMS token must be present in request",
+		ErrorCodeTokenExpired:            "SMS token expired",
+		ErrorCodeInvalidToken:            "Invalid SMS token",
+		ErrorCodeInvalidSmsCode:          "Invalid SMS code",
+		ErrorCodeWaitDelay:               "Wait before requesting new SMS code",
+		ErrorCodeContentMismatch:         "Content of initial request and content of current request mismatch",
+		ErrorCodeInvalidPhone:            "failed to send SMS confirmation because of invalid phone number",
+		ErrorCodeTooManyTries:            "Too many code tries",
 	}
 	return m
 }

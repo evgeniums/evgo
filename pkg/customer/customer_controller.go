@@ -14,7 +14,7 @@ const (
 )
 
 var ErrorDescriptions = map[string]string{
-	ErrorCodeCustomerNotFound: "Customer not found.",
+	ErrorCodeCustomerNotFound: "Customer not found",
 }
 
 var ErrorHttpCodes = map[string]int{

@@ -30,7 +30,7 @@ type Pool struct {
 	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
 	LongName      string                 `protobuf:"bytes,5,opt,name=long_name,json=longName,proto3" json:"long_name,omitempty"`
 	Description   string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
-	Active        string                 `protobuf:"bytes,7,opt,name=active,proto3" json:"active,omitempty"`
+	Active        string                 `protobuf:"bytes,8,opt,name=active,proto3" json:"active,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -129,7 +129,7 @@ const file_pool_proto_rawDesc = "" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12\x1b\n" +
 	"\tlong_name\x18\x05 \x01(\tR\blongName\x12 \n" +
 	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x16\n" +
-	"\x06active\x18\a \x01(\tR\x06active2J\n" +
+	"\x06active\x18\b \x01(\tR\x06active2J\n" +
 	"\vPoolService\x12;\n" +
 	"\aAddPool\x12\x17.pool_service_grpc.Pool\x1a\x17.pool_service_grpc.PoolB)Z'pkg/pool/pool_service/pool_service_grpcb\x06proto3"
 

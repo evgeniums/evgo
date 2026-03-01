@@ -47,7 +47,7 @@ const ErrorCodeInvalidHmac = "hmac_invalid"
 
 func (a *AuthHmac) ErrorDescriptions() map[string]string {
 	m := map[string]string{
-		ErrorCodeInvalidHmac: "Invalid HMAC.",
+		ErrorCodeInvalidHmac: "Invalid HMAC",
 	}
 	return m
 }

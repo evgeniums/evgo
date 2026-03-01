@@ -73,9 +73,9 @@ const ErrorCodeInvalidToken = "anti_csrf_token_invalid"
 
 func (a *AuthCsrf) ErrorDescriptions() map[string]string {
 	m := map[string]string{
-		ErrorCodeAntiCsrfRequired: "Request must be protected with anti-CSRF token.",
-		ErrorCodeTokenExpired:     "Anti-CSRF token expired.",
-		ErrorCodeInvalidToken:     "Invalid anti-CSRF token.",
+		ErrorCodeAntiCsrfRequired: "Request must be protected with anti-CSRF token",
+		ErrorCodeTokenExpired:     "Anti-CSRF token expired",
+		ErrorCodeInvalidToken:     "Invalid anti-CSRF token",
 	}
 	return m
 }

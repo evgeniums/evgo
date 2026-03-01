@@ -11,9 +11,9 @@ const (
 )
 
 var ErrorDescriptions = map[string]string{
-	ErrorCodeUnauthorized:          "Request is not authorized.",
-	ErrorCodeInvalidAuthSchema:     "Invalid authorization schema.",
-	ErrorCodeUnsupportedAuthMethod: "Unsupported authorization method.",
+	ErrorCodeUnauthorized:          "Request is not authorized",
+	ErrorCodeInvalidAuthSchema:     "Invalid authorization schema",
+	ErrorCodeUnsupportedAuthMethod: "Unsupported authorization method",
 }
 
 var ErrorHttpCodes = map[string]int{

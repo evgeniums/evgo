@@ -49,12 +49,12 @@ const (
 )
 
 var ErrorDescriptions = map[string]string{
-	ErrorCodeTenancyNotFound:               "Tenancy not found.",
-	ErrorCodeTenancyConflictRole:           "Tenancy with such role already exists for that customer.",
-	ErrorCodeTenancyConflictPath:           "Tenancy with such path already exists in that pool.",
-	ErrorCodeTenancyDbInitializationFailed: "Failed to initialize tenancy database.",
-	ErrorCodeForeignDatabase:               "Database does not belong to this tenancy.",
-	ErrorCodeNoDbserviceInPool:             "Pool does not contain service for tenancy database.",
+	ErrorCodeTenancyNotFound:               "Tenancy not found",
+	ErrorCodeTenancyConflictRole:           "Tenancy with such role already exists for that customer",
+	ErrorCodeTenancyConflictPath:           "Tenancy with such path already exists in that pool",
+	ErrorCodeTenancyDbInitializationFailed: "Failed to initialize tenancy database",
+	ErrorCodeForeignDatabase:               "Database does not belong to this tenancy",
+	ErrorCodeNoDbserviceInPool:             "Pool does not contain service for tenancy database",
 }
 
 var ErrorHttpCodes = map[string]int{
