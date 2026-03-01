@@ -34,7 +34,7 @@ func NewPoolService(poolController pool.PoolController) *PoolService {
 
 	var serviceName string
 	serviceName, s.PoolsResource, s.PoolResource = api.PrepareCollectionAndNameResource("pool")
-	s.Init(serviceName)
+	s.Init(serviceName, api.PackageName)
 	s.AddChild(s.PoolsResource)
 
 	_, s.ServicesResource, s.ServResource = api.PrepareCollectionAndNameResource("service")

@@ -3,6 +3,7 @@ package api_server
 import (
 	"github.com/evgeniums/go-utils/pkg/access_control"
 	"github.com/evgeniums/go-utils/pkg/api"
+	"github.com/evgeniums/go-utils/pkg/utils"
 )
 
 type CheckStatusEndpoint struct {
@@ -67,9 +68,9 @@ func (e *EchoEndpoint) HandleRequest(request Request) error {
 	return nil
 }
 
-func NewEchoEndpoint() *EchoEndpoint {
+func NewEchoEndpoint(opName ...string) *EchoEndpoint {
 	ep := &EchoEndpoint{}
-	ep.Init("Echo", access_control.Post)
+	ep.Init(utils.OptionalString("Echo", opName...), access_control.Post)
 	return ep
 }
 
@@ -80,7 +81,7 @@ type StatusService struct {
 func NewStatusService(multitenancy ...bool) *StatusService {
 	s := &StatusService{}
 
-	s.Init("status", multitenancy...)
+	s.Init("status", api.PackageName, multitenancy...)
 	s.AddChildren(NewCheckStatusEndpoint(),
 		NewCheckAccessResourceEndpoint("csrf", "CheckCsrf"),
 		NewCheckAccessResourceEndpoint("logged", "CheckLogged"),
@@ -90,7 +91,7 @@ func NewStatusService(multitenancy ...bool) *StatusService {
 	s.AddChild(altSmsPath)
 
 	sms := api.NewResource("sms")
-	sms.AddOperation(NewEchoEndpoint())
+	sms.AddOperation(NewEchoEndpoint("PutSms"))
 	altSmsMethod := NewCheckAccessEndpoint("CheckSmsPut", access_control.Put)
 	altSmsMethod.SetTestOnly(true)
 	sms.AddOperation(altSmsMethod)

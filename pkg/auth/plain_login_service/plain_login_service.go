@@ -2,6 +2,7 @@ package plain_login_service
 
 import (
 	"github.com/evgeniums/go-utils/pkg/access_control"
+	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
 	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_token"
 	"github.com/evgeniums/go-utils/pkg/auth/auth_session"
@@ -60,7 +61,7 @@ func NewPlainLoginService(users auth_session.WithUserSessionManager) *PlainLogin
 	s := &PlainLoginService{users: users}
 	s.ErrorsExtenderBase.Init(auth_token.ErrorDescriptions, auth_token.ErrorProtocolCodes)
 	s.tokenHandler = auth_token.NewNewToken(users)
-	s.ServiceBase.Init("auth")
+	s.ServiceBase.Init("auth", api.PackageName)
 	s.AddChildren(NewLoginEndpoint(s), NewLogoutEndpoint(), NewRefreshEndpoint())
 	return s
 }

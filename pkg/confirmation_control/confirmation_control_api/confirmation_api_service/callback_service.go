@@ -27,7 +27,7 @@ func NewConfirmationCallbackService(confirmationCallbackHandler confirmation_con
 
 	s := &ConfirmationCallbackService{ConfirmationCallbackHandler: confirmationCallbackHandler}
 
-	s.Init(confirmation_control_api.ServiceName, true)
+	s.Init(confirmation_control_api.ServiceName, confirmation_control.PackageName, true)
 	s.CallbackResource = api.NewResource(confirmation_control_api.CallbackResource)
 	s.AddChild(s.CallbackResource)
 	s.CallbackResource.AddOperation(CallbackConfirmation(s))

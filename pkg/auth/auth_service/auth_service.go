@@ -2,6 +2,7 @@ package auth_service
 
 import (
 	"github.com/evgeniums/go-utils/pkg/access_control"
+	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
 )
 
@@ -47,7 +48,7 @@ type AuthService struct {
 
 func NewAuthService(multitenancy ...bool) *AuthService {
 	s := &AuthService{}
-	s.Init("auth", multitenancy...)
+	s.Init("auth", api.PackageName, multitenancy...)
 	s.AddChildren(NewLoginEndpoint(), NewLogoutEndpoint(), NewRefreshEndpoint())
 	return s
 }

@@ -2,6 +2,7 @@ package api_server
 
 import (
 	"github.com/evgeniums/go-utils/pkg/access_control"
+	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/generic_error"
 )
 
@@ -52,7 +53,7 @@ func NewDynamicTablesService(multitenancy ...bool) *DynamicTablesService {
 
 	s := &DynamicTablesService{}
 
-	s.Init("dynamic-tables", multitenancy...)
+	s.Init("dynamic-tables", api.PackageName, multitenancy...)
 	s.AddChild(NewDynamicTableEndpoint(s))
 
 	return s

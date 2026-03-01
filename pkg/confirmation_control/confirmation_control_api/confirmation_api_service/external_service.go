@@ -32,7 +32,7 @@ func NewConfirmationExternalService(confirmationCallbackHandler confirmation_con
 	s := &ConfirmationExternalService{CheckCode: checkCode}
 	s.ConfirmationCallbackHandler = confirmationCallbackHandler
 
-	s.Init(confirmation_control_api.ServiceName, true)
+	s.Init(confirmation_control_api.ServiceName, confirmation_control.PackageName, true)
 	s.OperationResource = api.NamedResource(confirmation_control_api.OperationResource)
 	s.AddChild(s.OperationResource.Parent())
 	s.OperationResource.AddOperations(CheckConfirmation(s), PrepareCheckConfirmation(s))

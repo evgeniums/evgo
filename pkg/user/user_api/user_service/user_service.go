@@ -34,7 +34,7 @@ func NewUserService[U user.User](userController user.Users[U],
 	s.collectionResource = collectionResource
 	s.userResource = userResource
 
-	s.Init(serviceName)
+	s.Init(serviceName, api.PackageName)
 	s.UserTypeName = userType
 
 	s.Users = userController

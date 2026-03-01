@@ -44,7 +44,7 @@ func NewTenancyService(tenancyController multitenancy.TenancyController) *Tenanc
 	s.ErrorsExtenderBase.AddErrors(customer.ErrorDescriptions, customer.ErrorHttpCodes)
 	s.Tenancies = tenancyController
 
-	s.Init(tenancy_api.ServiceName)
+	s.Init(tenancy_api.ServiceName, api.PackageName)
 	s.TenancyResource = api.NamedResource(tenancy_api.TenancyResource)
 	s.TenanciesResource = s.TenancyResource.Parent()
 	s.AddChild(s.TenanciesResource)

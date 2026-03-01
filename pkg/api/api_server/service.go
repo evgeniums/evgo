@@ -23,6 +23,9 @@ type Service interface {
 
 	AddDynamicTables(tables ...*DynamicTableConfig)
 	DynamicTables() []*DynamicTableConfig
+
+	Package() string
+	SetPackage(string)
 }
 
 type ServiceBase struct {
@@ -33,9 +36,13 @@ type ServiceBase struct {
 	dynamicTables []*DynamicTableConfig
 
 	multitenancy bool
+
+	packageName string
 }
 
-func (s *ServiceBase) Init(pathName string, multitenancy ...bool) {
+func (s *ServiceBase) Init(pathName string, packageName string, multitenancy ...bool) {
+	s.SetName(utils.CapitalizeAscii(pathName))
+	s.SetPackage(packageName)
 	s.ResourceBase.Init(pathName, api.ResourceConfig{Service: true})
 	s.dynamicTables = make([]*DynamicTableConfig, 0)
 	s.multitenancy = utils.OptionalArg(false, multitenancy...)
@@ -88,4 +95,12 @@ func (s *ServiceBase) SetEndpointMessageHandlers(handlers map[string]EndpointMes
 		ep.SetMessageHandlers(epHandlers)
 		return nil
 	})
+}
+
+func (s *ServiceBase) SetPackage(value string) {
+	s.packageName = value
+}
+
+func (s *ServiceBase) Package() string {
+	return s.packageName
 }

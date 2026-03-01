@@ -2,6 +2,8 @@ package api
 
 import "github.com/evgeniums/go-utils/pkg/access_control"
 
+const PackageName = "generic_api"
+
 func OperationAsResource(sampleResource Resource, resourceName string, resourceId string, op Operation) Operation {
 	opResource := NewResource(resourceName)
 	opResource.AddOperation(op)

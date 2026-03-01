@@ -5,6 +5,8 @@ import (
 	"github.com/evgeniums/go-utils/pkg/multitenancy"
 )
 
+const PackageName = "confirmation_control"
+
 const StatusSuccess string = "success"
 const StatusFailed string = "failed"
 const StatusCancelled string = "cancelled"
