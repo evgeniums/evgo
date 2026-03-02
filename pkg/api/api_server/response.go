@@ -20,8 +20,8 @@ type Response interface {
 	Request() Request
 	SetRequest(request Request)
 
-	Text() string
-	SetText(text string)
+	Payload() []byte
+	SetPayload(payload []byte)
 
 	SetRedirectPath(path string)
 	RedirectPath() string
@@ -33,7 +33,7 @@ type Response interface {
 type ResponseBase struct {
 	message              interface{}
 	request              Request
-	text                 string
+	payload              []byte
 	redirectResourcePath string
 	file                 *File
 }
@@ -77,12 +77,12 @@ func (r *ResponseBase) Request() Request {
 	return r.request
 }
 
-func (r *ResponseBase) SetText(text string) {
-	r.text = text
+func (r *ResponseBase) SetPayload(data []byte) {
+	r.payload = data
 }
 
-func (r *ResponseBase) Text() string {
-	return r.text
+func (r *ResponseBase) Payload() []byte {
+	return r.payload
 }
 
 func (r *ResponseBase) SetRedirectPath(path string) {

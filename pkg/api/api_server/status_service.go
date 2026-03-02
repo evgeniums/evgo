@@ -64,8 +64,12 @@ type EchoEndpoint struct {
 
 func (e *EchoEndpoint) HandleRequest(request Request) error {
 	content := request.GetRequestContent()
-	request.Response().SetText(string(content))
+	request.Response().SetPayload(content)
 	return nil
+}
+
+func (e *EchoEndpoint) IsRequestPayloadNeeded() bool {
+	return true
 }
 
 func NewEchoEndpoint(opName ...string) *EchoEndpoint {

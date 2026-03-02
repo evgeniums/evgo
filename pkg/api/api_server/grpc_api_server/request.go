@@ -48,8 +48,6 @@ type Request struct {
 	statusMessage string
 	err           error
 
-	message api_server.RequestMessage
-
 	metadata metadata.MD
 }
 
@@ -160,10 +158,10 @@ func (r *Request) Close(successMessage ...string) {
 }
 
 func (r *Request) GetRequestContent() []byte {
-	if r.message == nil {
+	if r.Message() == nil {
 		return nil
 	}
-	return r.message.BinaryContent()
+	return r.Message().BinaryContent()
 }
 
 func AuthKey(key string, directKeyName ...bool) string {
@@ -188,11 +186,11 @@ func (r *Request) CheckRequestContent(smsMessage *string, skipSms *bool) error {
 
 func (r *Request) ResourceIds() api.ResourceIds {
 
-	if r.message == nil {
+	if r.Message() == nil {
 		return nil
 	}
 
-	return r.message.ResourceIds()
+	return r.Message().ResourceIds()
 }
 
 func (r *Request) GetRequestPath() string {
@@ -201,7 +199,7 @@ func (r *Request) GetRequestPath() string {
 
 func (r *Request) GetResourceId(resourceType string) api.ResourceId {
 
-	if r.message == nil {
+	if r.Message() == nil {
 		return nil
 	}
 
@@ -254,11 +252,17 @@ func (r *Request) GetTenancyId() string {
 	return ""
 }
 
-func (r *Request) MessageFromRequest(builder func() interface{}) interface{} {
-	if r.message == nil {
-		return nil
+func (r *Request) MessageFromRequest(builder func() interface{}) (interface{}, error) {
+	if r.Message() == nil {
+		return nil, nil
 	}
-	return r.message.LogicMessage()
+	logicMsg := builder()
+	r.Message().SetLogicMessage(logicMsg)
+	err := r.Endpoint().TransportRequestToLogic(r.Message())
+	if err != nil {
+		return nil, err
+	}
+	return logicMsg, nil
 }
 
 func (r *Request) StatusCode() codes.Code {
@@ -371,13 +375,13 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 		}
 	}
 
-	// process auth
-	if err == nil {
-		err = s.Auth().HandleRequest(request, ep.Resource().ServicePathPrototype(), ep.AccessType())
-		if err != nil {
-			request.SetGenericErrorCode(auth.ErrorCodeUnauthorized)
-		}
-	}
+	// // process auth
+	// if err == nil {
+	// 	err = s.Auth().HandleRequest(request, ep.Resource().ServicePathPrototype(), ep.AccessType())
+	// 	if err != nil {
+	// 		request.SetGenericErrorCode(auth.ErrorCodeUnauthorized)
+	// 	}
+	// }
 	if s.propagateAuthUser && (request.AuthUser() == nil || request.AuthUser().GetID() == "") {
 		userId := request.getHeader(api.ForwardUserId)
 		userLogin := request.getHeader(api.ForwardUserLogin)

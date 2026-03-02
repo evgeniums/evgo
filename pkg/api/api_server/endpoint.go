@@ -61,6 +61,8 @@ type Endpoint interface {
 
 	// Precheck request before some authorization methods
 	PrecheckRequestBeforeAuth(request Request, smsMessage *string, skipSms *bool) error
+
+	IsRequestPayloadNeeded() bool
 }
 
 type EndpointHandler = func(request Request)
@@ -83,6 +85,10 @@ func (e *EndpointBase) Init(operationName string, accessType ...access_control.A
 
 func (e *EndpointBase) SetMessageHandlers(handlers MessageHandlers) {
 	e.MessageHandlers = handlers
+}
+
+func (e *EndpointBase) IsRequestPayloadNeeded() bool {
+	return false
 }
 
 func (e *EndpointBase) NewRequestMessage() interface{} {

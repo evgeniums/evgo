@@ -28,6 +28,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/encoding/proto"
 	"google.golang.org/grpc/status"
 )
 
@@ -54,6 +56,8 @@ type ServerConfig struct {
 	REAL_IP_HEADER string `validate:"required" default:"X-Forwarded-For"`
 
 	TENANCY_HEADER string `validate:"omitempty,hostname_rfc1123|alphanum" default:"X-Tenancy-Id"`
+
+	TRANSPORT_CODEC_TYPE string `validate:"required,hostname_rfc1123|alphanum" default:"proto-hatn"`
 }
 
 type GrpcServerRunner struct {
@@ -226,9 +230,16 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 		recovery.WithRecoveryHandlerContext(crashRecoveryFunc),
 	}
 
+	// create codec wrapper
+	codecWrapper := &RequestCodec{
+		parent: encoding.GetCodec(proto.Name),
+		server: s,
+	}
+
 	// create grpc server
 	s.grpcServer = &GrpcServerRunner{
 		Server: grpc.NewServer(
+			grpc.ForceServerCodec(codecWrapper),
 			grpc.ChainUnaryInterceptor(
 				realip.UnaryServerInterceptor(trustedProxies, realIpHeaders),
 				recovery.UnaryServerInterceptor(opts...),

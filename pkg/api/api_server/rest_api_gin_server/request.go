@@ -101,8 +101,8 @@ func (r *Request) Close(successMessage ...string) {
 	}
 	if r.GenericError() == nil {
 		if !redirect {
-			if r.response.Text() != "" {
-				r.ginCtx.String(r.response.httpCode, r.response.Text())
+			if r.response.Payload() != nil {
+				r.ginCtx.String(r.response.httpCode, string(r.response.Payload()))
 			} else if r.response.Message() != nil {
 				reponseBody = r.response.Message()
 				r.ginCtx.JSON(r.response.httpCode, r.response.Message())
@@ -297,6 +297,6 @@ func (r *Request) FormFile() (*multipart.FileHeader, error) {
 	return file, nil
 }
 
-func (r *Request) MessageFromRequest(builder func() interface{}) interface{} {
-	return builder()
+func (r *Request) MessageFromRequest(builder func() interface{}) (interface{}, error) {
+	return builder(), nil
 }

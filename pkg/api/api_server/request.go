@@ -1,7 +1,6 @@
 package api_server
 
 import (
-	"errors"
 	"mime/multipart"
 
 	"github.com/evgeniums/go-utils/pkg/api"
@@ -80,19 +79,22 @@ type Request interface {
 	FormData() map[string][]string
 	FormFile() (*multipart.FileHeader, error)
 
-	MessageFromRequest(builder func() interface{}) interface{}
+	SetMessage(msg RequestMessage)
+	Message() RequestMessage
 }
 
 type RequestBase struct {
 	auth.TenancyUserContext
 	auth.SessionBase
 	endpoint Endpoint
+	message  RequestMessage
 }
 
 func (r *RequestBase) Init(app app_context.Context, log logger.Logger, db db.DB, fields ...logger.Fields) {
 	baseCtx := default_op_context.NewContext()
 	baseCtx.Init(app, log, db, fields...)
 	r.Construct(baseCtx)
+	r.message = &RequestMessageBase{}
 }
 
 func (r *RequestBase) SetEndpoint(endpoint Endpoint) {
@@ -101,6 +103,14 @@ func (r *RequestBase) SetEndpoint(endpoint Endpoint) {
 
 func (r *RequestBase) Endpoint() Endpoint {
 	return r.endpoint
+}
+
+func (r *RequestBase) SetMessage(msg RequestMessage) {
+	r.message = msg
+}
+
+func (r *RequestBase) Message() RequestMessage {
+	return r.message
 }
 
 func FullRequestPath(r Request) string {
@@ -160,29 +170,21 @@ func UniqueFormData(request Request) map[string]string {
 }
 
 func MessageFromRequest[T any](request Request, init ...func(*T)) (*T, error) {
-	msg := request.MessageFromRequest(
-		func() interface{} {
-			m := new(T)
-			if len(init) > 0 {
-				init[0](m)
-			}
-			return m
-		},
-	)
-	if msg == nil {
-		request.SetGenericErrorCode(generic_error.ErrorCodeFormat)
-		return nil, errors.New("no message in request")
+	msg := new(T)
+	if len(init) > 0 {
+		init[0](msg)
 	}
-	ptr, ok := msg.(*T)
-	if !ok {
+	request.Message().SetLogicMessage(msg)
+	err := request.Endpoint().TransportRequestToLogic(request.Message())
+	if err != nil {
 		request.SetGenericErrorCode(generic_error.ErrorCodeFormat)
-		return nil, errors.New("failed to cast request")
+		return nil, err
 	}
-	return ptr, nil
+	return msg, nil
 }
 
 func ParseValidateRequest[T any](request Request, init ...func(*T)) (*T, error) {
-	msg, err := MessageFromRequest[T](request)
+	msg, err := MessageFromRequest[T](request, init...)
 	if err != nil {
 		return nil, err
 	}
