@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"runtime"
 	"strings"
 	"time"
 
@@ -36,6 +37,7 @@ import (
 const OriginType = "grpc"
 const DefaultGrpcConfigSection string = "grpc"
 const RequestContextKey = "gu-request"
+const HeaderSizeKey = "gu-hsize"
 
 type ServerConfig struct {
 	api_server.ServerBaseConfig
@@ -225,13 +227,22 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 
 	// setup crash recovery
 	crashRecoveryFunc := func(ctx context.Context, p any) (err error) {
-		s.App().Logger().Fatal("application crashed", fmt.Errorf("panic triggered: %v", p))
+
+		const size = 64 << 10 // 64KB
+		buf := make([]byte, size)
+		buf = buf[:runtime.Stack(buf, false)]
+
+		s.App().Logger().Fatal("application crashed", fmt.Errorf("panic triggered: %v\nStack Trace:\n%s\n", p, buf))
 		req := ctx.Value(RequestContextKey)
+		err = status.Errorf(codes.Internal, "internal server error")
 		if request, ok := req.(*Request); ok {
 			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+			request.SetLoggerField("status", request.GenericError().Code())
+			request.statusCode = status.Code(err)
+			request.statusMessage = "application crashed"
 			request.Close()
 		}
-		return status.Errorf(codes.Internal, "internal server error")
+		return
 	}
 	opts := []recovery.Option{
 		recovery.WithRecoveryHandlerContext(crashRecoveryFunc),
@@ -247,6 +258,7 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	s.grpcServer = &GrpcServerRunner{
 		Server: grpc.NewServer(
 			grpc.ForceServerCodec(codecWrapper),
+			grpc.StatsHandler(&sizeStatsHandler{}),
 			grpc.ChainUnaryInterceptor(
 				realip.UnaryServerInterceptor(trustedProxies, realIpHeaders),
 				recovery.UnaryServerInterceptor(opts...),
@@ -391,6 +403,7 @@ type methodContext interface {
 	UserAgent() string
 	Method() string
 	Error() error
+	PayloadSize() int
 	Context() context.Context
 }
 
@@ -399,20 +412,22 @@ func (s *Server) logRequest(log logger.Logger, start time.Time, callCtx methodCo
 	stop := time.Since(start)
 	latency := int(math.Ceil(float64(stop.Nanoseconds()) / 1000000.0))
 
-	// TODO handle request size
-	// dataLength := callCtx.WireSize()
-	// if dataLength < 0 {
-	// 	dataLength = 0
-	// }
+	headerSize := 0
+	if callCtx.Context() != nil {
+		if info, ok := callCtx.Context().Value(HeaderSizeKey).(*SizeInfo); ok {
+			headerSize = info.value
+		}
+	}
 
 	fields := logger.Fields{
-		"host": s.hostname,
-		"code": callCtx.StatusCode(),
-		"lat":  latency,
-		"ip":   callCtx.ClientIp(),
-		// "size":   dataLength,
-		"agent":  callCtx.UserAgent(),
-		"server": s.Name(),
+		"host":    s.hostname,
+		"code":    callCtx.StatusCode(),
+		"lat":     latency,
+		"ip":      callCtx.ClientIp(),
+		"payload": callCtx.PayloadSize(),
+		"header":  headerSize,
+		"agent":   callCtx.UserAgent(),
+		"server":  s.Name(),
 	}
 	logger.AppendFields(fields, extraFields...)
 

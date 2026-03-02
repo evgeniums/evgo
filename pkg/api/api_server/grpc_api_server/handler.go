@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -43,6 +44,7 @@ func (c *RequestCodec) Unmarshal(data []byte, v any) (err error) {
 	if w, ok := v.(*RequestWrapper); ok {
 
 		ep := w.request.Endpoint()
+		w.request.payloadSize = len(data)
 
 		// authenticate request
 		w.request.Message().SetBinaryContent(data)
@@ -111,6 +113,16 @@ func getProtoName(i interface{}) string {
 
 func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 
+	fmt.Printf("Request headers:\n")
+	mdReq, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		fmt.Printf("no metadata found\n")
+	} else {
+		for key, values := range mdReq {
+			fmt.Printf("Header: %s, Values: %v\n", key, values)
+		}
+	}
+
 	// create request
 	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
 	if err != nil {
@@ -128,6 +140,11 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 
 	// define final handler
 	finalHandler := func(ctx context.Context, transportRequest interface{}) (interface{}, error) {
+
+		// emulating crash
+		// var m map[string]string
+		// m["a"] = "b"
+		// fmt.Printf("aaa %d", m["a"])
 
 		handle := func() (api_server.MessageContent, error) {
 			err = u.endpoint.HandleRequest(request)
@@ -193,6 +210,9 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 		if response.TransportMessage() != nil {
 			md.Append(u.server.MESSAGE_TYPE_HEADER, getProtoName(response.TransportMessage()))
 		}
+		if err := grpc.SetHeader(ctx, md); err != nil {
+			callCtx.Logger().Error("failed to set response headers", err)
+		}
 
 		// close request
 		request.TraceOutMethod()
@@ -207,3 +227,27 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 	}
 	return interceptor(reqCtx, request.Message().TransportMessage(), u.grpcUnaryServerInfo, finalHandler)
 }
+
+type SizeInfo struct {
+	value int
+}
+type sizeStatsHandler struct {
+	stats.Handler
+}
+
+func (h *sizeStatsHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
+	return context.WithValue(ctx, HeaderSizeKey, &SizeInfo{})
+}
+
+func (h *sizeStatsHandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
+	if inHeader, ok := s.(*stats.InHeader); ok {
+		if info, ok := ctx.Value(HeaderSizeKey).(*SizeInfo); ok {
+			info.value = inHeader.WireLength
+		}
+	}
+}
+
+func (h *sizeStatsHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
+	return ctx
+}
+func (h *sizeStatsHandler) HandleConn(ctx context.Context, s stats.ConnStats) {}

@@ -47,6 +47,8 @@ type Request struct {
 	statusMessage string
 	err           error
 
+	payloadSize int
+
 	metadata metadata.MD
 }
 
@@ -278,6 +280,10 @@ func (r *Request) Error() error {
 
 func (r *Request) Context() context.Context {
 	return r.ctx
+}
+
+func (r *Request) PayloadSize() int {
+	return r.payloadSize
 }
 
 func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Request, op_context.CallContext, error) {
