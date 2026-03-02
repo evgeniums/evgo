@@ -18,7 +18,7 @@ func TestInitServer(t *testing.T) {
 		server.ApiServer().Run(fin)
 	}()
 
-	time.Sleep(time.Second * time.Duration(3))
+	time.Sleep(time.Second * time.Duration(300))
 	t.Logf("Shutdown server")
 	fin.Shutdown(context.Background())
 
