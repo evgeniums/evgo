@@ -12,11 +12,13 @@ type Error interface {
 	Code() string
 	Message() string
 	Details() string
+	Family() string
 	Original() error
 	Data() interface{}
 
 	SetMessage(msg string)
 	SetDetails(details string)
+	SetFamily(value string)
 	SetOriginal(err error)
 
 	SetData(data interface{})
@@ -26,6 +28,7 @@ type ErrorHolder struct {
 	Code     string      `json:"code" validate:"omitempty,alphanum_,max=64" vmessage:"Invalid error code"`
 	Message  string      `json:"message"`
 	Details  string      `json:"details,omitempty"`
+	Family   string      `json:"family,omitempty"`
 	Original error       `json:"-"`
 	Data     interface{} `json:"data,omitempty"`
 }
@@ -90,6 +93,14 @@ func (e *ErrorBase) SetMessage(message string) {
 // Get error details.
 func (e *ErrorBase) Details() string {
 	return e.ErrorHolder.Details
+}
+
+func (e *ErrorBase) SetFamily(value string) {
+	e.ErrorHolder.Family = value
+}
+
+func (e *ErrorBase) Family() string {
+	return e.ErrorHolder.Family
 }
 
 // Set error details.
