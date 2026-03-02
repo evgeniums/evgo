@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"mime/multipart"
-	"net/http"
 	"time"
 
 	"github.com/evgeniums/go-utils/pkg/api"
@@ -141,18 +140,6 @@ func (r *Request) GetRequestUserAgent() string {
 }
 
 func (r *Request) Close(successMessage ...string) {
-	if r.GenericError() == nil {
-		r.SetLoggerField("status", "success")
-	} else {
-		code, err := r.server.MakeResponseError(r.GenericError())
-		if code < http.StatusInternalServerError {
-			r.SetErrorAsWarn(true)
-		}
-		r.statusCode = HTTPToGRPC(code)
-		r.statusMessage = r.GenericError().Message()
-		r.SetLoggerField("status", err.Code())
-	}
-
 	r.RequestBase.Close("")
 	r.server.logRequest(r.Logger(), r.start, r, r.LoggerFields())
 }

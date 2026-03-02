@@ -3,6 +3,7 @@ package grpc_api_server
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
 	"github.com/evgeniums/go-utils/pkg/auth"
@@ -11,7 +12,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 type RequestWrapper struct {
@@ -99,6 +102,13 @@ type UnaryHandler struct {
 	grpcUnaryServerInfo *grpc.UnaryServerInfo
 }
 
+func getProtoName(i interface{}) string {
+	if msg, ok := i.(proto.Message); ok {
+		return string(proto.MessageName(msg))
+	}
+	return ""
+}
+
 func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 
 	// create request
@@ -119,7 +129,7 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 	// define final handler
 	finalHandler := func(ctx context.Context, transportRequest interface{}) (interface{}, error) {
 
-		handle := func() (interface{}, error) {
+		handle := func() (api_server.MessageContent, error) {
 			err = u.endpoint.HandleRequest(request)
 			if err != nil {
 				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -145,6 +155,46 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 		if err != nil {
 			callCtx.SetError(err)
 		}
+
+		// fill response headers
+		// TODO put message ID to header
+		md := metadata.Pairs()
+
+		var appStatus string
+		if request.GenericError() == nil {
+			appStatus = "success"
+		} else {
+			code, err := request.server.MakeResponseError(request.GenericError())
+			if code < http.StatusInternalServerError {
+				request.SetErrorAsWarn(true)
+			}
+			request.statusCode = HTTPToGRPC(code)
+			request.statusMessage = request.GenericError().Message()
+			appStatus = err.Code()
+			errMsg := err.Message()
+			if errMsg != "" {
+				md.Append(u.server.ERROR_DESCRIPTION_HEADER, errMsg)
+			}
+			errDetails := err.Details()
+			if errMsg != "" {
+				md.Append(u.server.ERROR_DETAILS_HEADER, errDetails)
+			}
+			errFamily := err.Family()
+			if errMsg != "" {
+				md.Append(u.server.ERROR_FAMILY_HEADER, errFamily)
+			}
+
+			if err.Data() != nil {
+				// TODO convert error data to protobuf and put to response message
+			}
+		}
+		request.SetLoggerField("status", appStatus)
+		md.Append(u.server.STATUS_HEADER, appStatus)
+		if response.TransportMessage() != nil {
+			md.Append(u.server.MESSAGE_TYPE_HEADER, getProtoName(response.TransportMessage()))
+		}
+
+		// close request
 		request.TraceOutMethod()
 		request.Close()
 
