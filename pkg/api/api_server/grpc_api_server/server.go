@@ -33,6 +33,7 @@ import (
 
 const OriginType = "grpc"
 const DefaultGrpcConfigSection string = "grpc"
+const RequestContextKey = "gu-request"
 
 type ServerConfig struct {
 	api_server.ServerBaseConfig
@@ -87,7 +88,6 @@ type Server struct {
 	logPrefix string
 
 	hostname string
-	crashed  bool
 
 	handlers map[string]UnaryHandler
 	services map[string]api_server.Service
@@ -213,13 +213,17 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	}
 
 	// setup crash recovery
-	crashRecoveryFunc := func(p any) (err error) {
-		s.crashed = true
-		// TODO log error
-		return status.Errorf(codes.Internal, "panic triggered: %v", p)
+	crashRecoveryFunc := func(ctx context.Context, p any) (err error) {
+		s.App().Logger().Fatal("application crashed", fmt.Errorf("panic triggered: %v", p))
+		req := ctx.Value(RequestContextKey)
+		if request, ok := req.(*Request); ok {
+			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+			request.Close()
+		}
+		return status.Errorf(codes.Internal, "internal server error")
 	}
 	opts := []recovery.Option{
-		recovery.WithRecoveryHandler(crashRecoveryFunc),
+		recovery.WithRecoveryHandlerContext(crashRecoveryFunc),
 	}
 
 	// create grpc server
@@ -252,7 +256,12 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 
 func (s *Server) Run(fin background_worker.Finisher) {
 
-	listener, _ := net.Listen(s.PROTOCOL, s.address())
+	listener, err := net.Listen(s.PROTOCOL, s.address())
+	if err != nil {
+		msg := "TCP listening failed"
+		s.App().Logger().Fatal(msg, err, logger.Fields{"name": s.Name()})
+		app_context.AbortFatal(s.App(), msg)
+	}
 
 	fin.AddRunner(s.grpcServer, &background_worker.RunnerConfig{Name: optional.NewString(s.Name())})
 

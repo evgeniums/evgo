@@ -5,7 +5,6 @@ import (
 
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
 	"github.com/evgeniums/go-utils/pkg/generic_error"
-	"github.com/evgeniums/go-utils/pkg/op_context"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
@@ -19,40 +18,57 @@ type UnaryHandler struct {
 
 func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 
-	var request *Request
+	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
+	if err != nil {
+		request.SetGenericErrorCode(generic_error.ErrorCodeFormat)
+		u.server.logRequest(callCtx.Logger(), request.start, request)
+		return nil, err
+	}
+	nextCtx := context.WithValue(ctx, RequestContextKey, request)
 
-	msg := u.endpoint.NewTransportMessage()
-	if msg != nil {
-		if err := dec(msg); err != nil {
+	transportRequest := u.endpoint.NewTransportRequest(u.endpoint)
+	if transportRequest != nil {
+		if err := dec(transportRequest); err != nil {
 			return nil, err
 		}
 	}
 
-	finalHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
-
-		var err error
-		var callCtx op_context.CallContext
+	finalHandler := func(ctx context.Context, transportRequest interface{}) (interface{}, error) {
 
 		handle := func() (interface{}, error) {
-			request.message = u.endpoint.TransportMessageToLogic(req)
 
-			err := u.endpoint.HandleRequest(request)
+			err := u.endpoint.TransportRequestToLogic(request.message)
+			if err != nil {
+				// TODO fill error
+				return nil, err
+			}
+
+			err = u.endpoint.HandleRequest(request)
 			if err != nil {
 				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			}
 
-			var response interface{}
+			respMsg := &api_server.RequestMessageBase{}
 			if request.Response().Message() != nil {
-				response = u.endpoint.LogicMessageToTransport(request.Response().Message())
+				respMsg.SetLogicMessage(request.Response().Message())
+				err := u.endpoint.LogicResponseToTransport(respMsg)
+				if err != nil {
+					//! TODO set internal server error
+					return nil, err
+				}
 			}
 
-			return response, err
+			return respMsg.TransportMessage(), err
 		}
 
 		var response interface{}
-		request, callCtx, err = newRequest(ctx, u.server, u.endpoint)
 		if err == nil {
-			handle()
+			request.message = &api_server.RequestMessageBase{}
+			request.message.SetTransportMessage(transportRequest)
+			err = u.endpoint.TransportRequestToLogic(request.message)
+			if err == nil {
+				response, err = handle()
+			}
 		}
 
 		if err != nil {
@@ -65,8 +81,8 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 	}
 
 	if interceptor == nil {
-		return finalHandler(ctx, msg)
+		return finalHandler(nextCtx, transportRequest)
 	}
 
-	return interceptor(ctx, msg, u.grpcUnaryServerInfo, finalHandler)
+	return interceptor(nextCtx, transportRequest, u.grpcUnaryServerInfo, finalHandler)
 }

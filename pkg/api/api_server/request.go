@@ -15,15 +15,24 @@ import (
 	"github.com/evgeniums/go-utils/pkg/validator"
 )
 
-type RequestMessage interface {
-	ResourceIds() api.ResourceIds
+type MessageContent interface {
 	BinaryContent() []byte
+	SetBinaryContent([]byte)
+	SetLogicMessage(interface{})
 	LogicMessage() interface{}
+	SetTransportMessage(interface{})
 	TransportMessage() interface{}
 }
 
+type RequestMessage interface {
+	MessageContent
+	ResourceIds() api.ResourceIds
+}
+
 type RequestMessageBase struct {
-	message interface{}
+	logicMessage     interface{}
+	transportMessage interface{}
+	content          []byte
 }
 
 func NewRequestMessage() *RequestMessageBase {
@@ -31,15 +40,27 @@ func NewRequestMessage() *RequestMessageBase {
 }
 
 func (m *RequestMessageBase) BinaryContent() []byte {
-	return nil
+	return m.content
+}
+
+func (m *RequestMessageBase) SetBinaryContent(content []byte) {
+	m.content = content
 }
 
 func (m *RequestMessageBase) LogicMessage() any {
-	return m.message
+	return m.logicMessage
 }
 
 func (m *RequestMessageBase) TransportMessage() any {
-	return m.message
+	return m.transportMessage
+}
+
+func (m *RequestMessageBase) SetLogicMessage(msg interface{}) {
+	m.logicMessage = msg
+}
+
+func (m *RequestMessageBase) SetTransportMessage(msg interface{}) {
+	m.transportMessage = msg
 }
 
 func (m *RequestMessageBase) ResourceIds() api.ResourceIds {

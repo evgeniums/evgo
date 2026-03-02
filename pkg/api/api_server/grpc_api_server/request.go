@@ -302,6 +302,25 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 	request.SetName(epName)
 	request.SetLoggerField("endpoint", ep.Resource().ServicePathPrototype())
 
+	// fill request origin
+	origin := default_op_context.NewOrigin(s.App())
+	if origin.Name() != "" {
+		origin.SetName(utils.ConcatStrings(origin.Name(), "/", s.Name()))
+	} else {
+		origin.SetName(s.Name())
+	}
+	if request.AuthUser() != nil {
+		origin.SetUser(auth.AuthUserDisplay(request))
+	}
+	originSource := request.clientIp
+	if request.forwardedOpSource != "" {
+		originSource = request.forwardedOpSource
+	}
+	origin.SetSource(originSource)
+	origin.SetSessionClient(request.GetClientId())
+	origin.SetUserType(s.OPLOG_USER_TYPE)
+	request.SetOrigin(origin)
+
 	c := request.TraceInMethod("Server.Handle")
 
 	// extract tenancy if applicable
@@ -373,23 +392,10 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 		}
 	}
 
-	origin := default_op_context.NewOrigin(s.App())
-	if origin.Name() != "" {
-		origin.SetName(utils.ConcatStrings(origin.Name(), "/", s.Name()))
-	} else {
-		origin.SetName(s.Name())
-	}
+	// update authenticated user in origin
 	if request.AuthUser() != nil {
 		origin.SetUser(auth.AuthUserDisplay(request))
 	}
-	originSource := request.clientIp
-	if request.forwardedOpSource != "" {
-		originSource = request.forwardedOpSource
-	}
-	origin.SetSource(originSource)
-	origin.SetSessionClient(request.GetClientId())
-	origin.SetUserType(s.OPLOG_USER_TYPE)
-	request.SetOrigin(origin)
 
 	// TODO process access control
 	if err == nil {
