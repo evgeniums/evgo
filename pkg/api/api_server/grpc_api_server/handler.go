@@ -8,10 +8,12 @@ import (
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
 	"github.com/evgeniums/go-utils/pkg/auth"
 	"github.com/evgeniums/go-utils/pkg/generic_error"
+	"github.com/evgeniums/go-utils/pkg/op_context"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
@@ -23,11 +25,11 @@ type RequestWrapper struct {
 }
 
 type RequestCodec struct {
-	parent encoding.Codec
+	parent encoding.CodecV2
 	server *Server
 }
 
-func (c *RequestCodec) Unmarshal(data []byte, v any) (err error) {
+func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -35,7 +37,6 @@ func (c *RequestCodec) Unmarshal(data []byte, v any) (err error) {
 			if w, ok := v.(*RequestWrapper); ok {
 				request := w.request
 				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-				request.Close()
 			}
 			err = status.Errorf(codes.Internal, "internal server error")
 		}
@@ -47,19 +48,41 @@ func (c *RequestCodec) Unmarshal(data []byte, v any) (err error) {
 		w.request.payloadSize = len(data)
 
 		// authenticate request
-		w.request.Message().SetBinaryContent(data)
+
+		// prepare buffer with content payload
+		var materializedBuf *[]byte
+		if data.Len() == 1 {
+			w.request.Message().SetBinaryContent(data[0].ReadOnlyData())
+		} else {
+			temp := data.Materialize()
+			materializedBuf = &temp
+			w.request.Message().SetBinaryContent(*materializedBuf)
+		}
+
+		// perform auth
 		err := w.request.server.Auth().HandleRequest(w.request, ep.Resource().ServicePathPrototype(), ep.AccessType())
 		if err != nil {
+			w.request.Message().SetBinaryContent(nil)
+			if materializedBuf != nil {
+				mem.DefaultBufferPool().Put(materializedBuf)
+			}
 			w.request.SetGenericErrorCode(auth.ErrorCodeUnauthorized)
 			return err
 		}
-		w.request.Message().SetBinaryContent(nil)
 
-		// copy payload if needed
+		// cleanup or copy payload if needed
 		if ep.IsRequestPayloadNeeded() {
-			payload := make([]byte, len(data))
-			copy(payload, data)
-			w.request.Message().SetBinaryContent(payload)
+			if materializedBuf == nil {
+				// We didn't materialize before, but we need it now.
+				temp := data.Materialize()
+				materializedBuf = &temp
+				w.request.Message().SetBinaryContent(*materializedBuf)
+			}
+		} else {
+			w.request.Message().SetBinaryContent(nil)
+			if materializedBuf != nil {
+				mem.DefaultBufferPool().Put(materializedBuf)
+			}
 		}
 
 		// create protobuf transport message
@@ -71,20 +94,30 @@ func (c *RequestCodec) Unmarshal(data []byte, v any) (err error) {
 
 		// parse pb message
 		w.request.Message().SetTransportMessage(pb)
-		return c.parent.Unmarshal(data, w.request.Message().TransportMessage())
+		err = c.parent.Unmarshal(data, pb)
+		if err != nil {
+			gerr := generic_error.NewFromErr(err, generic_error.ErrorCodeFormat)
+			w.request.SetGenericError(gerr)
+			return gerr
+		}
+		return nil
 	}
 
 	// fallback message decoding
 	return c.parent.Unmarshal(data, v)
 }
 
-func (c *RequestCodec) Marshal(v any) ([]byte, error) {
+func (c *RequestCodec) Marshal(v any) (mem.BufferSlice, error) {
 	if v == nil {
 		return nil, nil
 	}
 	if r, ok := v.(api_server.RequestMessage); ok {
 		if r.BinaryContent() != nil {
-			return r.BinaryContent(), nil
+			content := r.BinaryContent()
+			newBuffer := mem.NewBuffer(&content, mem.DefaultBufferPool())
+			newSlice := mem.BufferSlice{newBuffer}
+			r.SetBinaryContent(nil)
+			return newSlice, nil
 		}
 		if r.TransportMessage() == nil {
 			return nil, nil
@@ -113,64 +146,30 @@ func getProtoName(i interface{}) string {
 
 func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 
-	fmt.Printf("Request headers:\n")
-	mdReq, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		fmt.Printf("no metadata found\n")
-	} else {
-		for key, values := range mdReq {
-			fmt.Printf("Header: %s, Values: %v\n", key, values)
+	if false {
+		fmt.Printf("Request headers:\n")
+		mdReq, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			fmt.Printf("no metadata found\n")
+		} else {
+			for key, values := range mdReq {
+				fmt.Printf("Header: %s, Values: %v\n", key, values)
+			}
 		}
 	}
 
-	// create request
-	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
-	if err != nil {
-		request.SetGenericErrorCode(generic_error.ErrorCodeFormat)
-		u.server.logRequest(callCtx.Logger(), request.start, request)
-		return nil, err
-	}
-	reqCtx := context.WithValue(ctx, RequestContextKey, request)
+	fillResponse := func(request *Request, callCtx op_context.CallContext) api_server.RequestMessage {
 
-	// invoke decoder
-	w := &RequestWrapper{request: request}
-	if err := dec(w); err != nil {
-		return nil, err
-	}
-
-	// define final handler
-	finalHandler := func(ctx context.Context, transportRequest interface{}) (interface{}, error) {
-
-		// emulating crash
-		// var m map[string]string
-		// m["a"] = "b"
-		// fmt.Printf("aaa %d", m["a"])
-
-		handle := func() (api_server.MessageContent, error) {
-			err = u.endpoint.HandleRequest(request)
+		response := &api_server.RequestMessageBase{}
+		if request.Response().Payload() != nil {
+			response.SetBinaryContent(request.Response().Payload())
+		} else if request.Response().Message() != nil {
+			response.SetLogicMessage(request.Response().Message())
+			err := u.endpoint.LogicResponseToTransport(response)
 			if err != nil {
+				callCtx.Logger().Error("failed to convert logic message to protobuf", err)
 				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			}
-
-			respMsg := &api_server.RequestMessageBase{}
-			if request.Response().Payload() != nil {
-				respMsg.SetBinaryContent(request.Response().Payload())
-			} else if request.Response().Message() != nil {
-				respMsg.SetLogicMessage(request.Response().Message())
-				err := u.endpoint.LogicResponseToTransport(respMsg)
-				if err != nil {
-					callCtx.Logger().Error("failed to convert logic message to protobuf", err)
-					request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-					return nil, err
-				}
-			}
-
-			return respMsg, err
-		}
-
-		response, err := handle()
-		if err != nil {
-			callCtx.SetError(err)
 		}
 
 		// fill response headers
@@ -180,6 +179,7 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 		var appStatus string
 		if request.GenericError() == nil {
 			appStatus = "success"
+			request.SetLoggerField("status", "success")
 		} else {
 			code, err := request.server.MakeResponseError(request.GenericError())
 			if code < http.StatusInternalServerError {
@@ -189,15 +189,18 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 			request.statusMessage = request.GenericError().Message()
 			appStatus = err.Code()
 			errMsg := err.Message()
+			if errMsg == "" {
+				errMsg = request.statusMessage
+			}
 			if errMsg != "" {
 				md.Append(u.server.ERROR_DESCRIPTION_HEADER, errMsg)
 			}
 			errDetails := err.Details()
-			if errMsg != "" {
+			if errDetails != "" {
 				md.Append(u.server.ERROR_DETAILS_HEADER, errDetails)
 			}
 			errFamily := err.Family()
-			if errMsg != "" {
+			if errFamily != "" {
 				md.Append(u.server.ERROR_FAMILY_HEADER, errFamily)
 			}
 
@@ -205,9 +208,9 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 				// TODO convert error data to protobuf and put to response message
 			}
 		}
-		request.SetLoggerField("status", appStatus)
+
 		md.Append(u.server.STATUS_HEADER, appStatus)
-		if response.TransportMessage() != nil {
+		if response != nil && response.TransportMessage() != nil {
 			md.Append(u.server.MESSAGE_TYPE_HEADER, getProtoName(response.TransportMessage()))
 		}
 		if err := grpc.SetHeader(ctx, md); err != nil {
@@ -217,6 +220,37 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 		// close request
 		request.TraceOutMethod()
 		request.Close()
+
+		// done
+		return response
+	}
+
+	// create request
+	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
+	if err != nil {
+		resp := fillResponse(request, callCtx)
+		return resp, status.Error(request.statusCode, request.statusMessage)
+	}
+	reqCtx := context.WithValue(ctx, RequestContextKey, request)
+
+	// invoke decoder
+	w := &RequestWrapper{request: request}
+	if err := dec(w); err != nil {
+		resp := fillResponse(request, callCtx)
+		st := status.Error(request.statusCode, request.statusMessage)
+		return resp, st
+	}
+
+	// define final handler
+	finalHandler := func(ctx context.Context, transportRequest interface{}) (interface{}, error) {
+
+		err = u.endpoint.HandleRequest(request)
+		if err != nil {
+			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+			callCtx.SetError(err)
+		}
+
+		response := fillResponse(request, callCtx)
 
 		return response, status.Error(request.statusCode, request.statusMessage)
 	}

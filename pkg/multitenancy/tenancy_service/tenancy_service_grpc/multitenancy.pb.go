@@ -118,7 +118,7 @@ var File_multitenancy_proto protoreflect.FileDescriptor
 
 const file_multitenancy_proto_rawDesc = "" +
 	"\n" +
-	"\x12multitenancy.proto\x12\x14tenancy_service_grpc\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf9\x01\n" +
+	"\x12multitenancy.proto\x12\x17tenancy_service_grpc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf9\x01\n" +
 	"\x06Tenant\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -128,9 +128,9 @@ const file_multitenancy_proto_rawDesc = "" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12\x1b\n" +
 	"\tlong_name\x18\x05 \x01(\tR\blongName\x12 \n" +
 	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x16\n" +
-	"\x06active\x18\a \x01(\tR\x06active2^\n" +
-	"\x13MultitenancyService\x12G\n" +
-	"\tAddTenant\x12\x1c.tenancy_service_grpc.Tenant\x1a\x1c.tenancy_service_grpc.TenantB7Z5pkg/multitenancy/tenancy_service/tenancy_service_grpcb\x06proto3"
+	"\x06active\x18\a \x01(\tR\x06active2d\n" +
+	"\x13MultitenancyService\x12M\n" +
+	"\tAddTenant\x12\x1f.tenancy_service_grpc.v1.Tenant\x1a\x1f.tenancy_service_grpc.v1.TenantB7Z5pkg/multitenancy/tenancy_service/tenancy_service_grpcb\x06proto3"
 
 var (
 	file_multitenancy_proto_rawDescOnce sync.Once
@@ -146,14 +146,14 @@ func file_multitenancy_proto_rawDescGZIP() []byte {
 
 var file_multitenancy_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_multitenancy_proto_goTypes = []any{
-	(*Tenant)(nil),                // 0: tenancy_service_grpc.Tenant
+	(*Tenant)(nil),                // 0: tenancy_service_grpc.v1.Tenant
 	(*timestamppb.Timestamp)(nil), // 1: google.protobuf.Timestamp
 }
 var file_multitenancy_proto_depIdxs = []int32{
-	1, // 0: tenancy_service_grpc.Tenant.created_at:type_name -> google.protobuf.Timestamp
-	1, // 1: tenancy_service_grpc.Tenant.updated_at:type_name -> google.protobuf.Timestamp
-	0, // 2: tenancy_service_grpc.MultitenancyService.AddTenant:input_type -> tenancy_service_grpc.Tenant
-	0, // 3: tenancy_service_grpc.MultitenancyService.AddTenant:output_type -> tenancy_service_grpc.Tenant
+	1, // 0: tenancy_service_grpc.v1.Tenant.created_at:type_name -> google.protobuf.Timestamp
+	1, // 1: tenancy_service_grpc.v1.Tenant.updated_at:type_name -> google.protobuf.Timestamp
+	0, // 2: tenancy_service_grpc.v1.MultitenancyService.AddTenant:input_type -> tenancy_service_grpc.v1.Tenant
+	0, // 3: tenancy_service_grpc.v1.MultitenancyService.AddTenant:output_type -> tenancy_service_grpc.v1.Tenant
 	3, // [3:4] is the sub-list for method output_type
 	2, // [2:3] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

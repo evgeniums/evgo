@@ -10,12 +10,9 @@ const (
 	TargetChild  = "parent"
 )
 
-type Response interface {
-	WithHateoasLinks
-}
+type Response = interface{}
 
 type ResponseStub struct {
-	HateoasLinksStub
 }
 
 type ResponseBase struct {
@@ -37,7 +34,6 @@ type ResponseExists struct {
 }
 
 type ResponseListI interface {
-	Response
 	ItemCount() int
 	ItemId(index int) string
 	MakeItemLinks()

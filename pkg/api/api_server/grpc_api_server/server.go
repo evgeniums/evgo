@@ -173,6 +173,26 @@ func (s *Server) IsMultitenancy() bool {
 	return !s.DISABLE_MULTITENANCY && multitenancy.IsMultiTenancy(s.tenancies)
 }
 
+func (s *Server) unknownHandler(srv interface{}, stream grpc.ServerStream) error {
+
+	ctx := stream.Context()
+	method, _ := grpc.MethodFromServerStream(stream)
+	ep := &api_server.EndpointBase{}
+	ep.Init("")
+
+	request, _, _ := newRequest(ctx, s, ep)
+	request.SetName(method)
+	request.SetGenericErrorCode(generic_error.ErrorCodeUnimplemented)
+
+	err := status.Errorf(codes.Unimplemented, "method %s is not implemented on this server", method)
+	request.SetLoggerField("status", request.GenericError().Code())
+	request.statusCode = status.Code(err)
+	request.statusMessage = "unknown method"
+	request.Close()
+
+	return err
+}
+
 func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager multitenancy.Multitenancy, configPath ...string) error {
 
 	var err error
@@ -249,16 +269,18 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	}
 
 	// create codec wrapper
+	pc := encoding.GetCodecV2(proto.Name)
 	codecWrapper := &RequestCodec{
-		parent: encoding.GetCodec(proto.Name),
+		parent: pc,
 		server: s,
 	}
 
 	// create grpc server
 	s.grpcServer = &GrpcServerRunner{
 		Server: grpc.NewServer(
-			grpc.ForceServerCodec(codecWrapper),
+			grpc.ForceServerCodecV2(codecWrapper),
 			grpc.StatsHandler(&sizeStatsHandler{}),
+			grpc.UnknownServiceHandler(s.unknownHandler),
 			grpc.ChainUnaryInterceptor(
 				realip.UnaryServerInterceptor(trustedProxies, realIpHeaders),
 				recovery.UnaryServerInterceptor(opts...),
@@ -382,18 +404,17 @@ func (s *Server) RegisterService(service api_server.Service) error {
 
 	s.grpcServer.RegisterService(serviceDesc, nil)
 	s.services[service.Name()] = service
-
-	/*	TODO Maybe run it after service initialization
-		serviceInfo := s.grpcServer.GetServiceInfo()
-		for serviceName, info := range serviceInfo {
-			fmt.Printf("Service: %s\n", serviceName)
-			for _, method := range info.Methods {
-				// Full path format: /package.Service/Method
-				fmt.Printf("  - Endpoint: /%s/%s\n", serviceName, method.Name)
-			}
-		}
-	*/
 	return nil
+}
+
+func (s *Server) ListEndpoints() {
+	serviceInfo := s.grpcServer.GetServiceInfo()
+	for serviceName, info := range serviceInfo {
+		s.App().Logger().Info("Registered service", logger.Fields{"service": serviceName})
+		for _, method := range info.Methods {
+			s.App().Logger().Info("Registered endpoint", logger.Fields{"endpoint": fmt.Sprintf("/%s/%s", serviceName, method.Name)})
+		}
+	}
 }
 
 type methodContext interface {
@@ -477,7 +498,6 @@ func StatusError(status codes.Code) bool {
 	return status == codes.Internal ||
 		status == codes.DataLoss ||
 		status == codes.Unknown ||
-		status == codes.Unimplemented ||
 		status == codes.Unavailable ||
 		status == codes.DeadlineExceeded
 }

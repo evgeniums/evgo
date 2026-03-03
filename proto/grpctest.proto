@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package grpc_api;
+
+option go_package = "test/grpc_api_test;grpc_api";
+ 
+message Basic {
+  sint32 vsint32=1;
+  sint64 vsint64=2;
+  uint32 vuint32=3;
+  uint64 vuint64=4;
+  sfixed32 vsfixed32=5;
+  sfixed64 vsfixed64=6;
+  fixed32 vfixed32=7;
+  fixed64 vfixed64=8;
+  float vfloat=9;
+  double vdouble=10;
+  bool vboolt=11;
+  bool vboolf=12;
+  string vstring=13;
+  bytes vbytes=14;
+}
+
+message Repeated {
+  repeated sint32 vsint32=1;
+  repeated sint64 vsint64=2;
+  repeated uint32 vuint32=3;
+  repeated uint64 vuint64=4;
+  repeated sfixed32 vsfixed32=5;
+  repeated sfixed64 vsfixed64=6;
+  repeated fixed32 vfixed32=7;
+  repeated fixed64 vfixed64=8;
+  repeated float vfloat=9;
+  repeated double vdouble=10;
+  repeated bool vboolt=11;
+  repeated bool vboolf=12;
+  repeated string vstring=13;
+  repeated bytes vbytes=14;
+}
+
+message Embedded {
+    grpc_api.Basic f1=1;
+    grpc_api.Repeated f2=2;
+    repeated grpc_api.Basic f3=3;
+}

@@ -47,6 +47,8 @@ type Server interface {
 	ConfigPoolService() pool.PoolService
 
 	RegisterService(Service) error
+
+	ListEndpoints()
 }
 
 func AddServiceToServer(s Server, service Service) {
@@ -74,4 +76,7 @@ func (s *ServerBaseConfig) IsHateoas() bool {
 }
 
 type ServerBase struct {
+}
+
+func (s *ServerBase) ListEndpoints() {
 }

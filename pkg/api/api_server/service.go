@@ -42,6 +42,11 @@ type ServiceBase struct {
 
 func (s *ServiceBase) Init(pathName string, packageName string, multitenancy ...bool) {
 	s.SetName(utils.CapitalizeAscii(pathName))
+	s.InitExplicit(pathName, utils.CapitalizeAscii(pathName), packageName, multitenancy...)
+}
+
+func (s *ServiceBase) InitExplicit(pathName string, serviceName string, packageName string, multitenancy ...bool) {
+	s.SetName(serviceName)
 	s.SetPackage(packageName)
 	s.ResourceBase.Init(pathName, api.ResourceConfig{Service: true})
 	s.dynamicTables = make([]*DynamicTableConfig, 0)

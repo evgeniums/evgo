@@ -34,9 +34,6 @@ func dbModels() []interface{} {
 
 func InitServer(t *testing.T, config ...string) (app_context.Context, *user_session_default.Users, bare_bones_server.Server) {
 
-	// TODO use relative path
-	test_utils.SqliteFolder = "/Users/user1/projects/whitemgo/workspace/test_data"
-
 	app := test_utils.InitAppContext(t, testDir, dbModels(), utils.OptionalArg("grpc_api_server.jsonc", config...))
 
 	users := user_session_default.NewUsers()
@@ -63,6 +60,11 @@ func InitServer(t *testing.T, config ...string) (app_context.Context, *user_sess
 		app.Logger().CheckFatalStack(app.Logger())
 	}
 	require.NoErrorf(t, err, "failed to init server")
+
+	testService := NewGrpcTestService()
+	server.ApiServer().RegisterService(testService)
+
+	server.ApiServer().ListEndpoints()
 
 	return app, users, server
 }

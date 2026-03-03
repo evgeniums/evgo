@@ -170,21 +170,21 @@ func UniqueFormData(request Request) map[string]string {
 }
 
 func MessageFromRequest[T any](request Request, init ...func(*T)) (*T, error) {
-	msg := new(T)
-	if len(init) > 0 {
-		init[0](msg)
-	}
-	request.Message().SetLogicMessage(msg)
 	err := request.Endpoint().TransportRequestToLogic(request.Message())
 	if err != nil {
 		request.SetGenericErrorCode(generic_error.ErrorCodeFormat)
+		return nil, err
+	}
+	msg, ok := request.Message().LogicMessage().(*T)
+	if !ok {
+		request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return nil, err
 	}
 	return msg, nil
 }
 
 func ParseValidateRequest[T any](request Request, init ...func(*T)) (*T, error) {
-	msg, err := MessageFromRequest[T](request, init...)
+	msg, err := MessageFromRequest(request, init...)
 	if err != nil {
 		return nil, err
 	}

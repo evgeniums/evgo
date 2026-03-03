@@ -43,9 +43,6 @@ func (r *ResponseBase) Message() interface{} {
 }
 
 func (r *ResponseBase) SetMessage(message api.Response) {
-	if r.request.Server().IsHateoas() {
-		api.InjectHateoasLinksToObject(r.request.Endpoint().Resource(), message)
-	}
 	r.message = message
 }
 

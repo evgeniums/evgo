@@ -103,6 +103,10 @@ func (e *EndpointBase) PrecheckRequestBeforeAuth(request Request, smsMessage *st
 	return nil
 }
 
+func (e *EndpointBase) HandleRequest(request Request) error {
+	return nil
+}
+
 type ResourceEndpointI interface {
 	api.Resource
 	Endpoint

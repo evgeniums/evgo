@@ -18,6 +18,7 @@ import (
 	"github.com/evgeniums/go-utils/pkg/validator"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
@@ -142,6 +143,14 @@ func (r *Request) GetRequestUserAgent() string {
 }
 
 func (r *Request) Close(successMessage ...string) {
+	if r.GenericError() != nil {
+		r.SetLoggerField("status", r.GenericError().Code())
+	}
+	if r.Message().BinaryContent() != nil {
+		content := r.Message().BinaryContent()
+		mem.DefaultBufferPool().Put(&content)
+		r.Message().SetBinaryContent(nil)
+	}
 	r.RequestBase.Close("")
 	r.server.logRequest(r.Logger(), r.start, r, r.LoggerFields())
 }
@@ -297,7 +306,11 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 	request.Init(s, ctx)
 	epName := ep.Name()
 	request.SetName(epName)
-	request.SetLoggerField("endpoint", ep.Resource().ServicePathPrototype())
+	if ep.Resource() != nil {
+		request.SetLoggerField("endpoint", ep.Resource().ServicePathPrototype())
+	} else if epName != "" {
+		request.SetLoggerField("endpoint", epName)
+	}
 
 	// fill request origin
 	origin := default_op_context.NewOrigin(s.App())
