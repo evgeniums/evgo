@@ -115,7 +115,7 @@ func (a *AppWithMultitenancyBase) Init(configFile string, configType ...string) 
 }
 
 func (a *AppWithMultitenancyBase) Close() {
-	if a.tenancyManager != nil {
+	if a.tenancyManager != nil && a.tenancyManager.IsMultiTenancy() {
 		a.tenancyManager.Close()
 	}
 	a.AppWithPoolsBase.Close()

@@ -41,7 +41,7 @@ func (t *TenancyNotificationHandler) Handle(ctx op_context.Context, msg *multite
 }
 
 type TenancyManagerConfig struct {
-	MULTITENANCY bool   `default:"true"`
+	MULTITENANCY bool   `default:"false"`
 	DB_PREFIX    string `validate:"required,alphanum" vmessage:"Invalid prefix for names of databases" default:"tenancy"`
 }
 
@@ -79,10 +79,6 @@ func NewTenancyManager(pools pool.PoolStore, poolPubsub pool_pubsub.PoolPubsub, 
 	m.tenancyIpAddresses = make(map[string]map[string]map[string]bool)
 	m.tenancyDbModels = tenancyDbModels
 	m.PoolPubsub = poolPubsub
-	m.PubsubTopic = &multitenancy.PubsubTopic{}
-
-	m.tenancyNotificationHandler = &TenancyNotificationHandler{manager: m}
-	m.tenancyNotificationHandler.Init("tenancy_manager")
 
 	return m
 }
@@ -114,6 +110,15 @@ func (t *TenancyManager) Init(ctx op_context.Context, configPath ...string) erro
 		c.SetError(err)
 		return ctx.Logger().PushFatalStack("failed to init tenancy manager", err)
 	}
+
+	if !t.MULTITENANCY {
+		return nil
+	}
+
+	t.PubsubTopic = &multitenancy.PubsubTopic{}
+
+	t.tenancyNotificationHandler = &TenancyNotificationHandler{manager: t}
+	t.tenancyNotificationHandler.Init("tenancy_manager")
 
 	// get self pool
 	selfPool, selfPoolErr := t.Pools.SelfPool()
@@ -164,7 +169,7 @@ func (t *TenancyManager) Close() {
 
 	t.mutex.Unlock()
 
-	if t.PubsubTopic != nil {
+	if t.PoolPubsub != nil && t.PubsubTopic != nil {
 		t.PoolPubsub.UnsubscribePools(t.PubsubTopic.Name())
 		t.PoolPubsub.UnsubscribeSelfPool(t.PubsubTopic.Name())
 	}
