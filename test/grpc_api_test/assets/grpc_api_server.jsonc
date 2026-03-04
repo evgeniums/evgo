@@ -26,7 +26,15 @@
                     "noauth":{}
                 }
             },
-            "default_schema": "noauth"
+            "default_schema": "noauth",
+            "endpoints": {
+                "/grpc-test/echo-token": [
+                    {
+                        "http_method": "POST",
+                        "schema":"token"
+                    }
+                ]
+            }
         },
         "grpc_api_server": {
             "verbose":true,

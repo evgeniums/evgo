@@ -371,7 +371,7 @@ func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint,
 	}
 	*methods = append(*methods, grpcMethod)
 
-	s.App().Logger().Info("Grpc API server: register endpoint", logger.Fields{"method": fullMethodName})
+	s.App().Logger().Info("Grpc API server: register endpoint", logger.Fields{"method": fullMethodName, "path": ep.Resource().FullPathPrototype()})
 }
 
 func (s *Server) MakeResponseError(gerr generic_error.Error) (int, generic_error.Error) {
@@ -412,7 +412,7 @@ func (s *Server) ListEndpoints() {
 	for serviceName, info := range serviceInfo {
 		s.App().Logger().Info("Registered service", logger.Fields{"service": serviceName})
 		for _, method := range info.Methods {
-			s.App().Logger().Info("Registered endpoint", logger.Fields{"endpoint": fmt.Sprintf("/%s/%s", serviceName, method.Name)})
+			s.App().Logger().Info("Registered endpoint", logger.Fields{"method": fmt.Sprintf("/%s/%s", serviceName, method.Name)})
 		}
 	}
 }
