@@ -36,6 +36,7 @@ type Config struct {
 	ServerConfigPath string
 
 	WithoutStatusService bool
+	WithoutAuthService   bool
 	WithoutDynamicTables bool
 
 	MultitenancyBaseServices bool
@@ -66,6 +67,7 @@ type BareBonesServerBase struct {
 	config BareBonesServerBaseConfig
 
 	WithoutStatusService bool
+	WithoutAuthService   bool
 	WithoutDynamicTables bool
 
 	MultitenancyBaseServices bool
@@ -89,6 +91,7 @@ func (s *BareBonesServerBase) Construct(users auth_session.WithUserSessionManage
 
 		s.WithoutDynamicTables = cfg.WithoutDynamicTables
 		s.WithoutStatusService = cfg.WithoutStatusService
+		s.WithoutAuthService = cfg.WithoutStatusService
 		s.MultitenancyBaseServices = cfg.MultitenancyBaseServices
 
 		s.config.POOL_SERVICE_NAME = cfg.DefaultPoolServiceName
@@ -164,7 +167,9 @@ func (s *BareBonesServerBase) Init(app app_context.Context, tenancyManager multi
 	if !s.WithoutDynamicTables {
 		api_server.AddServiceToServer(s.pimpl.server, api_server.NewDynamicTablesService(s.MultitenancyBaseServices))
 	}
-	api_server.AddServiceToServer(s.pimpl.server, auth_service.NewAuthService(s.MultitenancyBaseServices))
+	if !s.WithoutAuthService {
+		api_server.AddServiceToServer(s.pimpl.server, auth_service.NewAuthService(s.MultitenancyBaseServices))
+	}
 
 	if s.pimpl.smsManager != nil {
 		s.pimpl.smsManager.AttachToErrorManager(s.pimpl.server)
