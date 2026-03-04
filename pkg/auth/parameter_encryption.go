@@ -18,7 +18,12 @@ type AuthParameterEncryption interface {
 	Encrypt(ctx op_context.Context, obj interface{}) (string, error)
 	SetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) error
 	GetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) (bool, error)
+
+	DecodeAuthParameter(ctx AuthContext, name string, value string, obj interface{}) (bool, error)
+	EncodeAuthParameter(ctx AuthContext, name string, obj interface{}) (string, error)
 }
+
+// TODO Keep outdated secrets with tags
 
 type AuthParameterEncryptionBaseConfig struct {
 	SECRET            string `validate:"required" mask:"true"`
@@ -55,10 +60,10 @@ func (a *AuthParameterEncryptionBase) createCipher(salt []byte) (*crypt_utils.AE
 	return cipher, err
 }
 
-func (a *AuthParameterEncryptionBase) SetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) error {
+func (a *AuthParameterEncryptionBase) EncodeAuthParameter(ctx AuthContext, name string, obj interface{}) (string, error) {
 
 	// setup
-	c := ctx.TraceInMethod("AuthParameterEncryptionBase.SetAuthParameter", logger.Fields{"name": name})
+	c := ctx.TraceInMethod("AuthParameterEncryptionBase.EncodeAuthParameter", logger.Fields{"name": name})
 	var err error
 	onExit := func() {
 		if err != nil {
@@ -72,6 +77,18 @@ func (a *AuthParameterEncryptionBase) SetAuthParameter(ctx AuthContext, authMeth
 	data, err := a.Encrypt(ctx, obj)
 	if err != nil {
 		c.SetMessage("failed to encrypt")
+		return "", err
+	}
+
+	// done
+	return data, nil
+}
+
+func (a *AuthParameterEncryptionBase) SetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) error {
+
+	// encode
+	data, err := a.EncodeAuthParameter(ctx, name, obj)
+	if err != nil {
 		return err
 	}
 
@@ -82,10 +99,29 @@ func (a *AuthParameterEncryptionBase) SetAuthParameter(ctx AuthContext, authMeth
 	return nil
 }
 
+func EncodeAndSetBearer(ctx AuthContext, enc AuthParameterEncryption, obj interface{}) error {
+	value, err := enc.EncodeAuthParameter(ctx, AuthorizationBearer, obj)
+	if err != nil {
+		return err
+	}
+	SetAuthBearer(ctx, value)
+	return nil
+}
+
 func (a *AuthParameterEncryptionBase) GetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) (bool, error) {
 
+	// read auth parameter
+	data := ctx.GetAuthParameter(authMethodProtocol, name, directKeyName...)
+	if data == "" {
+		return false, nil
+	}
+	return a.DecodeAuthParameter(ctx, name, data, obj)
+}
+
+func (a *AuthParameterEncryptionBase) DecodeAuthParameter(ctx AuthContext, name string, value string, obj interface{}) (bool, error) {
+
 	// setup
-	c := ctx.TraceInMethod("AuthParameterEncryptionBase.GetAuthParameter", logger.Fields{"name": name})
+	c := ctx.TraceInMethod("AuthParameterEncryptionBase.DecodeAuthParameter", logger.Fields{"name": name})
 	var err error
 	onExit := func() {
 		if err != nil {
@@ -95,14 +131,8 @@ func (a *AuthParameterEncryptionBase) GetAuthParameter(ctx AuthContext, authMeth
 	}
 	defer onExit()
 
-	// read auth parameter
-	data := ctx.GetAuthParameter(authMethodProtocol, name, directKeyName...)
-	if data == "" {
-		return false, nil
-	}
-
 	// decode data
-	ciphertext, err := a.StringCoding.Decode(data)
+	ciphertext, err := a.StringCoding.Decode(value)
 	if err != nil {
 		c.SetMessage("failed to decode data")
 		return true, err
@@ -139,6 +169,14 @@ func (a *AuthParameterEncryptionBase) GetAuthParameter(ctx AuthContext, authMeth
 
 	// done
 	return true, nil
+}
+
+func GetAndDecodeBearer(ctx AuthContext, enc AuthParameterEncryption, obj interface{}) (bool, error) {
+	value := GetAuthBearer(ctx)
+	if value == "" {
+		return false, nil
+	}
+	return enc.DecodeAuthParameter(ctx, AuthorizationBearer, value, obj)
 }
 
 func (a *AuthParameterEncryptionBase) Encrypt(ctx op_context.Context, obj interface{}) (string, error) {

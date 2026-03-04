@@ -29,6 +29,8 @@ type AuthTokenHandlerConfig struct {
 	REFRESH_PATH                    string `default:"/auth/refresh"`
 	LOGOUT_PATH                     string `default:"/auth/logout"`
 
+	AUTH_BEARER_HEADER bool `default:"true"`
+
 	ACCESS_TOKEN_NAME string `default:"access-token"`
 	DIRECT_TOKEN_NAME bool
 
@@ -144,10 +146,18 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	c.LoggerFields()["refresh"] = refresh
 
 	// check token in request
+	var exists bool
 	prev := &Token{}
-	exists, err := a.encryption.GetAuthParameter(ctx, a.Protocol(), tokenName, prev, a.DIRECT_TOKEN_NAME)
-	if !exists {
-		return false, err
+	if a.AUTH_BEARER_HEADER {
+		exists, err = auth.GetAndDecodeBearer(ctx, a.encryption, prev)
+		if !exists {
+			return false, err
+		}
+	} else {
+		exists, err = a.encryption.GetAuthParameter(ctx, a.Protocol(), tokenName, prev, a.DIRECT_TOKEN_NAME)
+		if !exists {
+			return false, err
+		}
 	}
 	if err != nil {
 		c.SetMessage("failed to get encrypted auth parameter")

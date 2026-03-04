@@ -1,12 +1,18 @@
 package auth
 
 import (
+	"strings"
+
 	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/common"
 	"github.com/evgeniums/go-utils/pkg/config"
 	"github.com/evgeniums/go-utils/pkg/logger"
+	"github.com/evgeniums/go-utils/pkg/utils"
 	"github.com/evgeniums/go-utils/pkg/validator"
 )
+
+const AuthorizationHeader = "authorization"
+const AuthorizationBearer = "bearer"
 
 type AuthDataAccessor interface {
 	Set(key string, value string)
@@ -31,6 +37,23 @@ type AuthContext interface {
 
 	SetAuthParameter(authMethodProtocol string, key string, value string, directKeyName ...bool)
 	GetAuthParameter(authMethodProtocol string, key string, directKeyName ...bool) string
+}
+
+func extractToken(headerr string) string {
+	fields := strings.Fields(headerr)
+	if len(fields) != 2 || strings.ToLower(fields[0]) != AuthorizationBearer {
+		return ""
+	}
+	return fields[1]
+}
+
+func SetAuthBearer(ctx AuthContext, value string) {
+	ctx.SetAuthParameter("", AuthorizationHeader, utils.ConcatStrings(AuthorizationBearer, " ", value), true)
+}
+
+func GetAuthBearer(ctx AuthContext) string {
+	authHeader := ctx.GetAuthParameter("", AuthorizationHeader, true)
+	return extractToken(authHeader)
 }
 
 type AuthHandler interface {
