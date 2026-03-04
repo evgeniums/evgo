@@ -32,7 +32,8 @@ type PoolStore interface {
 }
 
 type poolStoreConfig struct {
-	POOL_NAME string
+	ENABLE_POOLS bool `default:"false"`
+	POOL_NAME    string
 }
 
 type PoolStoreBase struct {
@@ -73,6 +74,10 @@ func (p *PoolStoreBase) Init(ctx op_context.Context, configPath ...string) error
 		msg := "failed to init PoolStore"
 		c.SetMessage(msg)
 		return ctx.Logger().PushFatalStack(msg, c.SetError(err))
+	}
+
+	if !p.ENABLE_POOLS {
+		return nil
 	}
 
 	loadServices := func(pool Pool) error {
