@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/evgeniums/go-utils/pkg/config"
 	"github.com/evgeniums/go-utils/pkg/config/object_config"
@@ -24,6 +25,7 @@ type LogrusLogger struct {
 	logger.LoggerBase
 	logrusConfig
 	logRus *logrus.Logger
+	lock   sync.Mutex
 }
 
 func (l *LogrusLogger) Config() interface{} {
@@ -117,6 +119,7 @@ func (l *LogrusLogger) Init(cfg config.Config, vld validator.Validator, configPa
 
 	// setup output
 	if l.DESTINATION == "file" {
+		// TODO implement log rotation
 		writer := &utils.FileWriteReopen{Path: l.FILE}
 		writer.File, err = os.OpenFile(l.FILE, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err == nil {
