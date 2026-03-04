@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
@@ -28,6 +27,7 @@ import (
 var Version = "development"
 var Time = "unknown"
 var Revision = "unknown"
+var Label = "white"
 
 type contextConfig struct {
 	TESTING      bool
@@ -45,6 +45,8 @@ type Context struct {
 	logger.WithLoggerBase
 	config.WithCfgBase
 
+	buildConfig *app_context.BuildConfig
+
 	db           *db_gorm.GormDB
 	validator    *validator_playground.PlaygroundValdator
 	cache        cache.Cache
@@ -56,6 +58,10 @@ type Context struct {
 
 	testValues  map[string]interface{}
 	initialized bool
+}
+
+func (c *Context) BuildConfig() *app_context.BuildConfig {
+	return c.buildConfig
 }
 
 func (c *Context) Config() interface{} {
@@ -125,15 +131,19 @@ func New(buildConfig *app_context.BuildConfig, appConfig ...AppConfigI) *Context
 		app_context.TimeLocationOs = time.Local
 	}
 
+	c := &Context{}
+
 	if buildConfig != nil {
-		Version = buildConfig.Version
-		Time = buildConfig.Time
-		Revision = buildConfig.Revision
+		c.buildConfig = buildConfig
+	} else {
+		c.buildConfig = &app_context.BuildConfig{
+			Version:  Version,
+			Time:     Time,
+			Revision: Revision,
+			Label:    Label,
+		}
 	}
 
-	rand.Seed(time.Now().UnixNano())
-
-	c := &Context{}
 	c.validator = validator_playground.New()
 
 	if len(appConfig) != 0 {
@@ -176,8 +186,8 @@ func (c *Context) InitWithArgs(configFile string, args []string, configType ...s
 	log := c.Logger()
 
 	// log build version
-	log.Info("Build configuration", logger.Fields{"build_time": Time, "package_version": Version, "git_revision": Revision})
-	fmt.Printf("Build configuration: build_time=%s, package_version=%s, get_revision=%s\n", Time, Version, Revision)
+	log.Info("Build configuration", logger.Fields{"build_time": c.buildConfig.Time, "package_version": c.buildConfig.Version, "git_revision": c.buildConfig.Revision})
+	fmt.Printf("Build configuration: build_time=%s, package_version=%s, get_revision=%s\n", c.buildConfig.Time, c.buildConfig.Version, c.buildConfig.Revision)
 
 	// log logger configuration
 	object_config.Info(log, c.logrusLogger, logConfigPath)

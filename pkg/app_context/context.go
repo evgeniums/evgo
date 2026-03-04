@@ -15,12 +15,15 @@ type BuildConfig struct {
 	Version  string
 	Time     string
 	Revision string
+	Label    string
 }
 
 type Context interface {
 	logger.WithLogger
 	config.WithCfg
 	db.WithDB
+
+	BuildConfig() *BuildConfig
 
 	Cache() cache.Cache
 	Validator() validator.Validator
