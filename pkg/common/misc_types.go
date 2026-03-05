@@ -109,3 +109,20 @@ func (w *WithUniqueNameBase) Name() string {
 func (w *WithUniqueNameBase) SetName(name string) {
 	w.NAME = name
 }
+
+type WithTitle interface {
+	Title() string
+	SetTitle(value string)
+}
+
+type WithTitleBase struct {
+	TITLE string `json:"title,omitempty" gorm:"column:title" long:"title" description:"Title, e.g. job position"`
+}
+
+func (d *WithTitleBase) Title() string {
+	return d.TITLE
+}
+
+func (d *WithTitleBase) SetTitle(value string) {
+	d.TITLE = value
+}
