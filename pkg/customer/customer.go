@@ -12,12 +12,14 @@ type User interface {
 	user.User
 	common.WithName
 	common.WithDescription
+	common.WithTitle
 }
 
 type UserBase struct {
 	user_session_default.User
 	common.WithNameBase
 	common.WithDescriptionBase
+	common.WithTitleBase
 }
 
 type Customer struct {
@@ -55,6 +57,13 @@ func Name(name string, sample ...User) user.SetUserFields[User] {
 func Description(description string, sample ...User) user.SetUserFields[User] {
 	return func(ctx op_context.Context, user User) ([]user.CheckDuplicateField, error) {
 		user.SetDescription(description)
+		return nil, nil
+	}
+}
+
+func Title(title string, sample ...User) user.SetUserFields[User] {
+	return func(ctx op_context.Context, user User) ([]user.CheckDuplicateField, error) {
+		user.SetTitle(title)
 		return nil, nil
 	}
 }
