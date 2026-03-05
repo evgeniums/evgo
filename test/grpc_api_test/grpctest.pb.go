@@ -37,6 +37,14 @@ type Basic struct {
 	Vboolf        bool                   `protobuf:"varint,12,opt,name=vboolf,proto3" json:"vboolf,omitempty"`
 	Vstring       string                 `protobuf:"bytes,13,opt,name=vstring,proto3" json:"vstring,omitempty"`
 	Vbytes        []byte                 `protobuf:"bytes,14,opt,name=vbytes,proto3" json:"vbytes,omitempty"`
+	Vint32        int32                  `protobuf:"varint,15,opt,name=vint32,proto3" json:"vint32,omitempty"`
+	Vint64        int64                  `protobuf:"varint,16,opt,name=vint64,proto3" json:"vint64,omitempty"`
+	Vint32_1      int32                  `protobuf:"varint,17,opt,name=vint32_1,json=vint321,proto3" json:"vint32_1,omitempty"`
+	Vint64_2      int64                  `protobuf:"varint,18,opt,name=vint64_2,json=vint642,proto3" json:"vint64_2,omitempty"`
+	Vsint32_1     int32                  `protobuf:"zigzag32,19,opt,name=vsint32_1,json=vsint321,proto3" json:"vsint32_1,omitempty"`
+	Vsint64_2     int64                  `protobuf:"zigzag64,20,opt,name=vsint64_2,json=vsint642,proto3" json:"vsint64_2,omitempty"`
+	Vsfixed32_1   int32                  `protobuf:"fixed32,21,opt,name=vsfixed32_1,json=vsfixed321,proto3" json:"vsfixed32_1,omitempty"`
+	Vsfixed64_2   int64                  `protobuf:"fixed64,22,opt,name=vsfixed64_2,json=vsfixed642,proto3" json:"vsfixed64_2,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -167,6 +175,62 @@ func (x *Basic) GetVbytes() []byte {
 		return x.Vbytes
 	}
 	return nil
+}
+
+func (x *Basic) GetVint32() int32 {
+	if x != nil {
+		return x.Vint32
+	}
+	return 0
+}
+
+func (x *Basic) GetVint64() int64 {
+	if x != nil {
+		return x.Vint64
+	}
+	return 0
+}
+
+func (x *Basic) GetVint32_1() int32 {
+	if x != nil {
+		return x.Vint32_1
+	}
+	return 0
+}
+
+func (x *Basic) GetVint64_2() int64 {
+	if x != nil {
+		return x.Vint64_2
+	}
+	return 0
+}
+
+func (x *Basic) GetVsint32_1() int32 {
+	if x != nil {
+		return x.Vsint32_1
+	}
+	return 0
+}
+
+func (x *Basic) GetVsint64_2() int64 {
+	if x != nil {
+		return x.Vsint64_2
+	}
+	return 0
+}
+
+func (x *Basic) GetVsfixed32_1() int32 {
+	if x != nil {
+		return x.Vsfixed32_1
+	}
+	return 0
+}
+
+func (x *Basic) GetVsfixed64_2() int64 {
+	if x != nil {
+		return x.Vsfixed64_2
+	}
+	return 0
 }
 
 type Repeated struct {
@@ -381,7 +445,7 @@ var File_grpctest_proto protoreflect.FileDescriptor
 
 const file_grpctest_proto_rawDesc = "" +
 	"\n" +
-	"\x0egrpctest.proto\x12\bgrpc_api\"\xf7\x02\n" +
+	"\x0egrpctest.proto\x12\bgrpc_api\"\xd9\x04\n" +
 	"\x05Basic\x12\x18\n" +
 	"\avsint32\x18\x01 \x01(\x11R\avsint32\x12\x18\n" +
 	"\avsint64\x18\x02 \x01(\x12R\avsint64\x12\x18\n" +
@@ -397,7 +461,17 @@ const file_grpctest_proto_rawDesc = "" +
 	"\x06vboolt\x18\v \x01(\bR\x06vboolt\x12\x16\n" +
 	"\x06vboolf\x18\f \x01(\bR\x06vboolf\x12\x18\n" +
 	"\avstring\x18\r \x01(\tR\avstring\x12\x16\n" +
-	"\x06vbytes\x18\x0e \x01(\fR\x06vbytes\"\xfa\x02\n" +
+	"\x06vbytes\x18\x0e \x01(\fR\x06vbytes\x12\x16\n" +
+	"\x06vint32\x18\x0f \x01(\x05R\x06vint32\x12\x16\n" +
+	"\x06vint64\x18\x10 \x01(\x03R\x06vint64\x12\x19\n" +
+	"\bvint32_1\x18\x11 \x01(\x05R\avint321\x12\x19\n" +
+	"\bvint64_2\x18\x12 \x01(\x03R\avint642\x12\x1b\n" +
+	"\tvsint32_1\x18\x13 \x01(\x11R\bvsint321\x12\x1b\n" +
+	"\tvsint64_2\x18\x14 \x01(\x12R\bvsint642\x12\x1f\n" +
+	"\vvsfixed32_1\x18\x15 \x01(\x0fR\n" +
+	"vsfixed321\x12\x1f\n" +
+	"\vvsfixed64_2\x18\x16 \x01(\x10R\n" +
+	"vsfixed642\"\xfa\x02\n" +
 	"\bRepeated\x12\x18\n" +
 	"\avsint32\x18\x01 \x03(\x11R\avsint32\x12\x18\n" +
 	"\avsint64\x18\x02 \x03(\x12R\avsint64\x12\x18\n" +

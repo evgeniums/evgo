@@ -35,6 +35,7 @@ func (e *BasicEndpoint) HandleRequest(request api_server.Request) error {
 
 	// set response
 	resp := cmd
+	// proto.Message(resp).ProtoReflect().SetUnknown(nil)
 	request.Response().SetMessage(resp)
 
 	// done
