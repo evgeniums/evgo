@@ -37,8 +37,8 @@ type User interface {
 }
 
 type UserBase struct {
-	PASSWORD_HASH string `json:"-"`
-	PASSWORD_SALT string `json:"-"`
+	PASSWORD_HASH string `json:"-" hidden:"true"`
+	PASSWORD_SALT string `json:"-" hidden:"true"`
 }
 
 func (u *UserBase) PasswordHash() string {
