@@ -19,6 +19,14 @@ message Basic {
   bool vboolf=12;
   string vstring=13;
   bytes vbytes=14;
+  int32 vint32=15;
+  int64 vint64=16;
+  int32 vint32_1=17;
+  int64 vint64_2=18;
+  sint32 vsint32_1=19;
+  sint64 vsint64_2=20;
+  sfixed32 vsfixed32_1=21;
+  sfixed64 vsfixed64_2=22;
 }
 
 message Repeated {
