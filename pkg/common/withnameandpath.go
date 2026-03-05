@@ -37,7 +37,7 @@ type WithPathParent interface {
 }
 
 type WithNameBaseConfig struct {
-	NAME string `gorm:"index" json:"name,omitempty"`
+	NAME string `gorm:"index" json:"name,omitempty" long:"name" description:"Name"`
 }
 
 func (e *WithNameBaseConfig) Init(name string) {
