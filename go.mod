@@ -9,6 +9,7 @@ require (
 	github.com/evgeniums/viper v0.0.0-20230408104246-ba679b16578b
 	github.com/gin-gonic/gin v1.9.0
 	github.com/go-playground/validator/v10 v10.11.2
+	github.com/golang/protobuf v1.5.4
 	github.com/google/go-querystring v1.1.0
 	github.com/gorilla/schema v1.2.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
@@ -90,7 +91,7 @@ require (
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/mail.v2 v2.3.1
