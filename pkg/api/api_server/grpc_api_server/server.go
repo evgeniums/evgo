@@ -29,6 +29,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
 	"google.golang.org/grpc/status"
@@ -67,6 +68,10 @@ type ServerConfig struct {
 	ERROR_FAMILY_HEADER      string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-hatn-efamily"`
 	ERROR_DESCRIPTION_HEADER string `default:"x-hatn-edescription"`
 	ERROR_DETAILS_HEADER     string `default:"x-hatn-edetails"`
+
+	TLS_CERTIFICATE_FILE string
+	TLS_PRIVATE_KEY_FILE string
+	DISABLE_TLS          bool
 }
 
 type GrpcServerRunner struct {
@@ -275,21 +280,31 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 		server: s,
 	}
 
+	// collect server options
+	serverOpts := []grpc.ServerOption{grpc.ForceServerCodecV2(codecWrapper),
+		grpc.StatsHandler(&sizeStatsHandler{}),
+		grpc.UnknownServiceHandler(s.unknownHandler),
+		grpc.ChainUnaryInterceptor(
+			realip.UnaryServerInterceptor(trustedProxies, realIpHeaders),
+			recovery.UnaryServerInterceptor(opts...),
+		),
+		grpc.ChainStreamInterceptor(
+			realip.StreamServerInterceptor(trustedProxies, realIpHeaders),
+			recovery.StreamServerInterceptor(opts...),
+		),
+	}
+	if !s.DISABLE_TLS && s.TLS_PRIVATE_KEY_FILE != "" {
+		creds, err := credentials.NewServerTLSFromFile(s.TLS_CERTIFICATE_FILE, s.TLS_PRIVATE_KEY_FILE)
+		if err != nil {
+			return ctx.Logger().PushFatalStack("failed to load TLS", err)
+		}
+		serverOpts = append(serverOpts, grpc.Creds(creds))
+	}
+
 	// create grpc server
 	s.grpcServer = &GrpcServerRunner{
-		Server: grpc.NewServer(
-			grpc.ForceServerCodecV2(codecWrapper),
-			grpc.StatsHandler(&sizeStatsHandler{}),
-			grpc.UnknownServiceHandler(s.unknownHandler),
-			grpc.ChainUnaryInterceptor(
-				realip.UnaryServerInterceptor(trustedProxies, realIpHeaders),
-				recovery.UnaryServerInterceptor(opts...),
-			),
-			grpc.ChainStreamInterceptor(
-				realip.StreamServerInterceptor(trustedProxies, realIpHeaders),
-				recovery.StreamServerInterceptor(opts...),
-			),
-		)}
+		Server: grpc.NewServer(serverOpts...),
+	}
 
 	// set server name
 	name := s.Name()
