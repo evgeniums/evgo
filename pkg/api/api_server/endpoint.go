@@ -1,6 +1,8 @@
 package api_server
 
 import (
+	"github.com/stoewer/go-strcase"
+
 	"github.com/evgeniums/go-utils/pkg/access_control"
 	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/generic_error"
@@ -54,7 +56,6 @@ type Endpoint interface {
 	SetMessageHandlers(handlers MessageHandlers)
 
 	NewRequestMessage() interface{}
-	NewResponseMessage() interface{}
 
 	// Handle request to server API.
 	HandleRequest(request Request) error
@@ -92,10 +93,6 @@ func (e *EndpointBase) IsRequestPayloadNeeded() bool {
 }
 
 func (e *EndpointBase) NewRequestMessage() interface{} {
-	return nil
-}
-
-func (e *EndpointBase) NewResponseMessage() interface{} {
 	return nil
 }
 
@@ -137,6 +134,11 @@ func ConstructResourceEndpoint(ep ResourceEndpointI, resourceType string, op api
 func InitResourceEndpoint(ep ResourceEndpointI, resourceType string, operationName string, accessType ...access_control.AccessType) {
 	ep.init(resourceType, operationName, accessType...)
 	ep.AddOperation(ep)
+}
+
+func InitKebabEndpoint(ep ResourceEndpointI, operationName string, accessType ...access_control.AccessType) {
+	resourceType := strcase.KebabCase(ep.Name())
+	InitResourceEndpoint(ep, resourceType, operationName, accessType...)
 }
 
 // Base type for API endpoints with empty handlers.
