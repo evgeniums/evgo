@@ -32,3 +32,21 @@ type WithUserSessionManager interface {
 	WithAuthUserManager
 	WithSessionManager
 }
+
+type WithUserSessionManagerBase struct {
+	authUsers AuthUserManager
+	sessions  SessionController
+}
+
+func (w *WithUserSessionManagerBase) AuthUserManager() AuthUserManager {
+	return w.authUsers
+}
+
+func (w *WithUserSessionManagerBase) SessionManager() SessionController {
+	return w.sessions
+}
+
+func NewUserAndSessionManage(authUsers AuthUserManager, sessions SessionController) *WithUserSessionManagerBase {
+	m := &WithUserSessionManagerBase{authUsers: authUsers, sessions: sessions}
+	return m
+}
