@@ -187,7 +187,7 @@ func (c *Context) InitWithArgs(configFile string, args []string, configType ...s
 
 	// log build version
 	log.Info("Build configuration", logger.Fields{"build_time": c.buildConfig.Time, "package_version": c.buildConfig.Version, "git_revision": c.buildConfig.Revision})
-	fmt.Printf("Build configuration: build_time=%s, package_version=%s, get_revision=%s\n", c.buildConfig.Time, c.buildConfig.Version, c.buildConfig.Revision)
+	fmt.Printf("Build configuration: build_time=%s, package_version=%s, git_revision=%s\n", c.buildConfig.Time, c.buildConfig.Version, c.buildConfig.Revision)
 
 	// log logger configuration
 	object_config.Info(log, c.logrusLogger, logConfigPath)
