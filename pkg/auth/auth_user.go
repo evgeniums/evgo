@@ -11,6 +11,7 @@ type User interface {
 	GetID() string
 	Display() string
 	Login() string
+	Topic() string
 	IsBlocked() bool
 }
 
@@ -18,6 +19,7 @@ type UserBase struct {
 	UserId      string `gorm:"index"`
 	UserLogin   string `gorm:"index"`
 	UserDisplay string `gorm:"index"`
+	UserTopic   string `gorm:"index"`
 	UserBlocked bool   `gorm:"index"`
 }
 
@@ -31,6 +33,10 @@ func (u *UserBase) Display() string {
 
 func (u *UserBase) Login() string {
 	return u.UserLogin
+}
+
+func (u *UserBase) Topic() string {
+	return u.UserTopic
 }
 
 func (u *UserBase) IsBlocked() bool {

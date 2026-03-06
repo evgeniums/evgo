@@ -62,12 +62,13 @@ type ServerConfig struct {
 
 	TRANSPORT_CODEC_TYPE string `validate:"required,hostname_rfc1123|alphanum" default:"proto-hatn"`
 
-	STATUS_HEADER            string `validate:"required,hostname_rfc1123|alphanum" default:"x-hatn-status"`
-	ID_HEADER                string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-hatn-id"`
-	MESSAGE_TYPE_HEADER      string `validate:"required,hostname_rfc1123|alphanum" default:"x-hatn-mtype"`
-	ERROR_FAMILY_HEADER      string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-hatn-efamily"`
-	ERROR_DESCRIPTION_HEADER string `default:"x-hatn-edescription"`
-	ERROR_DETAILS_HEADER     string `default:"x-hatn-edetails"`
+	STATUS_HEADER             string `validate:"required,hostname_rfc1123|alphanum" default:"x-hatn-status"`
+	ID_HEADER                 string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-hatn-id"`
+	MESSAGE_TYPE_HEADER       string `validate:"required,hostname_rfc1123|alphanum" default:"x-hatn-mtype"`
+	ERROR_FAMILY_HEADER       string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-hatn-efamily"`
+	ERROR_DESCRIPTION_HEADER  string `default:"x-hatn-edescription"`
+	ERROR_DETAILS_HEADER      string `default:"x-hatn-edetails"`
+	RESOURCE_ID_HEADER_PREFIX string `default:"x-hatn-rid"`
 
 	TLS_CERTIFICATE_FILE string
 	TLS_PRIVATE_KEY_FILE string

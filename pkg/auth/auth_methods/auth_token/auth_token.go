@@ -46,12 +46,13 @@ type AuthTokenHandler struct {
 
 type Token struct {
 	auth.ExpireToken
-	Id          string `json:"id"`
-	UserId      string `json:"user_id"`
-	UserDisplay string `json:"user_display"`
-	SessionId   string `json:"session_id"`
-	Tenancy     string `json:"tenancy"`
-	Type        string `json:"type"`
+	Id          string            `json:"id"`
+	UserId      string            `json:"user_id"`
+	UserDisplay string            `json:"user_display"`
+	SessionId   string            `json:"session_id"`
+	Tenancy     string            `json:"tenancy"`
+	Type        string            `json:"type"`
+	Parameters  map[string]string `json:"parameters"`
 }
 
 func (a *AuthTokenHandler) Config() interface{} {
@@ -213,7 +214,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 		return true, err
 	}
 
-	// load user
+	// find user
 	user, err := a.users.AuthUserManager().FindAuthUser(ctx, session.GetUserLogin())
 	if err != nil {
 		c.SetMessage("failed to load user")
@@ -237,8 +238,16 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	// set auth user
 	ctx.SetAuthUser(user)
 
+	// fill auth user
+	err = a.users.AuthUserManager().FillAuthUser(ctx, true)
+	if err != nil {
+		c.SetMessage("failed to fill auth user")
+		return true, err
+	}
+
 	// set user session
 	ctx.SetSessionId(session.GetID())
+	ctx.LoadSessionParameters(prev.Parameters)
 
 	// update session client
 	err = a.users.SessionManager().UpdateSessionClient(ctx)
@@ -351,6 +360,7 @@ func (a *AuthTokenHandler) GenToken(ctx auth.AuthContext, paramName string, expi
 	}
 	token.Type = paramName
 	token.SetTTL(expirationSeconds)
+	token.Parameters = ctx.StoreSessionParameters()
 
 	err := a.encryption.SetAuthParameter(ctx, a.Protocol(), paramName, token, a.DIRECT_TOKEN_NAME)
 	if err != nil {

@@ -86,6 +86,10 @@ func (u *UserBaseFields) SetEmail(email string) {
 	u.EMAIL = email
 }
 
+func (u *UserBaseFields) Topic() string {
+	return ""
+}
+
 func (u *UserBaseFields) SetUserFields(ctx op_context.Context, user User) ([]CheckDuplicateField, error) {
 	user.SetEmail(u.Email())
 	user.SetPhone(u.Phone())
@@ -191,4 +195,8 @@ func Email[UserType User](email string, userSample ...UserType) SetUserFields[Us
 
 func FindByLogin(controller crud.CRUD, ctx op_context.Context, login string, user interface{}, dest ...interface{}) (bool, error) {
 	return controller.Read(ctx, db.Fields{"login": login}, user, dest...)
+}
+
+func FindByLoginAndTopic(controller crud.CRUD, ctx op_context.Context, login string, topic string, user interface{}, dest ...interface{}) (bool, error) {
+	return controller.Read(ctx, db.Fields{"login": login, "topic": topic}, user, dest...)
 }

@@ -13,7 +13,9 @@ type AuthUserFinderBase struct {
 
 func (a *AuthUserFinderBase) FindAuthUser(ctx op_context.Context, login string) (auth.User, error) {
 	user := a.userBuilder()
-	found, err := FindByLogin(a.CRUD(), ctx, login, user)
+	var found bool
+	var err error
+	found, err = FindByLogin(a.CRUD(), ctx, login, user)
 	if err != nil {
 		return nil, err
 	}
@@ -21,6 +23,10 @@ func (a *AuthUserFinderBase) FindAuthUser(ctx op_context.Context, login string) 
 		return nil, nil
 	}
 	return user, nil
+}
+
+func (a *AuthUserFinderBase) FillAuthUser(ctx op_context.Context, useExistingSessisonParams ...bool) error {
+	return nil
 }
 
 func NewAuthUserFinder(userBuilder func() User, cruds ...crud.CRUD) *AuthUserFinderBase {

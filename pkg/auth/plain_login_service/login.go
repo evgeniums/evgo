@@ -76,6 +76,13 @@ func (e *LoginEndpoint) HandleRequest(request api_server.Request) error {
 	// set auth user
 	request.SetAuthUser(user)
 
+	// fill auth user
+	err = e.service.users.AuthUserManager().FillAuthUser(request)
+	if err != nil {
+		c.SetMessage("failed to fill auth user")
+		return err
+	}
+
 	// generate session token
 	requestWrapper := &requestWrapper{Request: request}
 	_, _, err = e.service.tokenHandler.Process(requestWrapper)

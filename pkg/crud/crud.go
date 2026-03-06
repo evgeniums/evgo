@@ -340,6 +340,10 @@ func Find[T common.Object](crud CRUD, ctx op_context.Context, methodName string,
 	return object, nil
 }
 
+func FindIdAndTopic[T common.Object](crud CRUD, ctx op_context.Context, methodName string, id string, topic string, object T, dest ...interface{}) (T, error) {
+	return Find(crud, ctx, methodName, db.Fields{"id": id, "topic": topic}, object, dest...)
+}
+
 func FindByField[T common.Object](crud CRUD, ctx op_context.Context, methodName string, fieldName string, fieldValue interface{}, object T, dest ...interface{}) (T, error) {
 	c := ctx.TraceInMethod(methodName)
 	defer ctx.TraceOutMethod()

@@ -230,6 +230,13 @@ func (l *LoginHandler) Handle(ctx auth.AuthContext) (bool, error) {
 		// set context user
 		ctx.SetAuthUser(dbUser)
 
+		// fill auth user
+		err = l.users.AuthUserManager().FillAuthUser(ctx)
+		if err != nil {
+			c.SetMessage("failed to fill auth user")
+			return true, err
+		}
+
 		// done
 		return true, nil
 	}

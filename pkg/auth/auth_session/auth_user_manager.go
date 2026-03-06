@@ -12,6 +12,7 @@ type UserValidators interface {
 
 type AuthUserFinder interface {
 	FindAuthUser(ctx op_context.Context, login string) (auth.User, error)
+	FillAuthUser(ctx op_context.Context, useExistingSessisonParams ...bool) error
 }
 
 type AuthUserManager interface {

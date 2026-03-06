@@ -25,7 +25,6 @@ type MessageContent interface {
 
 type RequestMessage interface {
 	MessageContent
-	ResourceIds() api.ResourceIds
 }
 
 type RequestMessageBase struct {
@@ -35,7 +34,8 @@ type RequestMessageBase struct {
 }
 
 func NewRequestMessage() *RequestMessageBase {
-	return &RequestMessageBase{}
+	r := &RequestMessageBase{}
+	return r
 }
 
 func (m *RequestMessageBase) BinaryContent() []byte {
@@ -62,10 +62,6 @@ func (m *RequestMessageBase) SetTransportMessage(msg interface{}) {
 	m.transportMessage = msg
 }
 
-func (m *RequestMessageBase) ResourceIds() api.ResourceIds {
-	return &api.ResourceIdsBase{}
-}
-
 // Interface of request to server API.
 type Request interface {
 	auth.AuthContext
@@ -86,8 +82,9 @@ type Request interface {
 type RequestBase struct {
 	auth.TenancyUserContext
 	auth.SessionBase
-	endpoint Endpoint
-	message  RequestMessage
+	endpoint          Endpoint
+	message           RequestMessage
+	sessionParameters map[string]string
 }
 
 func (r *RequestBase) Init(app app_context.Context, log logger.Logger, db db.DB, fields ...logger.Fields) {
@@ -95,6 +92,7 @@ func (r *RequestBase) Init(app app_context.Context, log logger.Logger, db db.DB,
 	baseCtx.Init(app, log, db, fields...)
 	r.Construct(baseCtx)
 	r.message = &RequestMessageBase{}
+	r.sessionParameters = make(map[string]string)
 }
 
 func (r *RequestBase) SetEndpoint(endpoint Endpoint) {
@@ -111,6 +109,22 @@ func (r *RequestBase) SetMessage(msg RequestMessage) {
 
 func (r *RequestBase) Message() RequestMessage {
 	return r.message
+}
+
+func (r *RequestBase) LoadSessionParameters(parameters map[string]string) {
+	r.sessionParameters = parameters
+}
+
+func (r *RequestBase) StoreSessionParameters() map[string]string {
+	return r.sessionParameters
+}
+
+func (r *RequestBase) GetSessionParameter(key string) string {
+	return r.sessionParameters[key]
+}
+
+func (r *RequestBase) SetSessionParameter(key string, value string) {
+	r.sessionParameters[key] = value
 }
 
 func FullRequestPath(r Request) string {

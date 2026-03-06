@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"mime/multipart"
+	"strings"
 	"time"
 
 	"github.com/evgeniums/go-utils/pkg/api"
@@ -51,6 +52,8 @@ type Request struct {
 	payloadSize int
 
 	metadata metadata.MD
+
+	resourceIds api.ResourceIds
 }
 
 func (r *Request) getHeaders(name string) []string {
@@ -67,6 +70,7 @@ func (r *Request) getHeader(name string) string {
 
 func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) error {
 
+	// basic init
 	r.start = time.Now()
 	r.server = s
 
@@ -75,6 +79,10 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 
 	r.params = make(map[string]any)
 
+	r.statusCode = codes.OK
+	r.ctx = ctx
+
+	// collect data from headers
 	var ok bool
 	r.metadata, ok = metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -82,6 +90,19 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 		return status.Error(codes.Unauthenticated, "metadata missing")
 	}
 
+	r.resourceIds = api.NewResourceIdsBase()
+	for key, values := range r.metadata {
+		if strings.HasPrefix(key, strings.ToLower(r.server.RESOURCE_ID_HEADER_PREFIX)) {
+			for _, value := range values {
+				typ := strings.TrimPrefix(key, r.server.RESOURCE_ID_HEADER_PREFIX)
+				if typ != "" {
+					r.resourceIds.SetId(api.NewResourceIdBase(typ, value))
+				}
+			}
+		}
+	}
+
+	// get client address and user agent
 	p, ok := peer.FromContext(ctx)
 	if ok {
 		r.clientIp = p.Addr.String()
@@ -91,6 +112,7 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 		r.userAgent = userAgents[0]
 	}
 
+	// check if it is behind gateway whose auth context can be used
 	if s.propagateContextId {
 		ctxId := r.getHeader(api.ForwardContext)
 		if ctxId != "" {
@@ -104,12 +126,11 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 		}
 	}
 
-	r.statusCode = codes.OK
-
-	r.ctx = ctx
+	// prepare response
 	r.response = &Response{}
 	r.response.SetRequest(r)
 
+	// done
 	return nil
 }
 
@@ -183,12 +204,7 @@ func (r *Request) CheckRequestContent(smsMessage *string, skipSms *bool) error {
 }
 
 func (r *Request) ResourceIds() api.ResourceIds {
-
-	if r.Message() == nil {
-		return nil
-	}
-
-	return r.Message().ResourceIds()
+	return r.resourceIds
 }
 
 func (r *Request) GetRequestPath() string {
@@ -196,12 +212,7 @@ func (r *Request) GetRequestPath() string {
 }
 
 func (r *Request) GetResourceId(resourceType string) api.ResourceId {
-
-	if r.Message() == nil {
-		return nil
-	}
-
-	return nil
+	return r.resourceIds.GetId(resourceType)
 }
 
 func (r *Request) Validate(cmd interface{}) error {

@@ -23,6 +23,12 @@ type AuthContext interface {
 	UserContext
 	Session
 
+	GetSessionParameter(key string) string
+	SetSessionParameter(key string, value string)
+
+	LoadSessionParameters(parameters map[string]string)
+	StoreSessionParameters() map[string]string
+
 	GetRequestContent() []byte
 	CheckRequestContent(smsMessage *string, skipSms *bool) error
 	GetRequestPath() string

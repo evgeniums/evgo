@@ -86,3 +86,7 @@ func (u *UserClient[U]) UserOperation(userId string, resourceName string, op api
 func (u *UserClient[U]) FindAuthUser(ctx op_context.Context, login string) (auth.User, error) {
 	return nil, errors.New("unsupported method")
 }
+
+func (a *UserClient[U]) FillAuthUser(ctx op_context.Context, useExistingSessisonParams ...bool) error {
+	return nil
+}

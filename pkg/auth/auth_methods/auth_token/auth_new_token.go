@@ -108,7 +108,13 @@ func (a *AuthNewTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	return found, c.SetError(err)
 }
 
-func GenManualToken(ctx op_context.Context, cipher auth.AuthParameterEncryption, tenancyID string, user auth.User, sesisonID string, expirationSeconds int, tokenType string) (string, error) {
+func GenManualToken(ctx op_context.Context, cipher auth.AuthParameterEncryption,
+	tenancyID string,
+	user auth.User,
+	sesisonID string,
+	expirationSeconds int,
+	tokenType string,
+	parameters ...map[string]string) (string, error) {
 
 	c := ctx.TraceInMethod("GenManualToken")
 	defer ctx.TraceOutMethod()
@@ -121,6 +127,9 @@ func GenManualToken(ctx op_context.Context, cipher auth.AuthParameterEncryption,
 	token.Tenancy = tenancyID
 	token.SetTTL(expirationSeconds)
 	token.Type = tokenType
+	if len(parameters) > 0 {
+		token.Parameters = parameters[0]
+	}
 
 	tookenStr, err := cipher.Encrypt(ctx, token)
 	if err != nil {
