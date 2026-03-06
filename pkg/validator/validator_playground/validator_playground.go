@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/evgeniums/go-utils/pkg/common"
 	"github.com/evgeniums/go-utils/pkg/utils"
 	"github.com/evgeniums/go-utils/pkg/validator"
 	playground "github.com/go-playground/validator/v10"
@@ -138,12 +139,8 @@ func ValidatePhone(fl playground.FieldLevel) bool {
 	return phoneRegex.MatchString(fl.Field().String())
 }
 
-const idRegexString = "^[a-f0-9]{20}$"
-
-var idRegex = regexp.MustCompile(idRegexString)
-
 func ValidateId(fl playground.FieldLevel) bool {
-	return idRegex.MatchString(fl.Field().String())
+	return common.ValidateId(fl.Field().String())
 }
 
 const UserRegExp = "^[a-z_][a-z0-9_\\-]*$"
