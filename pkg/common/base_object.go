@@ -1,6 +1,7 @@
 package common
 
 import (
+	"regexp"
 	"time"
 
 	"github.com/evgeniums/go-utils/pkg/utils"
@@ -37,6 +38,14 @@ func (o *IDBase) GenerateID() {
 
 func (o *IDBase) SetID(id string) {
 	o.ID = id
+}
+
+const IdRegexString = "^[a-f0-9]{25}$"
+
+var idRegex = regexp.MustCompile(IdRegexString)
+
+func ValidateId(value string) bool {
+	return idRegex.MatchString(value)
 }
 
 type CreatedAt interface {
