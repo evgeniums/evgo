@@ -185,8 +185,7 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) multit
 func (c *ConsoleUtility) Parse() {
 	var err error
 	c.Args, err = c.Parser.Parse()
-	if len(c.Args) != 0 {
-		// TODO fix additional args from last arg
+	if err == nil && len(c.Args) != 0 {
 		fmt.Printf("Additional args: %v\n", c.Args)
 	}
 	if err != nil {
