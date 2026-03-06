@@ -20,6 +20,8 @@ func New() *PlaygroundValdator {
 	p.validator.RegisterValidation("phone", ValidatePhone)
 	p.validator.RegisterValidation("id", ValidateId)
 	p.validator.RegisterValidation("user", ValidateUser)
+	p.validator.RegisterValidation("base58", ValidateBase58)
+
 	return p
 }
 
@@ -148,9 +150,16 @@ const UserRegExp = "^[a-z_][a-z0-9_\\-]*$"
 
 var UserRegex = regexp.MustCompile(UserRegExp)
 
-// const PlainDomainRegExp = "^[a-z0-9\\-]{3,}$"
-// const DomainRegExp = "^(?:[\\p{L}\\p{N}][\\p{L}\\p{N}-]*\\.)+[\\p{L}\\p{N}]{2,}$"
-
 func ValidateUser(fl playground.FieldLevel) bool {
 	return UserRegex.MatchString(fl.Field().String())
+}
+
+var base58Regexp = regexp.MustCompile("^[1-9A-HJ-NP-Za-km-z]+$")
+
+func ValidateBase58(fl playground.FieldLevel) bool {
+	field := fl.Field().String()
+	if field == "" {
+		return true // omitempty will handle empty checks
+	}
+	return base58Regexp.MatchString(field)
 }
