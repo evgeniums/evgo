@@ -181,6 +181,10 @@ func ParseRuTime(str string) (time.Time, error) {
 	return t, err
 }
 
+func SerializeTime(t time.Time) string {
+	return t.Format(time.RFC3339)
+}
+
 func ParseTime(str string) (time.Time, error) {
 
 	t, err := time.Parse("2006-01-02 15:04:05", str)
@@ -294,4 +298,8 @@ func DateWithOffset(offset int, inDate ...Date) Date {
 	offsTime := now.Add(time.Hour * time.Duration(offset))
 	result := DateOfTime(offsTime)
 	return result
+}
+
+func ToHatnProtoDatetime(t time.Time) int64 {
+	return t.UnixMilli() << 8
 }
