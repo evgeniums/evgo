@@ -137,7 +137,7 @@ func InitResourceEndpoint(ep ResourceEndpointI, resourceType string, operationNa
 }
 
 func InitKebabEndpoint(ep ResourceEndpointI, operationName string, accessType ...access_control.AccessType) {
-	resourceType := strcase.KebabCase(ep.Name())
+	resourceType := strcase.KebabCase(operationName)
 	InitResourceEndpoint(ep, resourceType, operationName, accessType...)
 }
 
