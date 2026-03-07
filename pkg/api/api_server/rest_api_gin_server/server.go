@@ -61,7 +61,6 @@ type AuthParameterSetter = func(r *Request, key string, value string)
 type Server struct {
 	ServerConfig
 	api_server.ServerBase
-	app_context.WithAppBase
 	generic_error.ErrorManagerBaseHttp
 	auth.WithAuthBase
 
@@ -434,6 +433,14 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 		if err == nil {
 			if s.csrf != nil {
 				_, err = s.csrf.Handle(request)
+			}
+		}
+
+		// preprocess request
+		if err == nil {
+			err = ep.PreprocessBeforeAuth(request)
+			if err != nil {
+				request.SetGenericErrorCode(generic_error.ErrorCodeBadRequest)
 			}
 		}
 

@@ -31,18 +31,25 @@ type RequestCodec struct {
 
 func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 
-	defer func() {
-		if r := recover(); r != nil {
-			c.server.App().Logger().Fatal("application crashed", fmt.Errorf("panic triggered in RequestCodec.Unmarshal"))
-			if w, ok := v.(*RequestWrapper); ok {
-				request := w.request
-				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-			}
-			err = status.Errorf(codes.Internal, "internal server error")
-		}
-	}()
-
 	if w, ok := v.(*RequestWrapper); ok {
+
+		callCtx := w.request.TraceInMethod("Unmarshal")
+		var err error
+		defer func() {
+			if r := recover(); r != nil {
+				c.server.App().Logger().Fatal("application crashed", fmt.Errorf("panic triggered in RequestCodec.Unmarshal"))
+				if w, ok := v.(*RequestWrapper); ok {
+					request := w.request
+					request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+				}
+				err = status.Errorf(codes.Internal, "internal server error")
+			} else {
+				if err != nil {
+					callCtx.SetError(err)
+				}
+				w.request.TraceOutMethod()
+			}
+		}()
 
 		ep := w.request.Endpoint()
 		w.request.payloadSize = len(data)
@@ -59,8 +66,15 @@ func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 			w.request.Message().SetBinaryContent(*materializedBuf)
 		}
 
+		// preprocess request
+		err = ep.PreprocessBeforeAuth(w.request)
+		if err != nil {
+			callCtx.SetMessage("preprocess failed")
+			return err
+		}
+
 		// perform auth
-		err := w.request.server.Auth().HandleRequest(w.request, ep.Resource().ServicePathPrototype(), ep.AccessType())
+		err = w.request.server.Auth().HandleRequest(w.request, ep.Resource().ServicePathPrototype(), ep.AccessType())
 		if err != nil {
 			w.request.Message().SetBinaryContent(nil)
 			if materializedBuf != nil {

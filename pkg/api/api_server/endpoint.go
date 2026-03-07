@@ -61,18 +61,24 @@ type Endpoint interface {
 	HandleRequest(request Request) error
 
 	// Precheck request before some authorization methods
-	PrecheckRequestBeforeAuth(request Request, smsMessage *string, skipSms *bool) error
+	PrecheckBeforeAuth(request Request, smsMessage *string, skipSms *bool) error
 
 	IsRequestPayloadNeeded() bool
+
+	SetRequestPreprocessor(handler EndpointHandler)
+	GetRequestPreprocessor() EndpointHandler
+	PreprocessBeforeAuth(request Request) error
 }
 
-type EndpointHandler = func(request Request)
+type EndpointHandler = func(request Request) error
 
 // Base type for API endpoints.
 type EndpointBase struct {
 	api.Operation
 	generic_error.ErrorsExtenderBase
 	MessageHandlers
+
+	preprocessRequest EndpointHandler
 }
 
 func (e *EndpointBase) Construct(op api.Operation) {
@@ -96,11 +102,26 @@ func (e *EndpointBase) NewRequestMessage() interface{} {
 	return nil
 }
 
-func (e *EndpointBase) PrecheckRequestBeforeAuth(request Request, smsMessage *string, skipSms *bool) error {
+func (e *EndpointBase) PrecheckBeforeAuth(request Request, smsMessage *string, skipSms *bool) error {
 	return nil
 }
 
 func (e *EndpointBase) HandleRequest(request Request) error {
+	return nil
+}
+
+func (e *EndpointBase) SetRequestPreprocessor(handler EndpointHandler) {
+	e.preprocessRequest = handler
+}
+
+func (e *EndpointBase) GetRequestPreprocessor() EndpointHandler {
+	return e.preprocessRequest
+}
+
+func (e *EndpointBase) PreprocessBeforeAuth(request Request) error {
+	if e.preprocessRequest != nil {
+		return e.preprocessRequest(request)
+	}
 	return nil
 }
 

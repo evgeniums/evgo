@@ -200,7 +200,7 @@ func (r *Request) GetAuthParameter(authMethodProtocol string, key string, direct
 }
 
 func (r *Request) CheckRequestContent(smsMessage *string, skipSms *bool) error {
-	return r.Endpoint().PrecheckRequestBeforeAuth(r, smsMessage, skipSms)
+	return r.Endpoint().PrecheckBeforeAuth(r, smsMessage, skipSms)
 }
 
 func (r *Request) ResourceIds() api.ResourceIds {

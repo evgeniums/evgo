@@ -48,10 +48,10 @@ type CheckConfirmationEndpoint struct {
 	ExternalEndpoint
 }
 
-func (e *CheckConfirmationEndpoint) PrecheckRequestBeforeAuth(request api_server.Request, smsMessage *string, skipSms *bool) error {
+func (e *CheckConfirmationEndpoint) PrecheckBeforeAuth(request api_server.Request, smsMessage *string, skipSms *bool) error {
 
 	// setup
-	c := request.TraceInMethod("ConfirmationExternalService.PrecheckRequestBeforeAuth")
+	c := request.TraceInMethod("ConfirmationExternalService.PrecheckBeforeAuth")
 	defer request.TraceOutMethod()
 
 	// get token from cache
