@@ -264,6 +264,12 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 			callCtx.SetError(err)
 		}
 
+		err = u.endpoint.Postprocess(request)
+		if err != nil {
+			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+			callCtx.SetError(err)
+		}
+
 		response := fillResponse(request, callCtx)
 
 		return response, status.Error(request.statusCode, request.statusMessage)
