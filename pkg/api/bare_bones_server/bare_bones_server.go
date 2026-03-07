@@ -21,6 +21,7 @@ type Server interface {
 	Auth() auth.Auth
 	SmsManager() sms.SmsManager
 	SignatureManager() signature.SignatureManager
+	AuthService() *auth_service.AuthService
 }
 
 type ApiSeverBuilder = func() api_server.Server
@@ -55,6 +56,7 @@ type pimpl struct {
 	signatureManager signature.SignatureManager
 	serverBuilder    ApiSeverBuilder
 	serverConfigPath string
+	authService      *auth_service.AuthService
 }
 
 type BareBonesServerBaseConfig struct {
@@ -91,7 +93,7 @@ func (s *BareBonesServerBase) Construct(users auth_session.WithUserSessionManage
 
 		s.WithoutDynamicTables = cfg.WithoutDynamicTables
 		s.WithoutStatusService = cfg.WithoutStatusService
-		s.WithoutAuthService = cfg.WithoutStatusService
+		s.WithoutAuthService = cfg.WithoutAuthService
 		s.MultitenancyBaseServices = cfg.MultitenancyBaseServices
 
 		s.config.POOL_SERVICE_NAME = cfg.DefaultPoolServiceName
@@ -168,7 +170,8 @@ func (s *BareBonesServerBase) Init(app app_context.Context, tenancyManager multi
 		api_server.AddServiceToServer(s.pimpl.server, api_server.NewDynamicTablesService(s.MultitenancyBaseServices))
 	}
 	if !s.WithoutAuthService {
-		api_server.AddServiceToServer(s.pimpl.server, auth_service.NewAuthService(s.MultitenancyBaseServices))
+		s.pimpl.authService = auth_service.NewAuthService(s.MultitenancyBaseServices)
+		api_server.AddServiceToServer(s.pimpl.server, s.pimpl.authService)
 	}
 
 	if s.pimpl.smsManager != nil {
@@ -198,4 +201,8 @@ func (s *BareBonesServerBase) SmsManager() sms.SmsManager {
 
 func (s *BareBonesServerBase) SignatureManager() signature.SignatureManager {
 	return s.pimpl.signatureManager
+}
+
+func (s *BareBonesServerBase) AuthService() *auth_service.AuthService {
+	return s.pimpl.authService
 }
