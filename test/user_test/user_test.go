@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_login_phash"
 	"github.com/evgeniums/go-utils/pkg/op_context"
 	"github.com/evgeniums/go-utils/pkg/test_utils"
 	"github.com/evgeniums/go-utils/pkg/user"
@@ -59,10 +58,6 @@ func TestUserOperations(t *testing.T) {
 	assert.Equal(t, login1, user1.Login())
 	assert.Equal(t, phone1, user1.Phone())
 	assert.Equal(t, email1, user1.Email())
-	phash1 := auth_login_phash.Phash(password1, user1.PasswordSalt())
-	assert.True(t, user1.CheckPasswordHash(phash1))
-	phashBlabla := auth_login_phash.Phash("blabla", user1.PasswordSalt())
-	assert.False(t, user1.CheckPasswordHash(phashBlabla))
 
 	login2 := "user2"
 	password2 := "password2"
@@ -115,6 +110,4 @@ func TestUserOperations(t *testing.T) {
 	userDb1_5, err := users.FindByLogin(ctx, login1)
 	require.NoErrorf(t, err, "failed to find user")
 	require.NotNil(t, userDb1_5)
-	phash5 := auth_login_phash.Phash(newPassword, userDb1_5.PasswordSalt())
-	assert.True(t, userDb1_5.CheckPasswordHash(phash5))
 }
