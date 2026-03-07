@@ -68,6 +68,10 @@ type Endpoint interface {
 	SetRequestPreprocessor(handler EndpointHandler)
 	GetRequestPreprocessor() EndpointHandler
 	PreprocessBeforeAuth(request Request) error
+
+	SetRequestPostprocessor(handler EndpointHandler)
+	GetRequestPostprocessor() EndpointHandler
+	Postprocess(request Request) error
 }
 
 type EndpointHandler = func(request Request) error
@@ -78,7 +82,8 @@ type EndpointBase struct {
 	generic_error.ErrorsExtenderBase
 	MessageHandlers
 
-	preprocessRequest EndpointHandler
+	preprocessRequest  EndpointHandler
+	postprocessRequest EndpointHandler
 }
 
 func (e *EndpointBase) Construct(op api.Operation) {
@@ -121,6 +126,21 @@ func (e *EndpointBase) GetRequestPreprocessor() EndpointHandler {
 func (e *EndpointBase) PreprocessBeforeAuth(request Request) error {
 	if e.preprocessRequest != nil {
 		return e.preprocessRequest(request)
+	}
+	return nil
+}
+
+func (e *EndpointBase) SetRequestPostprocessor(handler EndpointHandler) {
+	e.preprocessRequest = handler
+}
+
+func (e *EndpointBase) GetRequestPostprocessor() EndpointHandler {
+	return e.preprocessRequest
+}
+
+func (e *EndpointBase) Postprocess(request Request) error {
+	if e.postprocessRequest != nil {
+		return e.postprocessRequest(request)
 	}
 	return nil
 }
