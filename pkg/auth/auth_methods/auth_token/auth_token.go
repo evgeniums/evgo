@@ -15,10 +15,15 @@ import (
 	"github.com/evgeniums/go-utils/pkg/validator"
 )
 
-const CheckTokenProtocol = "check_token"
-const TokenProtocol = "token"
+const TokenProtocol = "evgo_token"
+const GenTokenProtocol = "evgo_token_gen"
 const AccessTokenName = "access-token"
 const RefreshTokenName = "refresh-token"
+const TagName = "tag"
+const AccessTokenExpireName = "access-expire"
+const RefreshTokenExpireName = "refresh-expire"
+
+const TokenTtlParameterKey = "token_ttl"
 
 type AuthTokenHandlerConfig struct {
 	ACCESS_TOKEN_TTL_SECONDS        int    `default:"900" validate:"gt=0"`
@@ -67,7 +72,7 @@ func New(users auth_session.WithUserSessionManager) *AuthTokenHandler {
 
 func (a *AuthTokenHandler) Init(cfg config.Config, log logger.Logger, vld validator.Validator, configPath ...string) error {
 
-	a.AuthHandlerBase.Init(CheckTokenProtocol)
+	a.AuthHandlerBase.Init(TokenProtocol)
 
 	path := utils.OptionalArg("auth.methods.token", configPath...)
 
@@ -155,7 +160,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 			return false, err
 		}
 	} else {
-		exists, err = a.encryption.GetAuthParameter(ctx, a.Protocol(), tokenName, prev, a.DIRECT_TOKEN_NAME)
+		exists, err = a.encryption.GetAuthParameter(ctx, a.Protocol(), tokenName, prev, ctx.GetAuthParameter(a.Protocol(), TagName), a.DIRECT_TOKEN_NAME)
 		if !exists {
 			return false, err
 		}
@@ -308,7 +313,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 func (a *AuthTokenHandler) GenAccessToken(ctx auth.AuthContext) (*Token, error) {
 	c := ctx.TraceInMethod("AuthTokenHandler.GenAccessToken")
 	defer ctx.TraceOutMethod()
-	token, err := a.GenToken(ctx, a.ACCESS_TOKEN_NAME, a.ACCESS_TOKEN_TTL_SECONDS)
+	token, err := a.GenToken(ctx, a.ACCESS_TOKEN_NAME, a.ACCESS_TOKEN_TTL_SECONDS, AccessTokenExpireName)
 	if err != nil {
 		return nil, c.SetError(err)
 	}
@@ -338,14 +343,14 @@ func (a *AuthTokenHandler) GenRefreshToken(ctx auth.AuthContext, session auth_se
 		c.SetMessage("failed to update session expiration")
 		return nil, err
 	}
-	token, err := a.GenToken(ctx, RefreshTokenName, expirationSeconds)
+	token, err := a.GenToken(ctx, RefreshTokenName, expirationSeconds, RefreshTokenExpireName)
 	if err != nil {
 		return nil, err
 	}
 	return token, nil
 }
 
-func (a *AuthTokenHandler) GenToken(ctx auth.AuthContext, paramName string, expirationSeconds int) (*Token, error) {
+func (a *AuthTokenHandler) GenToken(ctx auth.AuthContext, paramName string, expirationSeconds int, expireParamName string) (*Token, error) {
 
 	c := ctx.TraceInMethod("AuthTokenHandler.GenToken")
 	defer ctx.TraceOutMethod()
@@ -362,6 +367,8 @@ func (a *AuthTokenHandler) GenToken(ctx auth.AuthContext, paramName string, expi
 	token.SetTTL(expirationSeconds)
 	token.Parameters = ctx.StoreSessionParameters()
 
+	ctx.SetAuthParameter(a.Protocol(), TagName, a.encryption.CurrentTag())
+	ctx.SetAuthParameter(a.Protocol(), expireParamName, utils.SerializeTime(token.Exp))
 	err := a.encryption.SetAuthParameter(ctx, a.Protocol(), paramName, token, a.DIRECT_TOKEN_NAME)
 	if err != nil {
 		return nil, c.SetError(err)

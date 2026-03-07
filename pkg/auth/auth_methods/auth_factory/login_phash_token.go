@@ -14,7 +14,7 @@ import (
 	"github.com/evgeniums/go-utils/pkg/validator"
 )
 
-const LoginphashTokenProtocol = "login_phash_token"
+const LoginPhashTokenProtocol = "evgo_login_phash_token"
 
 type LoginphashToken struct {
 	auth.AuthSchema
@@ -59,8 +59,8 @@ func (l *LoginphashToken) InitLoginToken(cfg config.Config, log logger.Logger, v
 
 func (l *LoginphashToken) Init(cfg config.Config, log logger.Logger, vld validator.Validator, configPath ...string) error {
 
-	l.AuthHandlerBase.Init(LoginphashTokenProtocol)
-	l.SetName(LoginphashTokenProtocol)
+	l.AuthHandlerBase.Init(LoginPhashTokenProtocol)
+	l.SetName(LoginPhashTokenProtocol)
 
 	err := l.InitLoginToken(cfg, log, vld, configPath...)
 	if err != nil {

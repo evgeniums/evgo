@@ -23,15 +23,15 @@ type DefaultAuthFactory struct {
 func (f *DefaultAuthFactory) Create(protocol string) (auth.AuthHandler, error) {
 
 	switch protocol {
-	case LoginphashTokenProtocol:
+	case LoginPhashTokenProtocol:
 		return NewLoginphashToken(f.Users), nil
-	case LoginphashSmsTokenProtocol:
+	case LoginPhashSmsTokenProtocol:
 		return NewLoginphashSmsToken(f.Users, f.SmsManager), nil
 	case auth_login_phash.LoginProtocol:
 		return auth_login_phash.New(f.Users), nil
-	case auth_token.CheckTokenProtocol:
-		return auth_token.New(f.Users), nil
 	case auth_token.TokenProtocol:
+		return auth_token.New(f.Users), nil
+	case auth_token.GenTokenProtocol:
 		return auth_token.NewSchema(f.Users), nil
 	case auth_hmac.HmacProtocol:
 		return &auth_hmac.AuthHmac{}, nil

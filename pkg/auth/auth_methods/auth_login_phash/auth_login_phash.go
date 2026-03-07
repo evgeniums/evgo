@@ -23,17 +23,22 @@ const LoginName = "login"
 const SaltName = "login-salt"
 const PasswordHashName = "login-phash"
 
+// TODO use token for second phase
+
 const DelayCacheKey = "login-delay"
 
 type LoginDelay struct {
 	common.CreatedAtBase
 }
 
-type User interface {
+type UserWithPassword interface {
 	PasswordHash() string
 	PasswordSalt() string
-	SetPassword(password string)
-	CheckPasswordHash(phash string) bool
+}
+
+type User interface {
+	UserWithPassword
+	SetPassword(string)
 }
 
 type UserBase struct {
@@ -52,10 +57,6 @@ func (u *UserBase) PasswordSalt() string {
 func (u *UserBase) SetPassword(password string) {
 	u.PASSWORD_SALT = crypt_utils.GenerateString()
 	u.PASSWORD_HASH = Phash(password, u.PASSWORD_SALT)
-}
-
-func (u *UserBase) CheckPasswordHash(phash string) bool {
-	return crypt_utils.HashEqual(u.PASSWORD_HASH, phash)
 }
 
 type LoginHandlerConfig struct {
@@ -206,7 +207,7 @@ func (l *LoginHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	}
 
 	// user must be of User interface
-	phashUser, ok := dbUser.(User)
+	phashUser, ok := dbUser.(UserWithPassword)
 	if !ok {
 		err = errors.New("user must be of auth_login_phash.User interface")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -214,13 +215,14 @@ func (l *LoginHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	}
 
 	// extract user salt
+	// TODO generate salt on first step, use token for second step
 	salt := phashUser.PasswordSalt()
 
 	// check password hash
 	if phash != "" {
 
 		// check password hash
-		if !phashUser.CheckPasswordHash(phash) {
+		if CheckPasswordHash(phashUser.PasswordHash(), phashUser.PasswordSalt(), phash) != nil {
 			err = errors.New("invalid password hash")
 			ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
 			l.setDelay(ctx, c, delayCacheKey, delayItem)
@@ -265,6 +267,13 @@ func (l *LoginHandler) setDelay(ctx op_context.Context, c op_context.CallContext
 }
 
 func Phash(password string, salt string) string {
-	h := crypt_utils.NewHash()
-	return h.CalcStrStr(salt, password)
+	h := crypt_utils.NewHmac(password)
+	return h.CalcStrStr(salt)
+}
+
+func CheckPasswordHash(password string, salt string, phash string) error {
+	m := crypt_utils.NewHmac(password)
+	m.CalcStr([]byte(salt))
+	err := m.CheckStr(phash)
+	return err
 }

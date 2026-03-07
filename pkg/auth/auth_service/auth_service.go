@@ -6,6 +6,18 @@ import (
 	"github.com/evgeniums/go-utils/pkg/api/api_server"
 )
 
+// Negotiate endpoint is derived from no handler endpoint because all processing in performed in auth preprocessing.
+type NegotiateEndpoint struct {
+	api_server.ResourceEndpoint
+	api_server.EndpointNoHandler
+}
+
+func NewNegotiateEndpoint() *NegotiateEndpoint {
+	ep := &NegotiateEndpoint{}
+	api_server.InitResourceEndpoint(ep, "negotiate", "Negotiate", access_control.Post)
+	return ep
+}
+
 // Login endpoint is derived from no handler endpoint because all processing in performed in auth preprocessing.
 type LoginEndpoint struct {
 	api_server.ResourceEndpoint
@@ -44,11 +56,36 @@ func NewRefreshEndpoint() *RefreshEndpoint {
 
 type AuthService struct {
 	api_server.ServiceBase
+
+	negEp     *NegotiateEndpoint
+	loginEp   *LoginEndpoint
+	logoutEp  *LogoutEndpoint
+	refreshEp *RefreshEndpoint
 }
 
 func NewAuthService(multitenancy ...bool) *AuthService {
 	s := &AuthService{}
 	s.Init("auth", api.PackageName, multitenancy...)
-	s.AddChildren(NewLoginEndpoint(), NewLogoutEndpoint(), NewRefreshEndpoint())
+	s.negEp = NewNegotiateEndpoint()
+	s.loginEp = NewLoginEndpoint()
+	s.logoutEp = NewLogoutEndpoint()
+	s.refreshEp = NewRefreshEndpoint()
+	s.AddChildren(s.negEp, s.loginEp, s.logoutEp, s.refreshEp)
 	return s
+}
+
+func (a *AuthService) NegotiateEndpoint() *NegotiateEndpoint {
+	return a.negEp
+}
+
+func (a *AuthService) LoginEndpoint() *LoginEndpoint {
+	return a.loginEp
+}
+
+func (a *AuthService) LogoutEndpoint() *LogoutEndpoint {
+	return a.logoutEp
+}
+
+func (a *AuthService) RefreshEndpoint() *RefreshEndpoint {
+	return a.refreshEp
 }

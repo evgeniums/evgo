@@ -106,7 +106,7 @@ func (a *AuthCsrf) Handle(ctx auth.AuthContext) (bool, error) {
 	_, skip := a.skipPaths[ctx.GetRequestPath()]
 	if !skip {
 		prev := &auth.ExpireToken{}
-		exists, err := a.Encryption.GetAuthParameter(ctx, a.Protocol(), AntiCsrfTokenName, prev)
+		exists, err := a.Encryption.GetAuthParameter(ctx, a.Protocol(), AntiCsrfTokenName, prev, "")
 		if !exists {
 			err = errors.New("CSRF token not found")
 			c.Logger().Debug("CSRF token not found")

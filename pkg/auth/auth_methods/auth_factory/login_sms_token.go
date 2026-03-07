@@ -14,7 +14,7 @@ import (
 	"github.com/evgeniums/go-utils/pkg/validator"
 )
 
-const LoginphashSmsTokenProtocol = "login_phash_sms_token"
+const LoginPhashSmsTokenProtocol = "login_phash_sms_token"
 
 type LoginphashSmsToken struct {
 	LoginphashToken
@@ -44,8 +44,8 @@ func (l *LoginphashSmsToken) InitSms(cfg config.Config, log logger.Logger, vld v
 
 func (l *LoginphashSmsToken) Init(cfg config.Config, log logger.Logger, vld validator.Validator, configPath ...string) error {
 
-	l.AuthHandlerBase.Init(LoginphashSmsTokenProtocol)
-	l.SetName(LoginphashTokenProtocol)
+	l.AuthHandlerBase.Init(LoginPhashSmsTokenProtocol)
+	l.SetName(LoginPhashTokenProtocol)
 
 	err := l.InitLoginToken(cfg, log, vld, configPath...)
 	if err != nil {

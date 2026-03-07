@@ -192,7 +192,7 @@ func (a *AuthSms) Handle(ctx auth.AuthContext) (bool, error) {
 		// extract and check token from request
 		token := &SmsToken{}
 		var exists bool
-		exists, err = a.Encryption.GetAuthParameter(ctx, a.Protocol(), TokenName, token)
+		exists, err = a.Encryption.GetAuthParameter(ctx, a.Protocol(), TokenName, token, "")
 		if !exists {
 			if err == nil {
 				err = errors.New("SMS token not found")

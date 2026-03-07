@@ -17,10 +17,12 @@ import (
 type AuthParameterEncryption interface {
 	Encrypt(ctx op_context.Context, obj interface{}) (string, error)
 	SetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) error
-	GetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) (bool, error)
+	GetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, tag string, directKeyName ...bool) (bool, error)
 
-	DecodeAuthParameter(ctx AuthContext, name string, value string, obj interface{}) (bool, error)
+	DecodeAuthParameter(ctx AuthContext, name string, value string, obj interface{}, tag ...string) (bool, error)
 	EncodeAuthParameter(ctx AuthContext, name string, obj interface{}) (string, error)
+
+	CurrentTag() string
 }
 
 // TODO Keep outdated secrets with tags
@@ -29,6 +31,7 @@ type AuthParameterEncryptionBaseConfig struct {
 	SECRET            string `validate:"required" mask:"true"`
 	PBKDF2_ITERATIONS uint   `default:"256"`
 	SALT_SIZE         int    `default:"8" validate:"lte=32,gte=4"`
+	TAG               string
 }
 
 type AuthParameterEncryptionBase struct {
@@ -52,11 +55,15 @@ func (a *AuthParameterEncryptionBase) Init(cfg config.Config, log logger.Logger,
 	return nil
 }
 
-func (a *AuthParameterEncryptionBase) createCipher(salt []byte) (*crypt_utils.AEAD, error) {
+func (a *AuthParameterEncryptionBase) createCipher(salt []byte, tag ...string) (*crypt_utils.AEAD, error) {
 	pbkdfCfg := crypt_utils.DefaultPbkdfConfig()
 	pbkdfCfg.Iter = int(a.PBKDF2_ITERATIONS)
 	aeadCfg := crypt_utils.DefaultAEADConfig(pbkdfCfg)
-	cipher, err := crypt_utils.NewAEAD(a.SECRET, salt, aeadCfg)
+
+	secret := a.SECRET
+	// TODO find outdated secret by tag
+
+	cipher, err := crypt_utils.NewAEAD(secret, salt, aeadCfg)
 	return cipher, err
 }
 
@@ -108,17 +115,17 @@ func EncodeAndSetBearer(ctx AuthContext, enc AuthParameterEncryption, obj interf
 	return nil
 }
 
-func (a *AuthParameterEncryptionBase) GetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) (bool, error) {
+func (a *AuthParameterEncryptionBase) GetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, tag string, directKeyName ...bool) (bool, error) {
 
 	// read auth parameter
 	data := ctx.GetAuthParameter(authMethodProtocol, name, directKeyName...)
 	if data == "" {
 		return false, nil
 	}
-	return a.DecodeAuthParameter(ctx, name, data, obj)
+	return a.DecodeAuthParameter(ctx, name, data, obj, tag)
 }
 
-func (a *AuthParameterEncryptionBase) DecodeAuthParameter(ctx AuthContext, name string, value string, obj interface{}) (bool, error) {
+func (a *AuthParameterEncryptionBase) DecodeAuthParameter(ctx AuthContext, name string, value string, obj interface{}, tag ...string) (bool, error) {
 
 	// setup
 	c := ctx.TraceInMethod("AuthParameterEncryptionBase.DecodeAuthParameter", logger.Fields{"name": name})
@@ -147,7 +154,7 @@ func (a *AuthParameterEncryptionBase) DecodeAuthParameter(ctx AuthContext, name 
 	ciphertext = ciphertext[:len(ciphertext)-len(salt)]
 
 	// create cipher
-	cipher, err := a.createCipher(salt)
+	cipher, err := a.createCipher(salt, tag...)
 	if err != nil {
 		c.SetMessage("failed to create AEAD cipher")
 		return true, err
@@ -228,4 +235,8 @@ func (a *AuthParameterEncryptionBase) Encrypt(ctx op_context.Context, obj interf
 
 	// done
 	return data, nil
+}
+
+func (a *AuthParameterEncryptionBase) CurrentTag() string {
+	return a.TAG
 }
