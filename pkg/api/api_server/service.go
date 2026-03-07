@@ -1,6 +1,8 @@
 package api_server
 
 import (
+	"fmt"
+
 	"github.com/evgeniums/go-utils/pkg/api"
 	"github.com/evgeniums/go-utils/pkg/common"
 	"github.com/evgeniums/go-utils/pkg/generic_error"
@@ -108,4 +110,11 @@ func (s *ServiceBase) SetPackage(value string) {
 
 func (s *ServiceBase) Package() string {
 	return s.packageName
+}
+
+func ServiceName(service string, version string) string {
+	if version != "" {
+		return fmt.Sprintf("%s.%s", service, version)
+	}
+	return service
 }
