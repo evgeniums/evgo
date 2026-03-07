@@ -18,6 +18,7 @@ const (
 	ErrorCodeOperationNotPermitted      string = "operation_not_permitteds"
 	ErrorCodeResourceBusy               string = "resource_busyr"
 	ErrorCodeUnimplemented              string = "unimplemented"
+	ErrorCodeBadRequest                 string = "bad_request"
 )
 
 var CommonErrorDescriptions = map[string]string{
@@ -36,6 +37,7 @@ var CommonErrorDescriptions = map[string]string{
 	ErrorCodeRetryLater:                 "Service is temporarily unavailable, please retry later",
 	ErrorCodeResourceBusy:               "Resource is busy, please retry later",
 	ErrorCodeUnimplemented:              "Method or operation not implemeted",
+	ErrorCodeBadRequest:                 "Bad request",
 }
 
 var CommonErrorHttpCodes = map[string]int{
