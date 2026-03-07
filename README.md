@@ -1,3 +1,3 @@
-# go-utils
+# evgo
 
-Various types and functions to be used in Go programs.
+Framework for building API services in Go using either gRPC or REST API transport.
