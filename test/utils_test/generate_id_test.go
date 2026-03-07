@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 func TestGenerateId(t *testing.T) {

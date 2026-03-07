@@ -1,6 +1,6 @@
 package access_control
 
-import "github.com/evgeniums/go-utils/pkg/common"
+import "github.com/evgeniums/evgo/pkg/common"
 
 type Role interface {
 	common.WithName

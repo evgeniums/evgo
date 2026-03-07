@@ -6,7 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/pbkdf2"
 )

@@ -1,16 +1,16 @@
 package noauth_server
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/api/api_server/rest_api_gin_server"
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/app_with_multitenancy"
-	"github.com/evgeniums/go-utils/pkg/pool"
-	"github.com/evgeniums/go-utils/pkg/pool/app_with_pools"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/api/api_server/rest_api_gin_server"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/multitenancy/app_with_multitenancy"
+	"github.com/evgeniums/evgo/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/pool/app_with_pools"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type Server interface {

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"

@@ -1,10 +1,10 @@
 package user_api
 
 import (
-	"github.com/evgeniums/go-utils/pkg/access_control"
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/user"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/access_control"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/user"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 func PrepareResources(userTypeName ...string) (userType string, serviceName string, collectionResource api.Resource, userResource api.Resource) {

@@ -1,11 +1,11 @@
 package confirmation_control_server
 
 import (
-	"github.com/evgeniums/go-utils/pkg/background_worker"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/app_with_multitenancy"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/background_worker"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/multitenancy/app_with_multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/markphelps/optional"
 )
 

@@ -4,9 +4,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/db/db_gorm"
-	"github.com/evgeniums/go-utils/pkg/pool"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/db/db_gorm"
+	"github.com/evgeniums/evgo/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm/schema"

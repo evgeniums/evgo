@@ -1,12 +1,12 @@
 package gomail_sender
 
 import (
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/email_sender"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/email_sender"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 	gomail "gopkg.in/mail.v2"
 )
 

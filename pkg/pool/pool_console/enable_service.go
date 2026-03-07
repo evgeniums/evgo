@@ -3,8 +3,8 @@ package pool_console
 import (
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/pool"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 const EnableServiceCmd string = "enable_service"

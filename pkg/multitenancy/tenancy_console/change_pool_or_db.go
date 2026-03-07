@@ -1,6 +1,6 @@
 package tenancy_console
 
-import "github.com/evgeniums/go-utils/pkg/multitenancy"
+import "github.com/evgeniums/evgo/pkg/multitenancy"
 
 const ChangePoolOrDbCmd string = "pool-db"
 const ChangePoolOrDbDescription string = "Change tenancy's pool and/or database name"

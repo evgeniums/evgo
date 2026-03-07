@@ -3,7 +3,7 @@ package redis_cache
 import (
 	"time"
 
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_providers/pubsub_redis"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_providers/pubsub_redis"
 	"github.com/redis/go-redis/v9"
 )
 

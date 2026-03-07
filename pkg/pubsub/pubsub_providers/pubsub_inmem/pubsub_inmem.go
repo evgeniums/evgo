@@ -3,10 +3,10 @@ package pubsub_inmem
 import (
 	"context"
 
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/message"
-	"github.com/evgeniums/go-utils/pkg/pubsub"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_subscriber"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/message"
+	"github.com/evgeniums/evgo/pkg/pubsub"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_subscriber"
 )
 
 const Provider string = "inmem"

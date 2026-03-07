@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/pool"
-	"github.com/evgeniums/go-utils/pkg/pool/pool_api/pool_client"
-	"github.com/evgeniums/go-utils/pkg/test_utils"
-	"github.com/evgeniums/go-utils/pkg/utils"
-	"github.com/evgeniums/go-utils/test/api_test"
+	"github.com/evgeniums/evgo/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/pool/pool_api/pool_client"
+	"github.com/evgeniums/evgo/pkg/test_utils"
+	"github.com/evgeniums/evgo/pkg/utils"
+	"github.com/evgeniums/evgo/test/api_test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -7,11 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/api/api_client/rest_api_client"
-	"github.com/evgeniums/go-utils/pkg/generic_error"
-	"github.com/evgeniums/go-utils/pkg/http_request"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/api/api_client/rest_api_client"
+	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/http_request"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-querystring/query"
 	"github.com/stretchr/testify/require"
@@ -146,6 +146,6 @@ func RestApiTestClient(t *testing.T, g *gin.Engine, baseUrl string, userAgent ..
 	}
 
 	c := rest_api_client.NewRestApiClientBase(sendWithBody, sendWithQuery)
-	c.Init(http_request.DefaultHttpClient(), baseUrl, utils.OptionalArg("go-utils", userAgent...))
+	c.Init(http_request.DefaultHttpClient(), baseUrl, utils.OptionalArg("sed", userAgent...))
 	return c
 }

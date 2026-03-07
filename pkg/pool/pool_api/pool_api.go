@@ -1,8 +1,8 @@
 package pool_api
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/pool"
 )
 
 type PoolResponse struct {

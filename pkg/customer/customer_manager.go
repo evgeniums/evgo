@@ -1,8 +1,8 @@
 package customer
 
 import (
-	"github.com/evgeniums/go-utils/pkg/auth/auth_session"
-	"github.com/evgeniums/go-utils/pkg/user"
+	"github.com/evgeniums/evgo/pkg/auth/auth_session"
+	"github.com/evgeniums/evgo/pkg/user"
 )
 
 type Manager struct {

@@ -1,9 +1,9 @@
 package user_service
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/user"
-	"github.com/evgeniums/go-utils/pkg/user/user_api"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/user"
+	"github.com/evgeniums/evgo/pkg/user/user_api"
 )
 
 type SetPasswordEndpoint struct {

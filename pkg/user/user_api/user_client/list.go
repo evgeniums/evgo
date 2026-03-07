@@ -1,12 +1,12 @@
 package user_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/api/api_client"
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/user"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/api/api_client"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/user"
 )
 
 type List[U user.User] struct {

@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/evgeniums/go-utils/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/logger"
 	finish "github.com/evgeniums/go-finish-service"
 	"github.com/markphelps/optional"
 )

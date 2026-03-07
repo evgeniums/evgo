@@ -3,12 +3,12 @@ package auth_session
 import (
 	"time"
 
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/crud"
-	"github.com/evgeniums/go-utils/pkg/crypt_utils"
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/generic_error"
-	"github.com/evgeniums/go-utils/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/crud"
+	"github.com/evgeniums/evgo/pkg/crypt_utils"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type SessionController interface {

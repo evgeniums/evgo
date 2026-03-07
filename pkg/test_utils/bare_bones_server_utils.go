@@ -3,8 +3,8 @@ package test_utils
 import (
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/api/api_server/rest_api_gin_server"
-	"github.com/evgeniums/go-utils/pkg/api/bare_bones_server"
+	"github.com/evgeniums/evgo/pkg/api/api_server/rest_api_gin_server"
+	"github.com/evgeniums/evgo/pkg/api/bare_bones_server"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )

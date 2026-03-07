@@ -3,7 +3,7 @@ package utils_test
 import (
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 

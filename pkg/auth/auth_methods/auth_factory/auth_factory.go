@@ -3,15 +3,15 @@ package auth_factory
 import (
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_hmac"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_login_phash"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_signature"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_sms"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_token"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_session"
-	"github.com/evgeniums/go-utils/pkg/signature"
-	"github.com/evgeniums/go-utils/pkg/sms"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_hmac"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_login_phash"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_signature"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_sms"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_token"
+	"github.com/evgeniums/evgo/pkg/auth/auth_session"
+	"github.com/evgeniums/evgo/pkg/signature"
+	"github.com/evgeniums/evgo/pkg/sms"
 )
 
 type DefaultAuthFactory struct {

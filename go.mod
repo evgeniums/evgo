@@ -1,4 +1,4 @@
-module github.com/evgeniums/go-utils
+module github.com/evgeniums/evgo
 
 go 1.24.0
 

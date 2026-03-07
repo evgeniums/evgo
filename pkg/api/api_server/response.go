@@ -1,8 +1,8 @@
 package api_server
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type File struct {

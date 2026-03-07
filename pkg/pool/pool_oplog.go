@@ -1,6 +1,6 @@
 package pool
 
-import "github.com/evgeniums/go-utils/pkg/oplog"
+import "github.com/evgeniums/evgo/pkg/oplog"
 
 type OpLogPool struct {
 	oplog.OplogBase

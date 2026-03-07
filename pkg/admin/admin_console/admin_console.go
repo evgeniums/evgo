@@ -1,11 +1,11 @@
 package admin_console
 
 import (
-	"github.com/evgeniums/go-utils/pkg/admin"
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/user"
-	"github.com/evgeniums/go-utils/pkg/user/user_console"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/admin"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/user"
+	"github.com/evgeniums/evgo/pkg/user/user_console"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type AdminCommands struct {

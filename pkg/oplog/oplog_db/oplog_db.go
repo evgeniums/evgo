@@ -1,11 +1,11 @@
 package oplog_db
 
 import (
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/oplog"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/oplog"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type OplogControllerDb struct {

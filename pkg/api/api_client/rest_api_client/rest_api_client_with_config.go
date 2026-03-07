@@ -1,17 +1,17 @@
 package rest_api_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/config"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/http_request"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/utils"
-	"github.com/evgeniums/go-utils/pkg/validator"
+	"github.com/evgeniums/evgo/pkg/config"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/http_request"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/validator"
 )
 
 type RestApiClientWithConfigCfg struct {
 	BASE_URL     string `validate:"required"`
-	USER_AGENT   string `default:"go-utils"`
+	USER_AGENT   string `default:"sed"`
 	TENANCY_TYPE string `default:"tenancy"`
 	TENANCY_PATH string
 }

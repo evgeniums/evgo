@@ -3,10 +3,10 @@ package api_server
 import (
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/common"
-	"github.com/evgeniums/go-utils/pkg/generic_error"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/common"
+	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type ServiceEachEndpointHandler = func(ep Endpoint)

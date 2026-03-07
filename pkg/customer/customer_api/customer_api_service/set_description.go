@@ -1,10 +1,10 @@
 package customer_api_service
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/common"
-	"github.com/evgeniums/go-utils/pkg/customer"
-	"github.com/evgeniums/go-utils/pkg/customer/customer_api"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/common"
+	"github.com/evgeniums/evgo/pkg/customer"
+	"github.com/evgeniums/evgo/pkg/customer/customer_api"
 )
 
 type SetDescriptionEndpoint[T customer.User] struct {

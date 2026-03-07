@@ -1,11 +1,11 @@
 package executable
 
 import (
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/app_with_multitenancy"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/multitenancy_background_app"
-	"github.com/evgeniums/go-utils/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/multitenancy/app_with_multitenancy"
+	"github.com/evgeniums/evgo/pkg/multitenancy/multitenancy_background_app"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 var ForceDefaultConfigFile bool

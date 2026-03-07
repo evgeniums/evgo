@@ -1,8 +1,8 @@
 package admin
 
 import (
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/user"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/user"
 )
 
 type Manager struct {

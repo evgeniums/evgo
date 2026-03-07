@@ -4,8 +4,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/evgeniums/go-utils/pkg/api/api_client"
-	"github.com/evgeniums/go-utils/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/api/api_client"
+	"github.com/evgeniums/evgo/pkg/generic_error"
 )
 
 type Response interface {

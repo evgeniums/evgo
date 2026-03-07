@@ -1,10 +1,10 @@
 package customer_api_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/common"
-	"github.com/evgeniums/go-utils/pkg/customer/customer_api"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/user/user_api/user_client"
+	"github.com/evgeniums/evgo/pkg/common"
+	"github.com/evgeniums/evgo/pkg/customer/customer_api"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/user/user_api/user_client"
 )
 
 type SetName = user_client.SetterHandler[common.WithNameBase]

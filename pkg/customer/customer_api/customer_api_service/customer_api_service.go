@@ -1,13 +1,13 @@
 package customer_api_service
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/customer"
-	"github.com/evgeniums/go-utils/pkg/customer/customer_api"
-	"github.com/evgeniums/go-utils/pkg/user"
-	"github.com/evgeniums/go-utils/pkg/user/user_api/user_service"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/customer"
+	"github.com/evgeniums/evgo/pkg/customer/customer_api"
+	"github.com/evgeniums/evgo/pkg/user"
+	"github.com/evgeniums/evgo/pkg/user/user_api/user_service"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type Service[T customer.User] struct {

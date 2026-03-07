@@ -1,6 +1,6 @@
 package customer
 
-import "github.com/evgeniums/go-utils/pkg/user"
+import "github.com/evgeniums/evgo/pkg/user"
 
 type OpLogCustomer struct {
 	user.OpLogUser

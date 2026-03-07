@@ -3,7 +3,7 @@ package pool
 import (
 	"errors"
 
-	"github.com/evgeniums/go-utils/pkg/common"
+	"github.com/evgeniums/evgo/pkg/common"
 )
 
 type Pool interface {

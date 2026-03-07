@@ -1,10 +1,10 @@
 package api
 
 import (
-	"github.com/evgeniums/go-utils/pkg/access_control"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/access_control"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type OperationHeaders = map[string]string

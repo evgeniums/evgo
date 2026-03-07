@@ -1,8 +1,8 @@
 package db
 
 import (
-	"github.com/evgeniums/go-utils/pkg/common"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/common"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type MonthPartition struct {

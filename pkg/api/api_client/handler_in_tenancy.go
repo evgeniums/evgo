@@ -1,8 +1,8 @@
 package api_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
 )
 
 type HandlerInTenancy[Cmd any, Result any] struct {

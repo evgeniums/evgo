@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/app_context/app_default"
-	"github.com/evgeniums/go-utils/pkg/generic_error"
-	"github.com/evgeniums/go-utils/pkg/op_context/default_op_context"
-	"github.com/evgeniums/go-utils/pkg/sms/providers/smsru"
-	"github.com/evgeniums/go-utils/pkg/test_utils"
+	"github.com/evgeniums/evgo/pkg/app_context/app_default"
+	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
+	"github.com/evgeniums/evgo/pkg/sms/providers/smsru"
+	"github.com/evgeniums/evgo/pkg/test_utils"
 )
 
 func TestSmsru(t *testing.T) {

@@ -3,11 +3,11 @@ package confirmation_api_service
 import (
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/confirmation_control"
-	"github.com/evgeniums/go-utils/pkg/confirmation_control/confirmation_control_api"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/confirmation_control"
+	"github.com/evgeniums/evgo/pkg/confirmation_control/confirmation_control_api"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
 )
 
 type InternalEndpoint struct {

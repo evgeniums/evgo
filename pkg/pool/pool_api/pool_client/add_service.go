@@ -1,11 +1,11 @@
 package pool_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/api/api_client"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/pool"
-	"github.com/evgeniums/go-utils/pkg/pool/pool_api"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/api/api_client"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/pool/pool_api"
 )
 
 type AddService struct {

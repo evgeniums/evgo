@@ -4,13 +4,13 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/config"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/crypt_utils"
-	"github.com/evgeniums/go-utils/pkg/generic_error"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/validator"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/config"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/crypt_utils"
+	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/validator"
 )
 
 const HmacProtocol = "hmac"

@@ -1,9 +1,9 @@
 package auth_service
 
 import (
-	"github.com/evgeniums/go-utils/pkg/access_control"
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/access_control"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
 )
 
 // Negotiate endpoint is derived from no handler endpoint because all processing in performed in auth preprocessing.

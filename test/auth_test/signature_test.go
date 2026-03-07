@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/crypt_utils"
-	"github.com/evgeniums/go-utils/pkg/signature"
-	"github.com/evgeniums/go-utils/pkg/signature/user_pubkey"
-	"github.com/evgeniums/go-utils/pkg/test_utils"
-	"github.com/evgeniums/go-utils/pkg/user"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/crypt_utils"
+	"github.com/evgeniums/evgo/pkg/signature"
+	"github.com/evgeniums/evgo/pkg/signature/user_pubkey"
+	"github.com/evgeniums/evgo/pkg/test_utils"
+	"github.com/evgeniums/evgo/pkg/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

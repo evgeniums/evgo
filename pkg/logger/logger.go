@@ -3,7 +3,7 @@ package logger
 import (
 	"errors"
 
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type Fields = map[string]interface{}

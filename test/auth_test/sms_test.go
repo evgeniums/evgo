@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_sms"
-	"github.com/evgeniums/go-utils/pkg/test_utils"
-	"github.com/evgeniums/go-utils/pkg/user"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_sms"
+	"github.com/evgeniums/evgo/pkg/test_utils"
+	"github.com/evgeniums/evgo/pkg/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

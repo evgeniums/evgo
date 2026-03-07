@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/console_tool"
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/user"
+	"github.com/evgeniums/evgo/pkg/console_tool"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/user"
 )
 
 const ListCmd string = "list"

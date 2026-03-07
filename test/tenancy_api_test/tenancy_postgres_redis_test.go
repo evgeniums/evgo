@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/tenancy_manager"
-	"github.com/evgeniums/go-utils/pkg/pool"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_providers/pubsub_factory"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_providers/pubsub_redis"
-	"github.com/evgeniums/go-utils/pkg/test_utils"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_manager"
+	"github.com/evgeniums/evgo/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_providers/pubsub_factory"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_providers/pubsub_redis"
+	"github.com/evgeniums/evgo/pkg/test_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -3,8 +3,8 @@ package api
 import (
 	"strings"
 
-	"github.com/evgeniums/go-utils/pkg/access_control"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/access_control"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type ResourceId interface {

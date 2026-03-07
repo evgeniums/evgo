@@ -3,7 +3,7 @@ package generic_error
 import (
 	"net/http"
 
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type TranslationHandler = func(string) string

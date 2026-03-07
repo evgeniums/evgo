@@ -1,6 +1,6 @@
 package api_server
 
-import "github.com/evgeniums/go-utils/pkg/api"
+import "github.com/evgeniums/evgo/pkg/api"
 
 type EnumEntry struct {
 	Value   string `json:"value"`

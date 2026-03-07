@@ -1,6 +1,6 @@
 package user
 
-import "github.com/evgeniums/go-utils/pkg/auth/auth_session"
+import "github.com/evgeniums/evgo/pkg/auth/auth_session"
 
 type UsersWithSession[UserType User, SessionType auth_session.Session, SessionClientType auth_session.SessionClient] interface {
 	Users[UserType]

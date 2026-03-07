@@ -1,9 +1,9 @@
 package user
 
 import (
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/crud"
-	"github.com/evgeniums/go-utils/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/crud"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type AuthUserFinderBase struct {

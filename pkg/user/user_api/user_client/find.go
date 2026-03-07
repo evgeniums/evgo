@@ -3,13 +3,13 @@ package user_client
 import (
 	"errors"
 
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/api/api_client"
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/user"
-	"github.com/evgeniums/go-utils/pkg/user/user_api"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/api/api_client"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/user"
+	"github.com/evgeniums/evgo/pkg/user/user_api"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type Find[U user.User] struct {

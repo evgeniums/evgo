@@ -1,10 +1,10 @@
 package tenancy_service
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/tenancy_api"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_api"
 )
 
 type ExistsEndpoint struct {

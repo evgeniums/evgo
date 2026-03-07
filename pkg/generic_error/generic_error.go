@@ -3,7 +3,7 @@ package generic_error
 import (
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 // Generic error that can be forwarded from place of arising to place of user reporting.

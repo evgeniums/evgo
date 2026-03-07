@@ -1,8 +1,8 @@
 package user_console
 
 import (
-	"github.com/evgeniums/go-utils/pkg/console_tool"
-	"github.com/evgeniums/go-utils/pkg/user"
+	"github.com/evgeniums/evgo/pkg/console_tool"
+	"github.com/evgeniums/evgo/pkg/user"
 )
 
 const PhoneCmd string = "phone"

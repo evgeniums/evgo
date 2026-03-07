@@ -5,14 +5,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/pool"
-	"github.com/evgeniums/go-utils/pkg/pubsub"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_providers/pubsub_factory"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_subscriber"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/pubsub"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_providers/pubsub_factory"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_subscriber"
 )
 
 type PoolPubsub interface {

@@ -3,16 +3,16 @@ package pubsub_factory
 import (
 	"errors"
 
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/message"
-	"github.com/evgeniums/go-utils/pkg/message/message_json"
-	"github.com/evgeniums/go-utils/pkg/pool"
-	"github.com/evgeniums/go-utils/pkg/pubsub"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_providers/pubsub_inmem"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_providers/pubsub_redis"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_subscriber"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/message"
+	"github.com/evgeniums/evgo/pkg/message/message_json"
+	"github.com/evgeniums/evgo/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/pubsub"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_providers/pubsub_inmem"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_providers/pubsub_redis"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_subscriber"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 const SingletonInmemProvider string = "singleton_inmem"

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 const RSA_H256_SIGNATURE = "rsa_h256_signature"

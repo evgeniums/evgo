@@ -3,13 +3,13 @@ package confirmation_control_server
 import (
 	"errors"
 
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/api/pool_microservice/pool_microservice_server"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/confirmation_control/confirmation_control_api/confirmation_api_service"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/app_with_multitenancy"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/api/pool_microservice/pool_microservice_server"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/confirmation_control/confirmation_control_api/confirmation_api_service"
+	"github.com/evgeniums/evgo/pkg/multitenancy/app_with_multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type InternalServerConfig struct {

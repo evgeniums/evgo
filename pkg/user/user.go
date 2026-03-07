@@ -1,14 +1,14 @@
 package user
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_login_phash"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_sms"
-	"github.com/evgeniums/go-utils/pkg/common"
-	"github.com/evgeniums/go-utils/pkg/crud"
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_login_phash"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_sms"
+	"github.com/evgeniums/evgo/pkg/common"
+	"github.com/evgeniums/evgo/pkg/crud"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type User interface {

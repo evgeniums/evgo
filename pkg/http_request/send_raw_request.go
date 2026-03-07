@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type RedirectHandler func(req *http.Request, via []*http.Request) error

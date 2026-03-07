@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/logger"
 	"gorm.io/gorm"
 )
 

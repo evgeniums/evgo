@@ -1,6 +1,6 @@
 package tenancy_console
 
-import "github.com/evgeniums/go-utils/pkg/multitenancy"
+import "github.com/evgeniums/evgo/pkg/multitenancy"
 
 const DeleteIpAddressCmd string = "ip-delete"
 const DeleteIpAddressDescription string = "Delete allowed IP address to tenancy"

@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_login_phash"
-	"github.com/evgeniums/go-utils/pkg/generic_error"
-	"github.com/evgeniums/go-utils/pkg/http_request"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_login_phash"
+	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/http_request"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type RestApiClient interface {
@@ -421,7 +421,7 @@ func DefaultSendWithQuery(ctx op_context.Context, httpClient *http_request.HttpC
 
 func DefaultRestApiClient(httpClient *http_request.HttpClient, baseUrl string, userAgent ...string) *RestApiClientBase {
 	c := NewRestApiClientBase(DefaultSendWithBody, DefaultSendWithQuery)
-	c.Init(httpClient, baseUrl, utils.OptionalArg("go-utils", userAgent...))
+	c.Init(httpClient, baseUrl, utils.OptionalArg("sed", userAgent...))
 	return c
 }
 

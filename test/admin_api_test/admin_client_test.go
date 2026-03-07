@@ -3,11 +3,11 @@ package admin_api_test
 import (
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/admin/admin_api/admin_api_client"
-	"github.com/evgeniums/go-utils/pkg/api/api_client/rest_api_client"
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/test_utils"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/admin/admin_api/admin_api_client"
+	"github.com/evgeniums/evgo/pkg/api/api_client/rest_api_client"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/test_utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
 

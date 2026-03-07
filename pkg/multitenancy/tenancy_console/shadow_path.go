@@ -1,6 +1,6 @@
 package tenancy_console
 
-import "github.com/evgeniums/go-utils/pkg/multitenancy"
+import "github.com/evgeniums/evgo/pkg/multitenancy"
 
 const ShadowPathCmd string = "shadow-path"
 const ShadowPathDescription string = "Set new tenancy's shadow path"

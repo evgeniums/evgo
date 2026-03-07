@@ -1,19 +1,19 @@
 package bare_bones_server
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/api/api_server/rest_api_gin_server"
-	"github.com/evgeniums/go-utils/pkg/api/noauth_server"
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_factory"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_service"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_session"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/signature"
-	"github.com/evgeniums/go-utils/pkg/sms"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/api/api_server/rest_api_gin_server"
+	"github.com/evgeniums/evgo/pkg/api/noauth_server"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_factory"
+	"github.com/evgeniums/evgo/pkg/auth/auth_service"
+	"github.com/evgeniums/evgo/pkg/auth/auth_session"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/signature"
+	"github.com/evgeniums/evgo/pkg/sms"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type Server interface {

@@ -3,8 +3,8 @@ package db_gorm
 import (
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )

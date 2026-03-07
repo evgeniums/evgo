@@ -1,14 +1,14 @@
 package auth_signature
 
 import (
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/config"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/signature"
-	"github.com/evgeniums/go-utils/pkg/signature/user_pubkey"
-	"github.com/evgeniums/go-utils/pkg/utils"
-	"github.com/evgeniums/go-utils/pkg/validator"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/config"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/signature"
+	"github.com/evgeniums/evgo/pkg/signature/user_pubkey"
+	"github.com/evgeniums/evgo/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/validator"
 )
 
 const SignatureProtocol = "signature"

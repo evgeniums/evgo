@@ -3,11 +3,11 @@ package dynamic_table_test
 import (
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/api/api_server/dynamic_table_gorm"
-	"github.com/evgeniums/go-utils/pkg/test_utils"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/api/api_server/dynamic_table_gorm"
+	"github.com/evgeniums/evgo/pkg/test_utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/stretchr/testify/require"
 )
 

@@ -3,11 +3,11 @@ package work_schedule_console
 import (
 	"errors"
 
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/console_tool"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pool_pubsub"
-	"github.com/evgeniums/go-utils/pkg/work_schedule"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/console_tool"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/pubsub/pool_pubsub"
+	"github.com/evgeniums/evgo/pkg/work_schedule"
 )
 
 type WorkSchedulerBuilder[T work_schedule.Work] func(app app_context.Context) (work_schedule.WorkScheduler[T], error)

@@ -1,8 +1,8 @@
 package oplog
 
 import (
-	"github.com/evgeniums/go-utils/pkg/common"
-	"github.com/evgeniums/go-utils/pkg/db"
+	"github.com/evgeniums/evgo/pkg/common"
+	"github.com/evgeniums/evgo/pkg/db"
 )
 
 type Oplog interface {

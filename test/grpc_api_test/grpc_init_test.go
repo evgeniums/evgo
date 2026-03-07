@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/evgeniums/go-utils/pkg/background_worker"
+	"github.com/evgeniums/evgo/pkg/background_worker"
 )
 
 func TestInitServer(t *testing.T) {

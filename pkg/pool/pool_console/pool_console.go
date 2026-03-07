@@ -1,9 +1,9 @@
 package pool_console
 
 import (
-	"github.com/evgeniums/go-utils/pkg/console_tool"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/console_tool"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/pool"
 )
 
 type PoolCommands struct {

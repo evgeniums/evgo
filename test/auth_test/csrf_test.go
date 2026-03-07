@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/evgeniums/go-utils/pkg/test_utils"
+	"github.com/evgeniums/evgo/pkg/test_utils"
 	"github.com/stretchr/testify/assert"
 )
 

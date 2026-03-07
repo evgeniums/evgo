@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/evgeniums/go-utils/pkg/config"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/message"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/utils"
-	"github.com/evgeniums/go-utils/pkg/validator"
+	"github.com/evgeniums/evgo/pkg/config"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/message"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/validator"
 )
 
 type HttpClientConfig struct {
@@ -25,7 +25,7 @@ type HttpClientConfig struct {
 	TLS_HANDSHAKE_TIMEOUT    int `default:"10"`
 	EXPECT_CONTINUE_TIMEOUT  int `default:"1"`
 
-	USER_AGENT string `default:"go-utils"`
+	USER_AGENT string `default:"sed"`
 }
 
 type HttpClient struct {

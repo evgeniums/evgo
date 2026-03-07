@@ -1,6 +1,6 @@
 package access_control
 
-import "github.com/evgeniums/go-utils/pkg/op_context"
+import "github.com/evgeniums/evgo/pkg/op_context"
 
 type Rule interface {
 	Resource() Resource

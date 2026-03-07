@@ -3,9 +3,9 @@ package work_schedule_console
 import (
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/console_tool"
-	"github.com/evgeniums/go-utils/pkg/utils"
-	"github.com/evgeniums/go-utils/pkg/work_schedule"
+	"github.com/evgeniums/evgo/pkg/console_tool"
+	"github.com/evgeniums/evgo/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/work_schedule"
 )
 
 const PostWorkCmd string = "post-work"

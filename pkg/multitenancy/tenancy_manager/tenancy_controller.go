@@ -3,14 +3,14 @@ package tenancy_manager
 import (
 	"errors"
 
-	"github.com/evgeniums/go-utils/pkg/crud"
-	"github.com/evgeniums/go-utils/pkg/customer"
-	"github.com/evgeniums/go-utils/pkg/db"
-	"github.com/evgeniums/go-utils/pkg/generic_error"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/crud"
+	"github.com/evgeniums/evgo/pkg/customer"
+	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/pool"
 )
 
 type TenancyController struct {

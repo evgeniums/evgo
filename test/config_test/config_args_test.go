@@ -3,9 +3,9 @@ package config_test
 import (
 	"testing"
 
-	"github.com/evgeniums/go-utils/pkg/app_context/app_default"
-	"github.com/evgeniums/go-utils/pkg/config"
-	"github.com/evgeniums/go-utils/pkg/test_utils"
+	"github.com/evgeniums/evgo/pkg/app_context/app_default"
+	"github.com/evgeniums/evgo/pkg/config"
+	"github.com/evgeniums/evgo/pkg/test_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

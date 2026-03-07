@@ -1,11 +1,11 @@
 package app_with_pools
 
 import (
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/app_context/app_default"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/op_context/default_op_context"
-	"github.com/evgeniums/go-utils/pkg/pool"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/app_context/app_default"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
+	"github.com/evgeniums/evgo/pkg/pool"
 )
 
 type AppWithPools interface {

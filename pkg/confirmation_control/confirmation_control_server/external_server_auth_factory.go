@@ -3,10 +3,10 @@ package confirmation_control_server
 import (
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_sms"
-	"github.com/evgeniums/go-utils/pkg/confirmation_control/sms_auth_confirmation"
-	"github.com/evgeniums/go-utils/pkg/sms"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_sms"
+	"github.com/evgeniums/evgo/pkg/confirmation_control/sms_auth_confirmation"
+	"github.com/evgeniums/evgo/pkg/sms"
 )
 
 type AuthFactory struct {

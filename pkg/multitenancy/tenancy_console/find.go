@@ -3,8 +3,8 @@ package tenancy_console
 import (
 	"fmt"
 
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 const FindCmd string = "show"

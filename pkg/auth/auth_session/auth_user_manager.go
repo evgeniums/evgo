@@ -1,8 +1,8 @@
 package auth_session
 
 import (
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type UserValidators interface {

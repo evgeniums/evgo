@@ -1,11 +1,11 @@
 package tenancy_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api"
-	"github.com/evgeniums/go-utils/pkg/api/api_client"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/tenancy_api"
-	"github.com/evgeniums/go-utils/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/api/api_client"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_api"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 func (t *TenancyClient) SetPath(ctx op_context.Context, id string, path string, idIsDisplay ...bool) error {

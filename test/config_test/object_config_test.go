@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/evgeniums/go-utils/pkg/config/config_viper"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/logger/logger_logrus"
-	"github.com/evgeniums/go-utils/pkg/utils"
-	"github.com/evgeniums/go-utils/pkg/validator/validator_playground"
+	"github.com/evgeniums/evgo/pkg/config/config_viper"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/logger/logger_logrus"
+	"github.com/evgeniums/evgo/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/validator/validator_playground"
 	"gopkg.in/go-playground/assert.v1"
 )
 

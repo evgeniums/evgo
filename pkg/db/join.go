@@ -3,8 +3,8 @@ package db
 import (
 	"sync"
 
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type JoinQuery interface {

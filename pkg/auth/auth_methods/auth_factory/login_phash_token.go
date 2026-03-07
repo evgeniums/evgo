@@ -3,15 +3,15 @@ package auth_factory
 import (
 	"strings"
 
-	"github.com/evgeniums/go-utils/pkg/auth"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_login_phash"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_methods/auth_token"
-	"github.com/evgeniums/go-utils/pkg/auth/auth_session"
-	"github.com/evgeniums/go-utils/pkg/config"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/utils"
-	"github.com/evgeniums/go-utils/pkg/validator"
+	"github.com/evgeniums/evgo/pkg/auth"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_login_phash"
+	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_token"
+	"github.com/evgeniums/evgo/pkg/auth/auth_session"
+	"github.com/evgeniums/evgo/pkg/config"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/validator"
 )
 
 const LoginPhashTokenProtocol = "evgo_login_phash_token"

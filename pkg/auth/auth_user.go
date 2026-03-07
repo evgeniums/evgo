@@ -1,10 +1,10 @@
 package auth
 
 import (
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/op_context/default_op_context"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type User interface {

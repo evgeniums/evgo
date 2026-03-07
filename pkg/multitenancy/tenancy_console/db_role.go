@@ -1,6 +1,6 @@
 package tenancy_console
 
-import "github.com/evgeniums/go-utils/pkg/multitenancy"
+import "github.com/evgeniums/evgo/pkg/multitenancy"
 
 const DbRoleCmd string = "db-role"
 const DbRoleDescription string = "Set role of database service to be used by tenancy"

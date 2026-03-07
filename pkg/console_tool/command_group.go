@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
 	"github.com/jessevdk/go-flags"
 )
 

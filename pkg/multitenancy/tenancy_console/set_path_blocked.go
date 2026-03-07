@@ -1,6 +1,6 @@
 package tenancy_console
 
-import "github.com/evgeniums/go-utils/pkg/multitenancy"
+import "github.com/evgeniums/evgo/pkg/multitenancy"
 
 const SetPathBlockedCmd string = "block-path"
 const SetPathBlockedDescription string = "Block tenancy path(s)"

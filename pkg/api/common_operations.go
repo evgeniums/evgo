@@ -1,6 +1,6 @@
 package api
 
-import "github.com/evgeniums/go-utils/pkg/access_control"
+import "github.com/evgeniums/evgo/pkg/access_control"
 
 const PackageName = "evgo"
 

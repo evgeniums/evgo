@@ -1,9 +1,9 @@
 package api
 
 import (
-	"github.com/evgeniums/go-utils/pkg/access_control"
-	"github.com/evgeniums/go-utils/pkg/common"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/access_control"
+	"github.com/evgeniums/evgo/pkg/common"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type HateoasLink struct {

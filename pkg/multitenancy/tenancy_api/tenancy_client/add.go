@@ -1,10 +1,10 @@
 package tenancy_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api/api_client"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/tenancy_api"
-	"github.com/evgeniums/go-utils/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/api/api_client"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_api"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 func (t *TenancyClient) Add(ctx op_context.Context, tenancy *multitenancy.TenancyData) (*multitenancy.TenancyItem, error) {

@@ -1,9 +1,9 @@
 package pool_microservice_server
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api/noauth_server"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/multitenancy/app_with_multitenancy"
+	"github.com/evgeniums/evgo/pkg/api/noauth_server"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/multitenancy/app_with_multitenancy"
 )
 
 type PoolMicroserviceServer struct {

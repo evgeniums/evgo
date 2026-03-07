@@ -1,8 +1,8 @@
 package confirmation_control
 
 import (
-	"github.com/evgeniums/go-utils/pkg/generic_error"
-	"github.com/evgeniums/go-utils/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
 )
 
 const PackageName = "confirmation_control"

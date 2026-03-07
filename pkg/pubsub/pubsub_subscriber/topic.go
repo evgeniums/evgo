@@ -3,9 +3,9 @@ package pubsub_subscriber
 import (
 	"sync"
 
-	"github.com/evgeniums/go-utils/pkg/message"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/message"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type SubscriberClient[T any] interface {

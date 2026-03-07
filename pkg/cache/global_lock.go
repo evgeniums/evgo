@@ -3,7 +3,7 @@ package cache
 import (
 	"time"
 
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type Lock interface {

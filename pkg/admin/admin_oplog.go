@@ -1,6 +1,6 @@
 package admin
 
-import "github.com/evgeniums/go-utils/pkg/user"
+import "github.com/evgeniums/evgo/pkg/user"
 
 type OpLogAdmin struct {
 	user.OpLogUser

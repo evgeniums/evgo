@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/config"
-	"github.com/evgeniums/go-utils/pkg/config/object_config"
-	"github.com/evgeniums/go-utils/pkg/logger"
-	"github.com/evgeniums/go-utils/pkg/message"
-	"github.com/evgeniums/go-utils/pkg/pubsub"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_subscriber"
-	"github.com/evgeniums/go-utils/pkg/validator"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/config"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/message"
+	"github.com/evgeniums/evgo/pkg/pubsub"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_subscriber"
+	"github.com/evgeniums/evgo/pkg/validator"
 	"github.com/redis/go-redis/v9"
 )
 

@@ -1,6 +1,6 @@
 package multitenancy
 
-import "github.com/evgeniums/go-utils/pkg/common"
+import "github.com/evgeniums/evgo/pkg/common"
 
 type TenancyMeta struct {
 	common.ObjectBase

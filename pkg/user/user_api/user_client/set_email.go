@@ -1,9 +1,9 @@
 package user_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/user"
-	"github.com/evgeniums/go-utils/pkg/user/user_api"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/user"
+	"github.com/evgeniums/evgo/pkg/user/user_api"
 )
 
 type SetEmail = SetterHandler[user.UserEmail]

@@ -1,10 +1,10 @@
 package admin_api_service
 
 import (
-	"github.com/evgeniums/go-utils/pkg/admin"
-	"github.com/evgeniums/go-utils/pkg/admin/admin_api"
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
-	"github.com/evgeniums/go-utils/pkg/user/user_api/user_service"
+	"github.com/evgeniums/evgo/pkg/admin"
+	"github.com/evgeniums/evgo/pkg/admin/admin_api"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/user/user_api/user_service"
 )
 
 type AdminService = user_service.UserService[*admin.Admin]

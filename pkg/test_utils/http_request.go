@@ -24,7 +24,7 @@ func HttpRequestSend(t *testing.T, g *gin.Engine, req *http.Request) (*httptest.
 }
 
 func HttpHeadersSet(req *http.Request, headers ...map[string]string) {
-	req.Header.Set("User-Agent", "go-utils")
+	req.Header.Set("User-Agent", "sed")
 	req.RemoteAddr = "127.0.0.1:80"
 	if len(headers) > 0 {
 		for k, v := range headers[0] {

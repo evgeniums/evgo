@@ -3,10 +3,10 @@ package sms_provider_factory
 import (
 	"errors"
 
-	"github.com/evgeniums/go-utils/pkg/sms"
-	"github.com/evgeniums/go-utils/pkg/sms/providers/gatewayapi"
-	"github.com/evgeniums/go-utils/pkg/sms/providers/sms_mock"
-	"github.com/evgeniums/go-utils/pkg/sms/providers/smsru"
+	"github.com/evgeniums/evgo/pkg/sms"
+	"github.com/evgeniums/evgo/pkg/sms/providers/gatewayapi"
+	"github.com/evgeniums/evgo/pkg/sms/providers/sms_mock"
+	"github.com/evgeniums/evgo/pkg/sms/providers/smsru"
 )
 
 type Builder func() sms.Provider

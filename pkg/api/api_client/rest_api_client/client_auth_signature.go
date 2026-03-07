@@ -1,7 +1,7 @@
 package rest_api_client
 
 import (
-	"github.com/evgeniums/go-utils/pkg/api/api_client"
+	"github.com/evgeniums/evgo/pkg/api/api_client"
 )
 
 type ClientAuthSignature = api_client.AuthSignatureBase

@@ -1,10 +1,10 @@
 package pool_pubsub
 
 import (
-	"github.com/evgeniums/go-utils/pkg/app_context"
-	"github.com/evgeniums/go-utils/pkg/op_context"
-	"github.com/evgeniums/go-utils/pkg/pool/app_with_pools"
-	"github.com/evgeniums/go-utils/pkg/pubsub/pubsub_providers/pubsub_factory"
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/pool/app_with_pools"
+	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_providers/pubsub_factory"
 )
 
 type AppWithPubsub interface {

@@ -3,9 +3,9 @@ package pubsub
 import (
 	"context"
 
-	"github.com/evgeniums/go-utils/pkg/message"
-	"github.com/evgeniums/go-utils/pkg/message/message_json"
-	"github.com/evgeniums/go-utils/pkg/utils"
+	"github.com/evgeniums/evgo/pkg/message"
+	"github.com/evgeniums/evgo/pkg/message/message_json"
+	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type Publisher interface {

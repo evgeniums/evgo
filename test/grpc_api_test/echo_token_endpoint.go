@@ -1,8 +1,8 @@
 package grpc_api
 
 import (
-	"github.com/evgeniums/go-utils/pkg/access_control"
-	"github.com/evgeniums/go-utils/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/access_control"
+	"github.com/evgeniums/evgo/pkg/api/api_server"
 )
 
 type EchoTokenEndpoint struct {
