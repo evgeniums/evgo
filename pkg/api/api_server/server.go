@@ -1,13 +1,12 @@
 package api_server
 
 import (
-	"fmt"
-
 	"github.com/evgeniums/go-utils/pkg/app_context"
 	"github.com/evgeniums/go-utils/pkg/auth"
 	"github.com/evgeniums/go-utils/pkg/background_worker"
 	"github.com/evgeniums/go-utils/pkg/common"
 	"github.com/evgeniums/go-utils/pkg/generic_error"
+	"github.com/evgeniums/go-utils/pkg/logger"
 	"github.com/evgeniums/go-utils/pkg/multitenancy"
 	"github.com/evgeniums/go-utils/pkg/pool"
 )
@@ -19,6 +18,7 @@ type AuthParameterSetter = func(r *Request, key string, value string)
 type Server interface {
 	generic_error.ErrorManager
 	auth.WithAuth
+	app_context.WithApp
 
 	Init(ctx app_context.Context, auth auth.Auth, tenancyManager multitenancy.Multitenancy, configPath ...string) error
 
@@ -51,12 +51,13 @@ type Server interface {
 	ListEndpoints()
 }
 
-func AddServiceToServer(s Server, service Service) {
+func AddServiceToServer(s Server, service Service) error {
 	err := service.AttachToServer(s)
 	if err != nil {
-		panic(fmt.Errorf("failed to attach service %s to server", service.Type()))
+		return s.App().Logger().PushFatalStack("failed to attach service to server", err, logger.Fields{"service": service.Type()})
 	}
 	service.AttachToErrorManager(s)
+	return nil
 }
 
 type ServerBaseConfig struct {
@@ -76,6 +77,7 @@ func (s *ServerBaseConfig) IsHateoas() bool {
 }
 
 type ServerBase struct {
+	app_context.WithAppBase
 }
 
 func (s *ServerBase) ListEndpoints() {
