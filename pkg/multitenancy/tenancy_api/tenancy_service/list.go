@@ -1,31 +1,35 @@
 package tenancy_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
 	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_api"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type ListEndpoint struct {
 	TenancyEndpoint
 }
 
-func (e *ListEndpoint) HandleRequest(request api_server.Request) error {
+func (e *ListEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("tenancy.List")
 	defer request.TraceOutMethod()
 
 	// parse query
 	queryName := request.Endpoint().Resource().ServicePathPrototype()
-	filter, err := api_server.ParseDbQuery(request, &multitenancy.TenancyItem{}, queryName)
+	filter, err := api_server.ParseDbQuery(sctx, &multitenancy.TenancyItem{}, queryName)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// get
 	resp := &tenancy_api.ListTenanciesResponse{}
-	resp.Items, resp.Count, err = e.service.Tenancies.List(request, filter)
+	resp.Items, resp.Count, err = e.service.Tenancies.List(sctx, filter)
 	if err != nil {
 		return c.SetError(err)
 	}

@@ -1,8 +1,9 @@
 package access_control
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/common"
-	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type Resource interface {
@@ -12,8 +13,8 @@ type Resource interface {
 }
 
 type ResourceManager interface {
-	FindResource(ctx op_context.Context, path string) (Resource, error)
-	ResourceTags(ctx op_context.Context, path string) ([]string, error)
+	FindResource(sctx context.Context, path string) (Resource, error)
+	ResourceTags(sctx context.Context, path string) ([]string, error)
 }
 
 type ResourceBase struct {

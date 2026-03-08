@@ -270,7 +270,7 @@ func (c *Context) InitDB(configPath string, gormDbConnector ...*db_gorm.DbConnec
 	}
 	d := db_gorm.New(gormDbConnector...)
 	c.db = d
-	return d.Init(c, c.Cfg(), c.validator, configPath)
+	return d.Init(logger.MakeLoggetContext(c), c.Cfg(), c.validator, configPath)
 }
 
 func (c *Context) Hostname() string {

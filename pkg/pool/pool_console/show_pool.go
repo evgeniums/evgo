@@ -30,12 +30,12 @@ func (a *ShowPoolHandler) Data() interface{} {
 
 func (a *ShowPoolHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
-	pool, err := controller.FindPool(ctx, a.Pool, true)
+	defer ctx.Close(sctx)
+	pool, err := controller.FindPool(sctx, a.Pool, true)
 	if err == nil {
 		if pool != nil {
 			fmt.Printf("Pool:\n\n%s\n\n", utils.DumpPrettyJson(pool))

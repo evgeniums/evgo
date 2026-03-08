@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -22,20 +23,20 @@ var privkey1Path = filepath.Join(assetsDir, "priv1.pem")
 var privkey2Path = filepath.Join(assetsDir, "priv2.pem")
 
 func TestSignature(t *testing.T) {
-	app, users, server, opCtx := initOpTest(t, "sig_test.jsonc")
+	app, users, server, _, sctx := initOpTest(t, "sig_test.jsonc")
 	defer app.Close()
 
 	pubKeyBuilder := func() *UserPubKey { return &UserPubKey{} }
-	pubkeyController := user_pubkey.NewPubkeyController[*UserPubKey, *User](pubKeyBuilder, server.SignatureManager(), users)
-	pubKeyFinder := func(ctx auth.AuthContext) (signature.UserWithPubkey, error) {
-		return user_pubkey.FindUserPubKey[*UserPubKey](pubkeyController, ctx)
+	pubkeyController := user_pubkey.NewPubkeyController(pubKeyBuilder, server.SignatureManager(), users)
+	pubKeyFinder := func(sctx context.Context) (signature.UserWithPubkey, error) {
+		return user_pubkey.FindUserPubKey(pubkeyController, sctx)
 	}
 	server.SignatureManager().SetUserKeyFinder(pubKeyFinder)
 
 	// create user1
 	login1 := "user1@example.com"
 	password1 := "password1"
-	user1, err := users.Add(opCtx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
+	user1, err := users.Add(sctx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
 	require.NoErrorf(t, err, "failed to add user")
 	require.NotNil(t, user1)
 
@@ -65,7 +66,7 @@ func TestSignature(t *testing.T) {
 	// add pubkey for user 1
 	pubKey1, err := os.ReadFile(pubkey1Path)
 	require.NoError(t, err)
-	keyId, err := pubkeyController.AddPubKey(opCtx, user1.GetID(), string(pubKey1))
+	keyId, err := pubkeyController.AddPubKey(sctx, user1.GetID(), string(pubKey1))
 	require.NoError(t, err)
 	assert.NotEmpty(t, keyId)
 

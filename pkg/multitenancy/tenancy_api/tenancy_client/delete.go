@@ -1,6 +1,8 @@
 package tenancy_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
@@ -8,10 +10,11 @@ import (
 	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
-func (t *TenancyClient) Delete(ctx op_context.Context, id string, withDb bool, idIsDisplay ...bool) error {
+func (t *TenancyClient) Delete(sctx context.Context, id string, withDb bool, idIsDisplay ...bool) error {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyClient.Delete")
 	onExit := func() {
 		if err != nil {
@@ -22,7 +25,7 @@ func (t *TenancyClient) Delete(ctx op_context.Context, id string, withDb bool, i
 	defer onExit()
 
 	// adjust ID
-	tenancyId, _, err := multitenancy.TenancyId(t, ctx, id, idIsDisplay...)
+	tenancyId, _, err := multitenancy.TenancyId(t, sctx, id, idIsDisplay...)
 	if err != nil {
 		c.SetMessage("failed to get tenancy ID")
 		return err
@@ -33,7 +36,7 @@ func (t *TenancyClient) Delete(ctx op_context.Context, id string, withDb bool, i
 	op := api.NamedResourceOperation(t.TenancyResource,
 		tenancyId,
 		tenancy_api.Delete())
-	err = handler.Exec(t.Client(), ctx, op)
+	err = handler.Exec(t.Client(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return err

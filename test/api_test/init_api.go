@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -32,11 +33,17 @@ type TestContext struct {
 	AdminOp           op_context.Context
 	Server            bare_bones_server.Server
 	LocalAdminManager *admin.Manager
+
+	ClientOpCtx context.Context
+	AdminOpCtx  context.Context
+
+	ServerAppCtx context.Context
+	ClientAppCtx context.Context
 }
 
 func (t *TestContext) Close() {
-	t.ClientOp.Close()
-	t.AdminOp.Close()
+	t.ClientOp.Close(t.ClientOpCtx)
+	t.AdminOp.Close(t.AdminOpCtx)
 	t.ClientApp.Close()
 	t.ServerApp.Close()
 }
@@ -46,20 +53,20 @@ func (t *TestContext) Reset() {
 	t.AdminOp.Reset()
 }
 
-func initClient(t *testing.T, g *gin.Engine, testDir string, config string) (app_context.Context, *rest_api_client.Client) {
-	app := test_utils.InitDefaultAppContextNoDb(t, testDir, config)
+func initClient(t *testing.T, g *gin.Engine, testDir string, config string) (app_context.Context, *rest_api_client.Client, context.Context) {
+	app, appCtx := test_utils.InitDefaultAppContextNoDb(t, testDir, config)
 
-	opCtx := test_utils.SimpleOpContext(app, "prepare")
+	_, sctx := test_utils.SimpleOpContext(app, "prepare")
 	restApiClient := test_utils.RestApiTestClient(t, g, BaseUrl)
-	restApiClient.Prepare(opCtx)
+	restApiClient.Prepare(sctx)
 
 	client := rest_api_client.New(restApiClient)
-	return app, client
+	return app, client, appCtx
 }
 
-func initServer(t *testing.T, testDir string, config string, dbModels []interface{}, newDb ...bool) (app_context.Context, *admin.Manager, bare_bones_server.Server) {
+func initServer(t *testing.T, testDir string, config string, dbModels []interface{}, newDb ...bool) (app_context.Context, *admin.Manager, bare_bones_server.Server, context.Context) {
 
-	app := test_utils.InitAppContext(t, testDir, dbModels, config, newDb...)
+	app, appCtx := test_utils.InitAppContext(t, testDir, dbModels, config, newDb...)
 
 	adminManager := admin.NewManager()
 	adminManager.Init(app.Validator())
@@ -85,7 +92,7 @@ func initServer(t *testing.T, testDir string, config string, dbModels []interfac
 	adminService := admin_api_service.NewAdminService(adminManager)
 	api_server.AddServiceToServer(server.ApiServer(), adminService)
 
-	return app, adminManager, server
+	return app, adminManager, server, appCtx
 }
 
 func InitTest(t *testing.T, packageName string, testDir string, dbModels []interface{}, newDb ...bool) *TestContext {
@@ -95,17 +102,17 @@ func InitTest(t *testing.T, packageName string, testDir string, dbModels []inter
 	clientConfig := fmt.Sprintf("%s_api_client.jsonc", packageName)
 	serverConfig := fmt.Sprintf("%s_api_server.jsonc", packageName)
 
-	ctx.ServerApp, ctx.LocalAdminManager, ctx.Server = initServer(t, testDir, serverConfig, dbModels, newDb...)
-	ctx.ClientApp, ctx.RestApiClient = initClient(t, test_utils.BBGinEngine(t, ctx.Server), testDir, clientConfig)
+	ctx.ServerApp, ctx.LocalAdminManager, ctx.Server, ctx.ServerAppCtx = initServer(t, testDir, serverConfig, dbModels, newDb...)
+	ctx.ClientApp, ctx.RestApiClient, ctx.ClientAppCtx = initClient(t, test_utils.BBGinEngine(t, ctx.Server), testDir, clientConfig)
 
-	ctx.ClientOp = test_utils.SimpleOpContext(ctx.ClientApp, t.Name())
-	ctx.AdminOp = test_utils.SimpleOpContext(ctx.ServerApp, t.Name())
+	ctx.ClientOp, ctx.ClientOpCtx = test_utils.SimpleOpContext(ctx.ClientApp, t.Name())
+	ctx.AdminOp, ctx.AdminOpCtx = test_utils.SimpleOpContext(ctx.ServerApp, t.Name())
 
 	// add superadmin for remote admin manager login
 	superadmin := "superadmin"
 	superpassword := "superpassword"
 	if utils.OptionalArg(true, newDb...) {
-		user1, err := ctx.LocalAdminManager.Add(ctx.AdminOp, superadmin, superpassword)
+		user1, err := ctx.LocalAdminManager.Add(ctx.AdminOpCtx, superadmin, superpassword)
 		require.NoErrorf(t, err, "failed to add superadmin")
 		require.NotNil(t, user1)
 	}
@@ -113,7 +120,7 @@ func InitTest(t *testing.T, packageName string, testDir string, dbModels []inter
 	// login with client
 	restApiClient, ok := ctx.RestApiClient.Transport().(rest_api_client.RestApiClient)
 	require.True(t, ok)
-	resp, err := restApiClient.Login(ctx.ClientOp, superadmin, superpassword)
+	resp, err := restApiClient.Login(ctx.ClientOpCtx, superadmin, superpassword)
 	require.NoErrorf(t, err, "failed to login superadmin")
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.Code())

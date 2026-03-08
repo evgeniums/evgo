@@ -1,6 +1,8 @@
 package pool_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -9,20 +11,22 @@ import (
 
 type RemoveServiceFromPool struct{}
 
-func (a *RemoveServiceFromPool) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (a *RemoveServiceFromPool) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("RemoveServiceFromPool.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, nil, nil)
+	err := client.Exec(sctx, operation, nil, nil)
 	c.SetError(err)
 	return err
 }
 
-func (p *PoolClient) RemoveServiceFromPool(ctx op_context.Context, poolId string, role string, idIsName ...bool) error {
+func (p *PoolClient) RemoveServiceFromPool(sctx context.Context, poolId string, role string, idIsName ...bool) error {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolClient.RemoveServiceFromPool")
 	onExit := func() {
 		if err != nil {
@@ -33,7 +37,7 @@ func (p *PoolClient) RemoveServiceFromPool(ctx op_context.Context, poolId string
 	defer onExit()
 
 	// adjust pool ID
-	pId, _, err := p.poolId(ctx, poolId, idIsName...)
+	pId, _, err := p.poolId(sctx, poolId, idIsName...)
 	if err != nil {
 		return err
 	}
@@ -46,7 +50,7 @@ func (p *PoolClient) RemoveServiceFromPool(ctx op_context.Context, poolId string
 	roleResource.SetId(role)
 	op := pool_api.RemoveServiceFromPool()
 	roleResource.AddOperation(op)
-	err = handler.Exec(p.Client(), ctx, op)
+	err = handler.Exec(p.Client(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return err

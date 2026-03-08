@@ -1,6 +1,7 @@
 package multitenancy
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/evgeniums/evgo/pkg/db"
@@ -82,13 +83,13 @@ type Multitenancy interface {
 	TenancyByShadowPath(path string) (Tenancy, error)
 
 	// Load tenancy.
-	LoadTenancy(ctx op_context.Context, id string) (Tenancy, error)
+	LoadTenancy(sctx context.Context, id string) (Tenancy, error)
 
 	// Unload tenancy.
 	UnloadTenancy(id string)
 
 	// Create tenancy
-	CreateTenancy(ctx op_context.Context, data *TenancyData) (*TenancyItem, error)
+	CreateTenancy(sctx context.Context, data *TenancyData) (*TenancyItem, error)
 
 	// Get tenancy controller.
 	TenancyController() TenancyController
@@ -124,34 +125,35 @@ func NewPubsubNotification() *PubsubNotification {
 
 type TenancyController interface {
 	generic_error.ErrorsExtender
-	Add(ctx op_context.Context, tenancy *TenancyData) (*TenancyItem, error)
-	Find(ctx op_context.Context, id string, idIsDisplay ...bool) (*TenancyItem, error)
-	List(ctx op_context.Context, filter *db.Filter) ([]*TenancyItem, int64, error)
+	Add(sctx context.Context, tenancy *TenancyData) (*TenancyItem, error)
+	Find(sctx context.Context, id string, idIsDisplay ...bool) (*TenancyItem, error)
+	List(sctx context.Context, filter *db.Filter) ([]*TenancyItem, int64, error)
 
-	Exists(ctx op_context.Context, fields db.Fields) (bool, error)
-	Delete(ctx op_context.Context, id string, withDb bool, idIsDisplay ...bool) error
+	Exists(sctx context.Context, fields db.Fields) (bool, error)
+	Delete(sctx context.Context, id string, withDb bool, idIsDisplay ...bool) error
 
-	SetPath(ctx op_context.Context, id string, path string, idIsDisplay ...bool) error
-	SetShadowPath(ctx op_context.Context, id string, path string, idIsDisplay ...bool) error
-	SetCustomer(ctx op_context.Context, id string, customerId string, idIsDisplay ...bool) error
-	SetRole(ctx op_context.Context, id string, role string, idIsDisplay ...bool) error
-	ChangePoolOrDb(ctx op_context.Context, id string, poolId string, dbName string, idIsDisplay ...bool) error
-	Activate(ctx op_context.Context, id string, idIsDisplay ...bool) error
-	Deactivate(ctx op_context.Context, id string, idIsDisplay ...bool) error
-	SetDbRole(ctx op_context.Context, id string, dbRole string, idIsDisplay ...bool) error
+	SetPath(sctx context.Context, id string, path string, idIsDisplay ...bool) error
+	SetShadowPath(sctx context.Context, id string, path string, idIsDisplay ...bool) error
+	SetCustomer(sctx context.Context, id string, customerId string, idIsDisplay ...bool) error
+	SetRole(sctx context.Context, id string, role string, idIsDisplay ...bool) error
+	ChangePoolOrDb(sctx context.Context, id string, poolId string, dbName string, idIsDisplay ...bool) error
+	Activate(sctx context.Context, id string, idIsDisplay ...bool) error
+	Deactivate(sctx context.Context, id string, idIsDisplay ...bool) error
+	SetDbRole(sctx context.Context, id string, dbRole string, idIsDisplay ...bool) error
 
-	SetPathBlocked(ctx op_context.Context, id string, blocked bool, mode TenancyBlockPathMode, idIsDisplay ...bool) error
+	SetPathBlocked(sctx context.Context, id string, blocked bool, mode TenancyBlockPathMode, idIsDisplay ...bool) error
 
-	ListIpAddresses(ctx op_context.Context, filter *db.Filter) ([]*TenancyIpAddressItem, int64, error)
-	DeleteIpAddress(ctx op_context.Context, id string, ipAddress string, tag string, idIsDisplay ...bool) error
-	AddIpAddress(ctx op_context.Context, id string, ipAddress string, tag string, idIsDisplay ...bool) error
+	ListIpAddresses(sctx context.Context, filter *db.Filter) ([]*TenancyIpAddressItem, int64, error)
+	DeleteIpAddress(sctx context.Context, id string, ipAddress string, tag string, idIsDisplay ...bool) error
+	AddIpAddress(sctx context.Context, id string, ipAddress string, tag string, idIsDisplay ...bool) error
 }
 
-func TenancyId(ctrl TenancyController, ctx op_context.Context, id string, idIsDisplay ...bool) (string, *TenancyItem, error) {
+func TenancyId(ctrl TenancyController, sctx context.Context, id string, idIsDisplay ...bool) (string, *TenancyItem, error) {
 
 	useDisplay := utils.OptionalArg(false, idIsDisplay...)
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyId", logger.Fields{"tenancy": id, "use_display": useDisplay})
 	defer ctx.TraceOutMethod()
 
@@ -174,7 +176,7 @@ func TenancyId(ctrl TenancyController, ctx op_context.Context, id string, idIsDi
 	filter.AddField("customers.login", customerLogin)
 	filter.AddField("role", role)
 	filter.Limit = 1
-	tenancies, _, err := ctrl.List(ctx, filter)
+	tenancies, _, err := ctrl.List(sctx, filter)
 	if err != nil {
 		c.SetMessage("failed to list tenancies")
 		return "", nil, c.SetError(err)
@@ -189,14 +191,15 @@ func TenancyId(ctrl TenancyController, ctx op_context.Context, id string, idIsDi
 	return tenancy.GetID(), tenancy, nil
 }
 
-func FindTenancy(ctrl TenancyController, ctx op_context.Context, id string, idIsDisplay ...bool) (*TenancyItem, error) {
+func FindTenancy(ctrl TenancyController, sctx context.Context, id string, idIsDisplay ...bool) (*TenancyItem, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("FindTenancy")
 	defer ctx.TraceOutMethod()
 
 	// adjust ID
-	id, tenancy, err := TenancyId(ctrl, ctx, id, idIsDisplay...)
+	id, tenancy, err := TenancyId(ctrl, sctx, id, idIsDisplay...)
 	if err != nil {
 		return nil, c.SetError(err)
 	}
@@ -210,7 +213,7 @@ func FindTenancy(ctrl TenancyController, ctx op_context.Context, id string, idIs
 	filter := db.NewFilter()
 	filter.AddField("tenancies.id", id)
 	filter.Limit = 1
-	tenancies, _, err := ctrl.List(ctx, filter)
+	tenancies, _, err := ctrl.List(sctx, filter)
 	if err != nil {
 		return nil, c.SetError(err)
 	}
@@ -224,14 +227,15 @@ func FindTenancy(ctrl TenancyController, ctx op_context.Context, id string, idIs
 	return tenancy, nil
 }
 
-func ListTenancyIpAddresses(ctrl TenancyController, ctx op_context.Context, id string, filter *db.Filter, idIsDisplay ...bool) ([]*TenancyIpAddressItem, int64, error) {
+func ListTenancyIpAddresses(ctrl TenancyController, sctx context.Context, id string, filter *db.Filter, idIsDisplay ...bool) ([]*TenancyIpAddressItem, int64, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("ListTenancyIpAddresses")
 	defer ctx.TraceOutMethod()
 
 	// find out tenancy ID
-	tenancyId, _, err := TenancyId(ctrl, ctx, id, idIsDisplay...)
+	tenancyId, _, err := TenancyId(ctrl, sctx, id, idIsDisplay...)
 	if err != nil {
 		c.SetMessage("failed to find out tenancy ID")
 		return nil, 0, c.SetError(err)
@@ -245,7 +249,7 @@ func ListTenancyIpAddresses(ctrl TenancyController, ctx op_context.Context, id s
 		defer delete(filter.Fields, "tenancies.id")
 	}
 	f.AddField("tenancies.id", tenancyId)
-	items, count, err := ctrl.ListIpAddresses(ctx, f)
+	items, count, err := ctrl.ListIpAddresses(sctx, f)
 	if err != nil {
 		c.SetMessage("failed to list IP addresses")
 		return nil, 0, c.SetError(err)

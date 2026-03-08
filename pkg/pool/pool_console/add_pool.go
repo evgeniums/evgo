@@ -33,18 +33,18 @@ func (a *AddPoolHandler) Data() interface{} {
 
 func (a *AddPoolHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	p := pool.NewPool()
 	p.SetName(a.Name)
 	p.SetDescription(a.Description)
 	p.SetLongName(a.LongName)
 
-	addedPool, err := controller.AddPool(ctx, p)
+	addedPool, err := controller.AddPool(sctx, p)
 	if err == nil {
 		fmt.Printf("Added pool:\n%s\n", utils.DumpPrettyJson(addedPool))
 	}

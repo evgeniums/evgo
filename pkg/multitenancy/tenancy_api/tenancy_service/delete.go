@@ -1,29 +1,33 @@
 package tenancy_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_api"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type DeleteEndpoint struct {
 	TenancyEndpoint
 }
 
-func (e *DeleteEndpoint) HandleRequest(request api_server.Request) error {
+func (e *DeleteEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("tenancy.Delete")
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd, err := api_server.ParseValidateRequest[tenancy_api.DeleteTenancyCmd](request)
+	cmd, err := api_server.ParseValidateRequest[tenancy_api.DeleteTenancyCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err
 	}
 
 	// delete
-	err = e.service.Tenancies.Delete(request, request.GetTenancyId(), cmd.WithDatabase)
+	err = e.service.Tenancies.Delete(sctx, request.GetTenancyId(), cmd.WithDatabase)
 	if err != nil {
 		return c.SetError(err)
 	}

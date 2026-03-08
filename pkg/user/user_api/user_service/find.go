@@ -1,7 +1,10 @@
 package user_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/user"
 	"github.com/evgeniums/evgo/pkg/user/user_api"
 )
@@ -11,14 +14,15 @@ type FindEndpoint[U user.User] struct {
 	UserEndpoint[U]
 }
 
-func (e *FindEndpoint[U]) HandleRequest(request api_server.Request) error {
+func (e *FindEndpoint[U]) HandleRequest(sctx context.Context) error {
 
 	var err error
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.Find")
 	defer request.TraceOutMethod()
 
 	resp := &user_api.UserResponse[U]{}
-	resp.User, err = Users(e.service, request).Find(request, request.GetResourceId(e.service.UserTypeName).Value())
+	resp.User, err = Users(e.service, request).Find(sctx, request.GetResourceId(e.service.UserTypeName).Value())
 	if err != nil {
 		return c.SetError(err)
 	}

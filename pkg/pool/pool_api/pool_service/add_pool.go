@@ -1,7 +1,10 @@
 package pool_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pool"
 	"github.com/evgeniums/evgo/pkg/pool/pool_api"
 )
@@ -10,21 +13,22 @@ type AddPoolEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *AddPoolEndpoint) HandleRequest(request api_server.Request) error {
+func (e *AddPoolEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("pool.AddPool")
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd, err := api_server.ParseValidateRequest(request, pool.InitPool)
+	cmd, err := api_server.ParseValidateRequest(sctx, pool.InitPool)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err
 	}
 
 	// add pool
-	p, err := e.service.Pools.AddPool(request, cmd)
+	p, err := e.service.Pools.AddPool(sctx, cmd)
 	if err != nil {
 		c.SetMessage("failed to add pool")
 		return c.SetError(err)

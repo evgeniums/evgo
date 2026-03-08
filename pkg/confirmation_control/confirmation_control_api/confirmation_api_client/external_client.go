@@ -1,11 +1,14 @@
 package confirmation_api_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/confirmation_control"
 	"github.com/evgeniums/evgo/pkg/confirmation_control/confirmation_control_api"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type ConfirmationExternalClient struct {
@@ -26,9 +29,10 @@ func NewConfirmationExternalClient(client api_client.Client) *ConfirmationExtern
 	return c
 }
 
-func (cl *ConfirmationExternalClient) CheckConfirmation(ctx multitenancy.TenancyContext, operationId string, result *confirmation_control.ConfirmationResult) (string, error) {
+func (cl *ConfirmationExternalClient) CheckConfirmation(sctx context.Context, operationId string, result *confirmation_control.ConfirmationResult) (string, error) {
 
 	// setup
+	ctx := op_context.OpContext[multitenancy.TenancyContext](sctx)
 	c := ctx.TraceInMethod("ConfirmationExternalClient.CheckConfirmation")
 	var err error
 	onExit := func() {
@@ -43,7 +47,7 @@ func (cl *ConfirmationExternalClient) CheckConfirmation(ctx multitenancy.Tenancy
 	cmd := result
 	handler := api_client.NewHandlerInTenancy(cmd, &confirmation_control_api.CheckConfirmationResponse{})
 	op := api.NamedResourceOperation(cl.OperationResource, operationId, confirmation_control_api.CheckConfirmation())
-	err = handler.Exec(cl.ApiClient(), ctx, op)
+	err = handler.Exec(cl.ApiClient(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return "", err
@@ -53,9 +57,10 @@ func (cl *ConfirmationExternalClient) CheckConfirmation(ctx multitenancy.Tenancy
 	return handler.Result.RedirectUrl, nil
 }
 
-func (cl *ConfirmationExternalClient) PrepareCheckConfirmation(ctx multitenancy.TenancyContext, operationId string) (string, error) {
+func (cl *ConfirmationExternalClient) PrepareCheckConfirmation(sctx context.Context, operationId string) (string, error) {
 
 	// setup
+	ctx := op_context.OpContext[multitenancy.TenancyContext](sctx)
 	c := ctx.TraceInMethod("ConfirmationExternalClient.PrepareCheckConfirmation")
 	var err error
 	onExit := func() {
@@ -69,7 +74,7 @@ func (cl *ConfirmationExternalClient) PrepareCheckConfirmation(ctx multitenancy.
 	// prepare and exec handler
 	handler := api_client.NewHandlerInTenancyResult(&confirmation_control_api.PrepareCheckConfirmationResponse{})
 	op := api.NamedResourceOperation(cl.OperationResource, operationId, confirmation_control_api.PrepareCheckConfirmation())
-	err = handler.Exec(cl.ApiClient(), ctx, op)
+	err = handler.Exec(cl.ApiClient(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return "", err

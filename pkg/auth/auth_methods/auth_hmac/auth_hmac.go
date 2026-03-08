@@ -1,6 +1,7 @@
 package auth_hmac
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/crypt_utils"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
 
@@ -63,9 +65,10 @@ func (a *AuthHmac) ErrorProtocolCodes() map[string]int {
 // Call this handler after discovering user (ctx.AuthUser() must be not nil).
 // HMAC secret must be set for the user.
 // HMAC string is calculated as BASE64(HMAC_SHA256(RequestMethod,RequestPath,RequestContent)), where BASE64 is calculated with padding.
-func (a *AuthHmac) Handle(ctx auth.AuthContext) (bool, error) {
+func (a *AuthHmac) Handle(sctx context.Context) (bool, error) {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthHmac.Handle")
 	var err error
 	onExit := func() {

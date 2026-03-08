@@ -1,6 +1,8 @@
 package app_with_pools
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/app_context"
 	"github.com/evgeniums/evgo/pkg/app_context/app_default"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -52,32 +54,32 @@ func New(buildConfig *app_context.BuildConfig, appConfig ...AppConfigI) *AppWith
 	return a
 }
 
-func (a *AppWithPoolsBase) InitWithArgs(configFile string, args []string, configType ...string) (op_context.Context, error) {
+func (a *AppWithPoolsBase) InitWithArgs(configFile string, args []string, configType ...string) (op_context.Context, context.Context, error) {
 
 	err := a.Context.InitWithArgs(configFile, args, configType...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = a.InitDB("db")
 	if err != nil {
-		return nil, a.Logger().PushFatalStack("failed to init database", err)
+		return nil, nil, a.Logger().PushFatalStack("failed to init database", err)
 	}
 
-	opCtx := default_op_context.NewAppInitContext(a)
+	opCtx, ctx := default_op_context.NewAppInitContext(a)
 	c := opCtx.TraceInMethod("AppWithPools.Init")
 	defer opCtx.TraceOutMethod()
 
-	err = a.pools.Init(opCtx, "pools")
+	err = a.pools.Init(ctx, "pools")
 	if err != nil {
 		msg := "failed to init pools"
 		c.SetMessage(msg)
-		return opCtx, opCtx.Logger().PushFatalStack(msg, c.SetError(err))
+		return opCtx, nil, opCtx.Logger().PushFatalStack(msg, c.SetError(err))
 	}
 
-	return opCtx, nil
+	return opCtx, ctx, nil
 }
 
-func (a *AppWithPoolsBase) Init(configFile string, configType ...string) (op_context.Context, error) {
+func (a *AppWithPoolsBase) Init(configFile string, configType ...string) (op_context.Context, context.Context, error) {
 	return a.InitWithArgs(configFile, nil, configType...)
 }

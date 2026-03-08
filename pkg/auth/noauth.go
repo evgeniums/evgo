@@ -1,10 +1,13 @@
 package auth
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/access_control"
 	"github.com/evgeniums/evgo/pkg/config"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
 
@@ -21,8 +24,9 @@ func (n *NoAuthMethod) Init(cfg config.Config, log logger.Logger, vld validator.
 	return nil
 }
 
-func (n *NoAuthMethod) Handle(ctx AuthContext) (bool, error) {
+func (n *NoAuthMethod) Handle(sctx context.Context) (bool, error) {
 
+	ctx := op_context.OpContext[AuthContext](sctx)
 	ctx.TraceInMethod("NoAuth.Handle")
 	defer ctx.TraceOutMethod()
 
@@ -49,8 +53,8 @@ func NewNoAuth() *NoAuth {
 	return a
 }
 
-func (a *NoAuth) HandleRequest(ctx AuthContext, path string, access access_control.AccessType) error {
-	a.handler.Handle(ctx)
+func (a *NoAuth) HandleRequest(sctx context.Context, path string, access access_control.AccessType) error {
+	a.handler.Handle(sctx)
 	return nil
 }
 

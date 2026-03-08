@@ -1,6 +1,7 @@
 package auth_csrf
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
@@ -89,9 +91,10 @@ func (a *AuthCsrf) ErrorProtocolCodes() map[string]int {
 	return m
 }
 
-func (a *AuthCsrf) Handle(ctx auth.AuthContext) (bool, error) {
+func (a *AuthCsrf) Handle(sctx context.Context) (bool, error) {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthCsrf.Handle", logger.Fields{"path": ctx.GetRequestPath()})
 	var err error
 	onExit := func() {
@@ -106,7 +109,7 @@ func (a *AuthCsrf) Handle(ctx auth.AuthContext) (bool, error) {
 	_, skip := a.skipPaths[ctx.GetRequestPath()]
 	if !skip {
 		prev := &auth.ExpireToken{}
-		exists, err := a.Encryption.GetAuthParameter(ctx, a.Protocol(), AntiCsrfTokenName, prev, "")
+		exists, err := a.Encryption.GetAuthParameter(sctx, a.Protocol(), AntiCsrfTokenName, prev, "")
 		if !exists {
 			err = errors.New("CSRF token not found")
 			c.Logger().Debug("CSRF token not found")
@@ -129,7 +132,7 @@ func (a *AuthCsrf) Handle(ctx auth.AuthContext) (bool, error) {
 	// set token in response
 	next := &auth.ExpireToken{}
 	next.SetTTL(a.TOKEN_TTL_SECONDS)
-	err = a.Encryption.SetAuthParameter(ctx, a.Protocol(), AntiCsrfTokenName, next)
+	err = a.Encryption.SetAuthParameter(sctx, a.Protocol(), AntiCsrfTokenName, next)
 	if err != nil {
 		c.SetMessage("failed to set encrypted auth parameter")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)

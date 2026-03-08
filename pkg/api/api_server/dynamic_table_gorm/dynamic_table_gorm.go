@@ -1,6 +1,7 @@
 package dynamic_table_gorm
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/db"
 	"github.com/evgeniums/evgo/pkg/db/db_gorm"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm/schema"
@@ -53,9 +55,10 @@ func (d *DynamicTablesGorm) FindTable(path string) (*Table, bool) {
 	return t, ok
 }
 
-func (d *DynamicTablesGorm) Table(request api_server.Request, path string) (*api_server.DynamicTable, error) {
+func (d *DynamicTablesGorm) Table(sctx context.Context, path string) (*api_server.DynamicTable, error) {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("DynamicTable.Table", logger.Fields{"path": path})
 	request.TraceOutMethod()
 
@@ -80,7 +83,7 @@ func (d *DynamicTablesGorm) Table(request api_server.Request, path string) (*api
 
 		// fill field's enum list
 		if len(field.Enum) == 0 && field.EnumGetter != nil {
-			enum, err := field.EnumGetter(request)
+			enum, err := field.EnumGetter(sctx)
 			if err != nil {
 				c.Logger().Warn("failed to translate field", db.Fields{"field": field.Field})
 				continue

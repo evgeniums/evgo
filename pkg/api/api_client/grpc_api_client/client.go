@@ -1,6 +1,7 @@
 package grpc_api_client
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -44,7 +45,7 @@ func IsResponseOK(resp OperationResponse, err error) bool {
 }
 
 type Auth interface {
-	MakeHeaders(ctx op_context.Context, operation api.Operation, cmd interface{}) (map[string]string, error)
+	MakeHeaders(sctx context.Context, operation api.Operation, cmd interface{}) (map[string]string, error)
 	HandleResponse(resp OperationResponse)
 }
 
@@ -114,8 +115,9 @@ func (cl *Client[T]) SetPropagateContextId(val bool) {
 	cl.propagateContextId = true
 }
 
-func (cl *Client[T]) Exec(ctx op_context.Context, operation api.Operation, requestMessage interface{}, resultMessage interface{}, tenancyArg ...multitenancy.TenancyPath) error {
+func (cl *Client[T]) Exec(sctx context.Context, operation api.Operation, requestMessage interface{}, resultMessage interface{}, tenancyArg ...multitenancy.TenancyPath) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Client.Exec")
 	defer ctx.TraceOutMethod()
 
@@ -154,7 +156,7 @@ func (cl *Client[T]) Exec(ctx op_context.Context, operation api.Operation, reque
 			h = headers[0]
 		}
 		var tmpResp interface{}
-		tmpResp, err = operation.Exec(ctx, cl, requestMessage, resultMessage, h, tenancyArg...)
+		tmpResp, err = operation.Exec(sctx, cl, requestMessage, resultMessage, h, tenancyArg...)
 		opResp = tmpResp.(OperationResponse)
 	}
 
@@ -166,7 +168,7 @@ func (cl *Client[T]) Exec(ctx op_context.Context, operation api.Operation, reque
 
 		exec := func() {
 			// make auth headers
-			headers, err1 := cl.auth.MakeHeaders(ctx, operation, requestMessage)
+			headers, err1 := cl.auth.MakeHeaders(sctx, operation, requestMessage)
 			if err1 != nil {
 				c.SetMessage("failed to make auth headers")
 				errr = err1

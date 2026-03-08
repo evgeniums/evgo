@@ -1,9 +1,10 @@
 package user
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/auth"
 	"github.com/evgeniums/evgo/pkg/crud"
-	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type AuthUserFinderBase struct {
@@ -11,11 +12,11 @@ type AuthUserFinderBase struct {
 	userBuilder func() User
 }
 
-func (a *AuthUserFinderBase) FindAuthUser(ctx op_context.Context, login string) (auth.User, error) {
+func (a *AuthUserFinderBase) FindAuthUser(sctx context.Context, login string) (auth.User, error) {
 	user := a.userBuilder()
 	var found bool
 	var err error
-	found, err = FindByLogin(a.CRUD(), ctx, login, user)
+	found, err = FindByLogin(a.CRUD(), sctx, login, user)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +26,7 @@ func (a *AuthUserFinderBase) FindAuthUser(ctx op_context.Context, login string) 
 	return user, nil
 }
 
-func (a *AuthUserFinderBase) FillAuthUser(ctx op_context.Context, useExistingSessisonParams ...bool) error {
+func (a *AuthUserFinderBase) FillAuthUser(sctx context.Context, useExistingSessisonParams ...bool) error {
 	return nil
 }
 

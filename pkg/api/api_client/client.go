@@ -1,21 +1,22 @@
 package api_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
-	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type Client interface {
-	Exec(ctx op_context.Context, operation api.Operation, cmd interface{}, response interface{}, tenancy ...multitenancy.TenancyPath) error
+	Exec(sctx context.Context, operation api.Operation, cmd interface{}, response interface{}, tenancy ...multitenancy.TenancyPath) error
 	Transport() interface{}
 	SetPropagateAuthUser(val bool)
 	SetPropagateContextId(val bool)
 }
 
 type ClientOperation interface {
-	Exec(client Client, ctx op_context.Context, operation api.Operation) error
+	Exec(client Client, sctx context.Context, operation api.Operation) error
 }
 
 type TenancyClientOperation interface {

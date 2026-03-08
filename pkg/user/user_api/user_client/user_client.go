@@ -1,12 +1,12 @@
 package user_client
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/auth"
-	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/user"
 	"github.com/evgeniums/evgo/pkg/user/user_api"
 )
@@ -15,8 +15,8 @@ type SetterHandler[T interface{}] struct {
 	Cmd T
 }
 
-func (s *SetterHandler[T]) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
-	return client.Exec(ctx, operation, s.Cmd, nil)
+func (s *SetterHandler[T]) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
+	return client.Exec(sctx, operation, s.Cmd, nil)
 }
 
 type UserBuilder[U user.User] func() U
@@ -57,7 +57,7 @@ func (c *UserClient[U]) ApplyVisitors(
 	api.VisitOperation(c.list, visitors...)
 }
 
-func (c *UserClient[U]) OpLog(ctx op_context.Context, op string, userId string, login string) {}
+func (c *UserClient[U]) OpLog(sctx context.Context, op string, userId string, login string) {}
 
 func (c *UserClient[U]) SetTenancy(tenancyResource api.Resource) {
 	tenancyResource.AddChild(c)
@@ -83,10 +83,10 @@ func (u *UserClient[U]) UserOperation(userId string, resourceName string, op api
 	return op
 }
 
-func (u *UserClient[U]) FindAuthUser(ctx op_context.Context, login string) (auth.User, error) {
+func (u *UserClient[U]) FindAuthUser(sctx context.Context, login string) (auth.User, error) {
 	return nil, errors.New("unsupported method")
 }
 
-func (a *UserClient[U]) FillAuthUser(ctx op_context.Context, useExistingSessisonParams ...bool) error {
+func (a *UserClient[U]) FillAuthUser(sctx context.Context, useExistingSessisonParams ...bool) error {
 	return nil
 }

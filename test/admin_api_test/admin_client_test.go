@@ -14,11 +14,11 @@ import (
 const BaseUrl = "http://localhost/api/1.0.0"
 
 func initClient(t *testing.T, g *gin.Engine, config ...string) (app_context.Context, *admin_api_client.AdminClient) {
-	app := test_utils.InitDefaultAppContextNoDb(t, testDir, utils.OptionalArg("admin_api_client.jsonc", config...))
+	app, _ := test_utils.InitDefaultAppContextNoDb(t, testDir, utils.OptionalArg("admin_api_client.jsonc", config...))
 
-	opCtx := test_utils.SimpleOpContext(app, "prepare")
+	_, sctx := test_utils.SimpleOpContext(app, "prepare")
 	restApiClient := test_utils.RestApiTestClient(t, g, BaseUrl)
-	restApiClient.Prepare(opCtx)
+	restApiClient.Prepare(sctx)
 
 	client := rest_api_client.New(restApiClient)
 

@@ -1,10 +1,13 @@
 package auth_signature
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/auth"
 	"github.com/evgeniums/evgo/pkg/config"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/signature"
 	"github.com/evgeniums/evgo/pkg/signature/user_pubkey"
 	"github.com/evgeniums/evgo/pkg/utils"
@@ -60,9 +63,10 @@ func (a *AuthSignature) ErrorProtocolCodes() map[string]int {
 // Call this handler after discovering user (ctx.AuthUser() must be not nil).
 // Public key of user must be set for the user.
 // signature is calculated as sig(sha256(RequestContent,RequestMethod,RequestPath))
-func (a *AuthSignature) Handle(ctx auth.AuthContext) (bool, error) {
+func (a *AuthSignature) Handle(sctx context.Context) (bool, error) {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthSignature.Handle")
 	var err error
 	onExit := func() {
@@ -81,7 +85,7 @@ func (a *AuthSignature) Handle(ctx auth.AuthContext) (bool, error) {
 	}
 
 	// verify signature
-	err = a.signatureManager.Verify(ctx, requestSignature, ctx.GetRequestContent(), ctx.GetRequestMethod(), ctx.GetRequestPath())
+	err = a.signatureManager.Verify(sctx, requestSignature, ctx.GetRequestContent(), ctx.GetRequestMethod(), ctx.GetRequestPath())
 	if err != nil {
 		return true, err
 	}

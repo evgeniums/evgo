@@ -1,6 +1,7 @@
 package console_tool
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,7 +16,6 @@ import (
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/logger/logger_logrus"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
-	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
 	"github.com/evgeniums/evgo/pkg/pool"
 	"github.com/jessevdk/go-flags"
@@ -32,7 +32,7 @@ type MainOptions struct {
 }
 
 type Dummy struct{}
-type ContextBulder = func(group string, command string) multitenancy.TenancyContext
+type ContextBulder = func(group string, command string) (multitenancy.TenancyContext, context.Context)
 
 type ConsoleUtility struct {
 	Parser *flags.Parser
@@ -52,7 +52,7 @@ type AppBuilder interface {
 	NewSetupApp(buildConfig *app_context.BuildConfig) app_context.Context
 	InitSetupApp(app app_context.Context, configFile string, args []string, configType ...string) error
 	HasSetupApp() bool
-	Tenancy(ctx op_context.Context, id string) (multitenancy.Tenancy, error)
+	Tenancy(sctx context.Context, id string) (multitenancy.Tenancy, error)
 	PoolController() pool.PoolController
 }
 
@@ -74,7 +74,7 @@ func (c *ConsoleUtility) Close() {
 	db.Databases().CloseAll()
 }
 
-func (c *ConsoleUtility) InitCommandContext(group string, command string) multitenancy.TenancyContext {
+func (c *ConsoleUtility) InitCommandContext(group string, command string) (multitenancy.TenancyContext, context.Context) {
 
 	if c.Opts.Args != "" {
 		c.Args = []string{}
@@ -144,7 +144,7 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) multit
 		}
 	}
 
-	opCtx := multitenancy.NewInitContext(c.App, c.App.Logger(), c.App.Db())
+	opCtx, sctx := multitenancy.NewInitContext(c.App, c.App.Logger(), c.App.Db())
 	opCtx.SetName(fmt.Sprintf("%s.%s", group, command))
 	errManager := &generic_error.ErrorManagerBase{}
 	errManager.Init(http.StatusBadRequest)
@@ -164,7 +164,7 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) multit
 	opCtx.SetOrigin(origin)
 
 	if c.Opts.Tenancy != "" {
-		tenancy, err := c.AppBuilder.Tenancy(opCtx, c.Opts.Tenancy)
+		tenancy, err := c.AppBuilder.Tenancy(sctx, c.Opts.Tenancy)
 		if err != nil {
 			app_context.AbortFatal(c.App, "failed to find tenancy", err)
 		}
@@ -179,7 +179,7 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) multit
 		"context":      opCtx.ID(),
 	})
 
-	return opCtx
+	return opCtx, sctx
 }
 
 func (c *ConsoleUtility) Parse() {

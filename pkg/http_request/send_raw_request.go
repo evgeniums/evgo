@@ -1,6 +1,7 @@
 package http_request
 
 import (
+	"context"
 	"net/http"
 	"net/http/httputil"
 
@@ -10,8 +11,9 @@ import (
 
 type RedirectHandler func(req *http.Request, via []*http.Request) error
 
-func SendRawRequest(ctx op_context.Context, request *http.Request, redirectHandler ...RedirectHandler) (*http.Response, error) {
+func SendRawRequest(sctx context.Context, request *http.Request, redirectHandler ...RedirectHandler) (*http.Response, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("http_request.Send", logger.Fields{"url": request.URL.Path, "method": request.Method})
 	defer ctx.TraceOutMethod()
 

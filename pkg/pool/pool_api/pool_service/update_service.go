@@ -1,8 +1,11 @@
 package pool_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pool"
 	"github.com/evgeniums/evgo/pkg/pool/pool_api"
 	"github.com/evgeniums/evgo/pkg/validator"
@@ -12,14 +15,15 @@ type UpdateServiceEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *UpdateServiceEndpoint) HandleRequest(request api_server.Request) error {
+func (e *UpdateServiceEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("pool.UpdateService")
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd, err := api_server.ParseValidateRequest[api.UpdateCmd](request)
+	cmd, err := api_server.ParseValidateRequest[api.UpdateCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return c.SetError(err)
@@ -34,7 +38,7 @@ func (e *UpdateServiceEndpoint) HandleRequest(request api_server.Request) error 
 
 	// update service
 	serviceId := request.GetResourceId("service").Value()
-	s, err := e.service.Pools.UpdateService(request, serviceId, cmd.Fields)
+	s, err := e.service.Pools.UpdateService(sctx, serviceId, cmd.Fields)
 	if err != nil {
 		c.SetMessage("failed to update service")
 		return c.SetError(err)

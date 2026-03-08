@@ -1,6 +1,7 @@
 package email_sender
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/logger"
@@ -16,23 +17,24 @@ type EmailContent struct {
 type TemplateVals = map[string]string
 
 type EmailSender interface {
-	Send(ctx op_context.Context, to string, subject string, content ...EmailContent) error
+	Send(sctx context.Context, to string, subject string, content ...EmailContent) error
 }
 
-func SendText(ctx op_context.Context, client EmailSender, to string, subject string, content string) error {
-	return client.Send(ctx, to, subject, EmailContent{ContentType: "text/plain", Content: content})
+func SendText(sctx context.Context, client EmailSender, to string, subject string, content string) error {
+	return client.Send(sctx, to, subject, EmailContent{ContentType: "text/plain", Content: content})
 }
 
-func SendHtml(ctx op_context.Context, client EmailSender, to string, subject string, content string) error {
-	return client.Send(ctx, to, subject, EmailContent{ContentType: "text/html", Content: content})
+func SendHtml(sctx context.Context, client EmailSender, to string, subject string, content string) error {
+	return client.Send(sctx, to, subject, EmailContent{ContentType: "text/html", Content: content})
 }
 
-func SendHtmlAndText(ctx op_context.Context, client EmailSender, to string, subject string, html string, text string) error {
-	return client.Send(ctx, to, subject, EmailContent{ContentType: "text/plain", Content: text}, EmailContent{ContentType: "text/html", Content: html})
+func SendHtmlAndText(sctx context.Context, client EmailSender, to string, subject string, html string, text string) error {
+	return client.Send(sctx, to, subject, EmailContent{ContentType: "text/plain", Content: text}, EmailContent{ContentType: "text/html", Content: html})
 }
 
-func SendTemplate(ctx op_context.Context, client EmailSender, templatesPath string, templateName string, to string, vals TemplateVals, language ...string) error {
+func SendTemplate(sctx context.Context, client EmailSender, templatesPath string, templateName string, to string, vals TemplateVals, language ...string) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("email_client.SendTemplate", logger.Fields{"templates_path": templatesPath, "template": templateName})
 	defer ctx.TraceOutMethod()
 
@@ -51,9 +53,9 @@ func SendTemplate(ctx op_context.Context, client EmailSender, templatesPath stri
 	}
 
 	if html != "" && text != "" {
-		return SendHtmlAndText(ctx, client, to, subject, html, text)
+		return SendHtmlAndText(sctx, client, to, subject, html, text)
 	} else if html != "" {
-		return SendHtml(ctx, client, to, subject, html)
+		return SendHtml(sctx, client, to, subject, html)
 	}
-	return SendText(ctx, client, to, subject, html)
+	return SendText(sctx, client, to, subject, html)
 }

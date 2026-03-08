@@ -1,6 +1,8 @@
 package tenancy_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
@@ -8,10 +10,11 @@ import (
 	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
-func (t *TenancyClient) Find(ctx op_context.Context, id string, idIsDisplay ...bool) (*multitenancy.TenancyItem, error) {
+func (t *TenancyClient) Find(sctx context.Context, id string, idIsDisplay ...bool) (*multitenancy.TenancyItem, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyClient.Find")
 	onExit := func() {
 		if err != nil {
@@ -22,7 +25,7 @@ func (t *TenancyClient) Find(ctx op_context.Context, id string, idIsDisplay ...b
 	defer onExit()
 
 	// adjust ID
-	tenancyId, tenancy, err := multitenancy.TenancyId(t, ctx, id, idIsDisplay...)
+	tenancyId, tenancy, err := multitenancy.TenancyId(t, sctx, id, idIsDisplay...)
 	if err != nil {
 		c.SetMessage("failed to get tenancy ID")
 		return nil, err
@@ -36,7 +39,7 @@ func (t *TenancyClient) Find(ctx op_context.Context, id string, idIsDisplay ...b
 	op := api.NamedResourceOperation(t.TenancyResource,
 		tenancyId,
 		tenancy_api.Find())
-	err = handler.Exec(t.Client(), ctx, op)
+	err = handler.Exec(t.Client(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

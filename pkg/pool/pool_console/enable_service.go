@@ -31,13 +31,13 @@ func (a *EnableServiceHandler) Data() interface{} {
 
 func (a *EnableServiceHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
-	s, err := pool.ActivateService(controller, ctx, a.Service, true)
+	s, err := pool.ActivateService(controller, sctx, a.Service, true)
 	if err == nil {
 		fmt.Printf("Updated service:\n\n%s\n\n", utils.DumpPrettyJson(s))
 	}

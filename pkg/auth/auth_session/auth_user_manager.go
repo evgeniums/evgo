@@ -1,8 +1,9 @@
 package auth_session
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/auth"
-	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type UserValidators interface {
@@ -11,8 +12,8 @@ type UserValidators interface {
 }
 
 type AuthUserFinder interface {
-	FindAuthUser(ctx op_context.Context, login string) (auth.User, error)
-	FillAuthUser(ctx op_context.Context, useExistingSessisonParams ...bool) error
+	FindAuthUser(sctx context.Context, login string) (auth.User, error)
+	FillAuthUser(sctx context.Context, useExistingSessisonParams ...bool) error
 }
 
 type AuthUserManager interface {

@@ -24,11 +24,11 @@ func (d *DeleteServiceHandler) Data() interface{} {
 
 func (d *DeleteServiceHandler) Execute(args []string) error {
 
-	ctx, controller, err := d.Context(d.Data())
+	ctx, sctx, controller, err := d.Context(d.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
-	return controller.DeleteService(ctx, d.Service, true)
+	return controller.DeleteService(sctx, d.Service, true)
 }

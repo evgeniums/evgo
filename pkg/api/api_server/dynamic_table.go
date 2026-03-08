@@ -1,6 +1,10 @@
 package api_server
 
-import "github.com/evgeniums/evgo/pkg/api"
+import (
+	"context"
+
+	"github.com/evgeniums/evgo/pkg/api"
+)
 
 type EnumEntry struct {
 	Value   string `json:"value"`
@@ -25,7 +29,7 @@ func EnumList(enumList []string) []*EnumEntry {
 	return enums
 }
 
-type EnumGetter func(request Request) ([]*EnumEntry, error)
+type EnumGetter func(sctx context.Context) ([]*EnumEntry, error)
 
 type DynamicTableField struct {
 	Field      string       `json:"field"`
@@ -67,6 +71,6 @@ type DynamicFieldTranslator interface {
 
 type DynamicTables interface {
 	AddTable(table *DynamicTableConfig) error
-	Table(request Request, path string) (*DynamicTable, error)
+	Table(sctx context.Context, path string) (*DynamicTable, error)
 	SetTranslator(translator DynamicFieldTranslator)
 }

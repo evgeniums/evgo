@@ -1,6 +1,7 @@
 package api_client
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/evgeniums/evgo/pkg/access_control"
@@ -24,9 +25,10 @@ type AuthSignature struct {
 func (a *AuthSignature) HandleResponse(resp OperationResponse) {
 }
 
-func (a *AuthSignature) MakeHeaders(ctx op_context.Context, operation api.Operation, cmd interface{}) (map[string]string, error) {
+func (a *AuthSignature) MakeHeaders(sctx context.Context, operation api.Operation, cmd interface{}) (map[string]string, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("AuthSignature.MakeHeaders")
 	defer ctx.TraceOutMethod()
 

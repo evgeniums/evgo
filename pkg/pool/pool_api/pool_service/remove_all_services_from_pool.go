@@ -1,7 +1,10 @@
 package pool_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pool/pool_api"
 )
 
@@ -9,15 +12,16 @@ type RemoveAllServicesFromPoolEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *RemoveAllServicesFromPoolEndpoint) HandleRequest(request api_server.Request) error {
+func (e *RemoveAllServicesFromPoolEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("pool.RemoveAllServicesFromPool")
 	defer request.TraceOutMethod()
 
 	// do operation
 	poolId := request.GetResourceId("pool").Value()
-	err := e.service.Pools.RemoveAllServicesFromPool(request, poolId)
+	err := e.service.Pools.RemoveAllServicesFromPool(sctx, poolId)
 	if err != nil {
 		c.SetMessage("failed to remove services from pool")
 		return c.SetError(err)

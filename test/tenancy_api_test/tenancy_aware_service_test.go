@@ -1,6 +1,7 @@
 package tenancy_api_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -49,16 +50,17 @@ type ListEndpoint struct {
 
 type ListResponse = api.ResponseList[*InTenancySample]
 
-func (e *ListEndpoint) HandleRequest(request api_server.Request) error {
+func (e *ListEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
 	var err error
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("samples.List")
 	defer request.TraceOutMethod()
 
 	// get
 	resp := &ListResponse{}
-	resp.Count, err = request.Db().FindWithFilter(request, nil, &resp.Items)
+	resp.Count, err = request.Db().FindWithFilter(sctx, nil, &resp.Items)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -101,20 +103,22 @@ type ClientList struct {
 	result *ListResponse
 }
 
-func (l *ClientList) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (l *ClientList) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("ClientList")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, nil, l.result)
+	err := client.Exec(sctx, operation, nil, l.result)
 	c.SetError(err)
 	return err
 }
 
-func (s *SampleClient) List(ctx op_context.Context) ([]*InTenancySample, error) {
+func (s *SampleClient) List(sctx context.Context) ([]*InTenancySample, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("SampleClient.List")
 	onExit := func() {
 		if err != nil {
@@ -128,7 +132,7 @@ func (s *SampleClient) List(ctx op_context.Context) ([]*InTenancySample, error) 
 	handler := &ClientList{
 		result: &ListResponse{},
 	}
-	err = handler.Exec(s.Client(), ctx, s.list)
+	err = handler.Exec(s.Client(), sctx, s.list)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err
@@ -149,7 +153,7 @@ func TestTenancyAwareService(t *testing.T) {
 	tenancyData1.ROLE = "dev"
 	tenancyData1.DESCRIPTION = "tenancy for development"
 	tenancyData1.CUSTOMER_ID = "customer1"
-	addedTenancy1, err := multiPoolCtx.RemoteTenancyController.Add(multiPoolCtx.ClientOp, tenancyData1)
+	addedTenancy1, err := multiPoolCtx.RemoteTenancyController.Add(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancyData1)
 	require.NoError(t, err)
 	require.NotNil(t, addedTenancy1)
 	loadedTenancy1, err := multiPoolCtx.AppWithTenancy.Multitenancy().Tenancy(addedTenancy1.GetID())
@@ -159,10 +163,10 @@ func TestTenancyAwareService(t *testing.T) {
 	// add second tenancy to the same pool as single pool app, add via mutipool app
 	tenancyData2 := tenancyData1
 	tenancyData2.CUSTOMER_ID = "customer2"
-	addedTenancy2, err := multiPoolCtx.RemoteTenancyController.Add(multiPoolCtx.ClientOp, tenancyData2)
+	addedTenancy2, err := multiPoolCtx.RemoteTenancyController.Add(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancyData2)
 	require.NoError(t, err)
 	require.NotNil(t, addedTenancy2)
-	err = multiPoolCtx.RemoteTenancyController.Deactivate(multiPoolCtx.ClientOp, addedTenancy2.GetID())
+	err = multiPoolCtx.RemoteTenancyController.Deactivate(op_context.MakeOpContext(multiPoolCtx.ClientOp), addedTenancy2.GetID())
 	require.NoError(t, err)
 	loadedTenancy2, err := multiPoolCtx.AppWithTenancy.Multitenancy().Tenancy(addedTenancy2.GetID())
 	require.NoError(t, err)
@@ -172,10 +176,10 @@ func TestTenancyAwareService(t *testing.T) {
 	// add third tenancy to the same pool as single pool app, add via mutipool app then block path
 	tenancyData3 := tenancyData1
 	tenancyData3.ROLE = "blocked_path_role"
-	addedTenancy3, err := multiPoolCtx.RemoteTenancyController.Add(multiPoolCtx.ClientOp, tenancyData3)
+	addedTenancy3, err := multiPoolCtx.RemoteTenancyController.Add(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancyData3)
 	require.NoError(t, err)
 	require.NotNil(t, addedTenancy3)
-	err = multiPoolCtx.RemoteTenancyController.SetPathBlocked(multiPoolCtx.ClientOp, addedTenancy3.GetID(), true, multitenancy.TenancyBlockPathModeDefault)
+	err = multiPoolCtx.RemoteTenancyController.SetPathBlocked(op_context.MakeOpContext(multiPoolCtx.ClientOp), addedTenancy3.GetID(), true, multitenancy.TenancyBlockPathModeDefault)
 	require.NoError(t, err)
 	loadedTenancy3, err := multiPoolCtx.AppWithTenancy.Multitenancy().Tenancy(addedTenancy3.GetID())
 	require.NoError(t, err)
@@ -184,7 +188,7 @@ func TestTenancyAwareService(t *testing.T) {
 
 	// add document to tenancy database
 	sample1 := &InTenancySample{Field1: "hello world", Field2: 10}
-	err = loadedTenancy1.Db().Create(multiPoolCtx.AdminOp, sample1)
+	err = loadedTenancy1.Db().Create(op_context.MakeOpContext(multiPoolCtx.AdminOp), sample1)
 	require.NoError(t, err)
 
 	// add sample service
@@ -198,7 +202,7 @@ func TestTenancyAwareService(t *testing.T) {
 
 	// invoke operation on tenancy 1
 	tenancyResource.SetId(loadedTenancy1.Path())
-	samples, err := sampleClient.List(multiPoolCtx.ClientOp)
+	samples, err := sampleClient.List(op_context.MakeOpContext(multiPoolCtx.ClientOp))
 	require.NoError(t, err)
 	require.NotNil(t, samples)
 	require.Equal(t, 1, len(samples))
@@ -206,20 +210,20 @@ func TestTenancyAwareService(t *testing.T) {
 
 	// invoke operation on tenancy 2 that is not active
 	tenancyResource.SetId(loadedTenancy2.Path())
-	samples, err = sampleClient.List(multiPoolCtx.ClientOp)
+	samples, err = sampleClient.List(op_context.MakeOpContext(multiPoolCtx.ClientOp))
 	test_utils.CheckGenericError(t, err, generic_error.ErrorCodeNotFound)
 	assert.Equal(t, 0, len(samples))
 
 	// invoke operation on tenancy 3 that is blocked
 	tenancyResource.SetId(loadedTenancy3.Path())
-	samples, err = sampleClient.List(multiPoolCtx.ClientOp)
+	samples, err = sampleClient.List(op_context.MakeOpContext(multiPoolCtx.ClientOp))
 	require.NoError(t, err)
 	require.NotNil(t, samples)
 	assert.Equal(t, 0, len(samples))
 
 	// try to invoke operation on unknown tenancy
 	tenancyResource.SetId("unknowntenancypath")
-	_, err = sampleClient.List(multiPoolCtx.ClientOp)
+	_, err = sampleClient.List(op_context.MakeOpContext(multiPoolCtx.ClientOp))
 	test_utils.CheckGenericError(t, err, generic_error.ErrorCodeNotFound)
 
 	// init service for singlepool app
@@ -231,7 +235,7 @@ func TestTenancyAwareService(t *testing.T) {
 
 	// try to invoke operation in single pool app where auth is from tenancies database
 	singlePoolTenancyResource.SetId(loadedTenancy1.Path())
-	_, err = singlePoolSampleClient.List(multiPoolCtx.ClientOp)
+	_, err = singlePoolSampleClient.List(op_context.MakeOpContext(multiPoolCtx.ClientOp))
 	test_utils.CheckGenericError(t, err, auth_token.ErrorCodeSessionExpired)
 
 	// close apps
@@ -246,13 +250,13 @@ func TestTenancyAwareService(t *testing.T) {
 	tenancyResource1 := api.NamedResource("tenancy")
 	tenancyResource1.AddChild(sampleClient1)
 	tenancyResource1.SetId(loadedTenancy1.Path())
-	samples, err = sampleClient1.List(multiPoolCtx.ClientOp)
+	samples, err = sampleClient1.List(op_context.MakeOpContext(multiPoolCtx.ClientOp))
 	require.NoError(t, err)
 	require.NotNil(t, samples)
 	require.Equal(t, 1, len(samples))
 	assert.Equal(t, sample1, samples[0])
 	tenancyResource1.SetId(loadedTenancy3.Path())
-	_, err = sampleClient1.List(multiPoolCtx.ClientOp)
+	_, err = sampleClient1.List(op_context.MakeOpContext(multiPoolCtx.ClientOp))
 	test_utils.CheckGenericError(t, err, generic_error.ErrorCodeNotFound)
 
 	// close apps
@@ -271,23 +275,23 @@ func TestServerIpList(t *testing.T) {
 	tenancyData1.ROLE = "dev"
 	tenancyData1.DESCRIPTION = "tenancy for development"
 	tenancyData1.CUSTOMER_ID = "customer1"
-	addedTenancy1, err := multiPoolCtx.RemoteTenancyController.Add(multiPoolCtx.ClientOp, tenancyData1)
+	addedTenancy1, err := multiPoolCtx.RemoteTenancyController.Add(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancyData1)
 	require.NoError(t, err)
 	require.NotNil(t, addedTenancy1)
-	err = multiPoolCtx.RemoteTenancyController.Activate(multiPoolCtx.ClientOp, addedTenancy1.GetID())
+	err = multiPoolCtx.RemoteTenancyController.Activate(op_context.MakeOpContext(multiPoolCtx.ClientOp), addedTenancy1.GetID())
 	require.NoError(t, err)
 	loadedTenancy1, err := multiPoolCtx.AppWithTenancy.Multitenancy().Tenancy(addedTenancy1.GetID())
 	require.NoError(t, err)
 	require.NotNil(t, loadedTenancy1)
 
 	// add IP address to tenancy 1
-	err = multiPoolCtx.RemoteTenancyController.AddIpAddress(multiPoolCtx.ClientOp, addedTenancy1.GetID(), "127.0.0.1", "internal")
+	err = multiPoolCtx.RemoteTenancyController.AddIpAddress(op_context.MakeOpContext(multiPoolCtx.ClientOp), addedTenancy1.GetID(), "127.0.0.1", "internal")
 	require.NoError(t, err)
 
 	// add second tenancy to the same pool as single pool app, add via mutipool app
 	tenancyData2 := tenancyData1
 	tenancyData2.CUSTOMER_ID = "customer2"
-	addedTenancy2, err := multiPoolCtx.RemoteTenancyController.Add(multiPoolCtx.ClientOp, tenancyData2)
+	addedTenancy2, err := multiPoolCtx.RemoteTenancyController.Add(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancyData2)
 	require.NoError(t, err)
 	require.NotNil(t, addedTenancy2)
 	loadedTenancy2, err := multiPoolCtx.AppWithTenancy.Multitenancy().Tenancy(addedTenancy2.GetID())
@@ -304,30 +308,30 @@ func TestServerIpList(t *testing.T) {
 	tenancyResource2.SetId(loadedTenancy1.Path())
 
 	// good
-	_, err = sampleClient2.List(multiPoolCtx1.ClientOp)
+	_, err = sampleClient2.List(op_context.MakeOpContext(multiPoolCtx1.ClientOp))
 	assert.NoError(t, err)
 
 	// filter because no addresses
 	tenancyResource2.SetId(loadedTenancy2.Path())
-	_, err = sampleClient2.List(multiPoolCtx1.ClientOp)
+	_, err = sampleClient2.List(op_context.MakeOpContext(multiPoolCtx1.ClientOp))
 	test_utils.CheckGenericError(t, err, generic_error.ErrorCodeForbidden)
 
 	// filter because good address but with other tag
-	err = multiPoolCtx1.RemoteTenancyController.AddIpAddress(multiPoolCtx1.ClientOp, addedTenancy2.GetID(), "127.0.0.1", "external")
+	err = multiPoolCtx1.RemoteTenancyController.AddIpAddress(op_context.MakeOpContext(multiPoolCtx1.ClientOp), addedTenancy2.GetID(), "127.0.0.1", "external")
 	require.NoError(t, err)
-	_, err = sampleClient2.List(multiPoolCtx1.ClientOp)
+	_, err = sampleClient2.List(op_context.MakeOpContext(multiPoolCtx1.ClientOp))
 	test_utils.CheckGenericError(t, err, generic_error.ErrorCodeForbidden)
 
 	// filter because address with self tag not matching localhost
-	err = multiPoolCtx1.RemoteTenancyController.AddIpAddress(multiPoolCtx1.ClientOp, addedTenancy2.GetID(), "192.168.100.1", "internal")
+	err = multiPoolCtx1.RemoteTenancyController.AddIpAddress(op_context.MakeOpContext(multiPoolCtx1.ClientOp), addedTenancy2.GetID(), "192.168.100.1", "internal")
 	require.NoError(t, err)
-	_, err = sampleClient2.List(multiPoolCtx1.ClientOp)
+	_, err = sampleClient2.List(op_context.MakeOpContext(multiPoolCtx1.ClientOp))
 	test_utils.CheckGenericError(t, err, generic_error.ErrorCodeForbidden)
 
 	// good
-	err = multiPoolCtx1.RemoteTenancyController.AddIpAddress(multiPoolCtx1.ClientOp, addedTenancy2.GetID(), "127.0.0.1", "internal")
+	err = multiPoolCtx1.RemoteTenancyController.AddIpAddress(op_context.MakeOpContext(multiPoolCtx1.ClientOp), addedTenancy2.GetID(), "127.0.0.1", "internal")
 	require.NoError(t, err)
-	_, err = sampleClient2.List(multiPoolCtx1.ClientOp)
+	_, err = sampleClient2.List(op_context.MakeOpContext(multiPoolCtx1.ClientOp))
 	assert.NoError(t, err)
 
 	// close apps

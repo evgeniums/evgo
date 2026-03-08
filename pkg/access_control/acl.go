@@ -1,6 +1,6 @@
 package access_control
 
-import "github.com/evgeniums/evgo/pkg/op_context"
+import "context"
 
 type Rule interface {
 	Resource() Resource
@@ -10,5 +10,5 @@ type Rule interface {
 }
 
 type Acl interface {
-	FindRule(ctx op_context.Context, resourcePath string, tag string, role Role) (Rule, error)
+	FindRule(sctx context.Context, resourcePath string, tag string, role Role) (Rule, error)
 }

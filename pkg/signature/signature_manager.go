@@ -1,6 +1,7 @@
 package signature
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -26,9 +27,9 @@ type UserWithPubkey interface {
 type SignatureManager interface {
 	generic_error.ErrorDefinitions
 
-	Verify(ctx auth.AuthContext, signature string, message []byte, extraData ...string) error
-	CheckPubKey(ctx op_context.Context, key string) error
-	SetUserKeyFinder(userKeyFinder func(ctx auth.AuthContext) (UserWithPubkey, error))
+	Verify(sctx context.Context, signature string, message []byte, extraData ...string) error
+	CheckPubKey(sctx context.Context, key string) error
+	SetUserKeyFinder(userKeyFinder func(sctx context.Context) (UserWithPubkey, error))
 }
 
 type WithSignatureManager interface {
@@ -64,7 +65,7 @@ type SignatureManagerBase struct {
 	zstdEncoder *zstd.Encoder
 	zstdDecoder *zstd.Decoder
 
-	userKeyFinder func(ctx auth.AuthContext) (UserWithPubkey, error)
+	userKeyFinder func(sctx context.Context) (UserWithPubkey, error)
 }
 
 func NewSignatureManager() *SignatureManagerBase {
@@ -108,13 +109,14 @@ func (s *SignatureManagerBase) Init(cfg config.Config, log logger.Logger, vld va
 	return nil
 }
 
-func (s *SignatureManagerBase) SetUserKeyFinder(userKeyFinder func(ctx auth.AuthContext) (UserWithPubkey, error)) {
+func (s *SignatureManagerBase) SetUserKeyFinder(userKeyFinder func(sctx context.Context) (UserWithPubkey, error)) {
 	s.userKeyFinder = userKeyFinder
 }
 
-func (s *SignatureManagerBase) CheckPubKey(ctx op_context.Context, key string) error {
+func (s *SignatureManagerBase) CheckPubKey(sctx context.Context, key string) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("SignatureManagerBase.CheckPubKey")
 	var err error
 	onExit := func() {
@@ -126,7 +128,7 @@ func (s *SignatureManagerBase) CheckPubKey(ctx op_context.Context, key string) e
 	defer onExit()
 
 	// try tp make verifier
-	_, err = s.MakeVerifier(ctx, key)
+	_, err = s.MakeVerifier(sctx, key)
 	if err != nil {
 		return err
 	}
@@ -135,9 +137,10 @@ func (s *SignatureManagerBase) CheckPubKey(ctx op_context.Context, key string) e
 	return nil
 }
 
-func (s *SignatureManagerBase) MakeVerifier(ctx op_context.Context, key string) (crypt_utils.EVerifier, error) {
+func (s *SignatureManagerBase) MakeVerifier(sctx context.Context, key string) (crypt_utils.EVerifier, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("SignatureManagerBase.MakeVerfier")
 	var err error
 	onExit := func() {
@@ -177,9 +180,10 @@ func (s *SignatureManagerBase) Decompress(src []byte) ([]byte, error) {
 	return s.zstdDecoder.DecodeAll(src, nil)
 }
 
-func (s *SignatureManagerBase) Verify(ctx auth.AuthContext, signature string, message []byte, extraData ...string) error {
+func (s *SignatureManagerBase) Verify(sctx context.Context, signature string, message []byte, extraData ...string) error {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("SignatureManagerBase.Verify")
 	var err error
 	onExit := func() {
@@ -198,7 +202,7 @@ func (s *SignatureManagerBase) Verify(ctx auth.AuthContext, signature string, me
 	}
 
 	// find user pubkey
-	userKey, err := s.userKeyFinder(ctx)
+	userKey, err := s.userKeyFinder(sctx)
 	if err != nil {
 		c.SetMessage("failed to find user key")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -206,7 +210,7 @@ func (s *SignatureManagerBase) Verify(ctx auth.AuthContext, signature string, me
 	}
 
 	// make verifier
-	verifier, err := s.MakeVerifier(ctx, userKey.PubKey())
+	verifier, err := s.MakeVerifier(sctx, userKey.PubKey())
 	if err != nil {
 		return err
 	}
@@ -245,7 +249,7 @@ func (s *SignatureManagerBase) Verify(ctx auth.AuthContext, signature string, me
 	} else {
 		obj.Message = string(message)
 	}
-	err = op_context.DB(ctx).Create(ctx, obj)
+	err = op_context.DB(ctx).Create(sctx, obj)
 	if err != nil {
 		c.SetMessage("failed to save message signature in database")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -261,8 +265,9 @@ func (s *SignatureManagerBase) AttachToErrorManager(errManager generic_error.Err
 	errManager.AddErrorProtocolCodes(ErrorHttpCodes)
 }
 
-func (s *SignatureManagerBase) Find(ctx op_context.Context, contextId string) (*MessageSignature, error) {
+func (s *SignatureManagerBase) Find(sctx context.Context, contextId string) (*MessageSignature, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("SmsManagerBase.FindSms", logger.Fields{"signature_context_id": contextId})
 	var err error
 	onExit := func() {
@@ -283,7 +288,7 @@ func (s *SignatureManagerBase) Find(ctx op_context.Context, contextId string) (*
 	fields := db.Fields{}
 	fields["month"] = month
 	fields["context"] = contextId
-	found, err := op_context.DB(ctx).FindByFields(ctx, fields, obj)
+	found, err := op_context.DB(ctx).FindByFields(sctx, fields, obj)
 	if err != nil {
 		c.SetMessage("failed to find signature in database")
 		return nil, err

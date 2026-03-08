@@ -29,18 +29,18 @@ func (a *ListHandler) Data() interface{} {
 
 func (a *ListHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	filter, err := db.ParseQuery(ctx.Db(), a.Query, &multitenancy.TenancyItem{}, "")
 	if err != nil {
 		return fmt.Errorf("failed to parse query: %s", err)
 	}
 
-	tenancies, count, err := controller.List(ctx, filter)
+	tenancies, count, err := controller.List(sctx, filter)
 	if err == nil {
 		fmt.Printf("Tenancies:\n\n%s\n\nTotal count %d\n\n", utils.DumpPrettyJson(tenancies), count)
 	}

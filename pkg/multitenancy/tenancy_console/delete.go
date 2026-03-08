@@ -32,18 +32,18 @@ func (a *DeleteHandler) Data() interface{} {
 
 func (a *DeleteHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Type YES to confirm operation: ")
 	text, _ := reader.ReadString('\n')
 	if text == "YES" {
 		id, idIsDisplay := PrepareId(a.Id, a.Customer, a.Role)
-		return controller.Delete(ctx, id, a.WithDb, idIsDisplay)
+		return controller.Delete(sctx, id, a.WithDb, idIsDisplay)
 	}
 
 	return errors.New("operation cancelled")

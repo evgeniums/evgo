@@ -23,6 +23,7 @@ import (
 
 type RequestWrapper struct {
 	request *Request
+	sctx    context.Context
 }
 
 type RequestCodec struct {
@@ -73,14 +74,14 @@ func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 		}
 
 		// preprocess request
-		err = ep.PreprocessBeforeAuth(w.request)
+		w.sctx, err = ep.PreprocessBeforeAuth(w.sctx)
 		if err != nil {
 			callCtx.SetMessage("preprocess failed")
 			return err
 		}
 
 		// perform auth
-		err = w.request.server.Auth().HandleRequest(w.request, ep.Resource().ServicePathPrototype(), ep.AccessType())
+		err = w.request.server.Auth().HandleRequest(w.sctx, ep.Resource().ServicePathPrototype(), ep.AccessType())
 		if err != nil {
 			w.request.Message().SetBinaryContent(nil)
 			if materializedBuf != nil {
@@ -178,7 +179,7 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 		}
 	}
 
-	fillResponse := func(request *Request, callCtx op_context.CallContext) api_server.RequestMessage {
+	fillResponse := func(sctx context.Context, request *Request, callCtx op_context.CallContext) api_server.RequestMessage {
 
 		response := &api_server.RequestMessageBase{}
 		if request.Response().Payload() != nil {
@@ -233,30 +234,30 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 		if response.TransportMessage() != nil {
 			md.Append(u.server.MESSAGE_TYPE_HEADER, getProtoName(response.TransportMessage()))
 		}
-		if err := grpc.SetHeader(ctx, md); err != nil {
+		if err := grpc.SetHeader(sctx, md); err != nil {
 			callCtx.Logger().Error("failed to set response headers", err)
 		}
 
 		// close request
 		request.TraceOutMethod()
-		request.Close()
+		request.Close(sctx)
 
 		// done
 		return response
 	}
 
 	// create request
-	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
+	request, callCtx, sctx, err := newRequest(ctx, u.server, u.endpoint)
 	if err != nil {
-		resp := fillResponse(request, callCtx)
+		resp := fillResponse(sctx, request, callCtx)
 		return resp, status.Error(request.statusCode, request.statusMessage)
 	}
-	reqCtx := context.WithValue(ctx, RequestContextKey, request)
 
 	// invoke decoder
-	w := &RequestWrapper{request: request}
+	w := &RequestWrapper{request: request, sctx: sctx}
+	sctx = w.sctx
 	if err := dec(w); err != nil {
-		resp := fillResponse(request, callCtx)
+		resp := fillResponse(sctx, request, callCtx)
 		st := status.Error(request.statusCode, request.statusMessage)
 		return resp, st
 	}
@@ -264,28 +265,30 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 	// define final handler
 	finalHandler := func(ctx context.Context, transportRequest interface{}) (interface{}, error) {
 
-		err = u.endpoint.HandleRequest(request)
+		sctx := ctx
+
+		err = u.endpoint.HandleRequest(sctx)
 		if err != nil {
 			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			callCtx.SetError(err)
 		}
 
-		err = u.endpoint.Postprocess(request)
+		sctx, err = u.endpoint.Postprocess(sctx)
 		if err != nil {
 			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			callCtx.SetError(err)
 		}
 
-		response := fillResponse(request, callCtx)
+		response := fillResponse(sctx, request, callCtx)
 
 		return response, status.Error(request.statusCode, request.statusMessage)
 	}
 
 	// invoke interceptors if set
 	if interceptor == nil {
-		return finalHandler(reqCtx, request.Message().TransportMessage())
+		return finalHandler(sctx, request.Message().TransportMessage())
 	}
-	return interceptor(reqCtx, request.Message().TransportMessage(), u.grpcUnaryServerInfo, finalHandler)
+	return interceptor(sctx, request.Message().TransportMessage(), u.grpcUnaryServerInfo, finalHandler)
 }
 
 type SizeInfo struct {

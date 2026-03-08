@@ -1,6 +1,8 @@
 package api_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/op_context"
 )
@@ -21,9 +23,10 @@ func (a *AuthSms) SetCode(code string) {
 	a.code = code
 }
 
-func (a *AuthSms) MakeHeaders(ctx op_context.Context, operation api.Operation, cmd interface{}) (map[string]string, error) {
+func (a *AuthSms) MakeHeaders(sctx context.Context, operation api.Operation, cmd interface{}) (map[string]string, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.TraceInMethod("AuthSms.MakeHeaders")
 	defer ctx.TraceOutMethod()
 

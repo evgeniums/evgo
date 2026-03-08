@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"strings"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -30,7 +31,7 @@ type AuthContext interface {
 	StoreSessionParameters() map[string]string
 
 	GetRequestContent() []byte
-	CheckRequestContent(smsMessage *string, skipSms *bool) error
+	CheckRequestContent(sctx context.Context, smsMessage *string, skipSms *bool) error
 	GetRequestPath() string
 	GetRequestMethod() string
 	GetResourceId(resourceType string) api.ResourceId
@@ -67,7 +68,7 @@ type AuthHandler interface {
 
 	Protocol() string
 
-	Handle(ctx AuthContext) (bool, error)
+	Handle(sctx context.Context) (bool, error)
 	Init(cfg config.Config, log logger.Logger, vld validator.Validator, configPath ...string) error
 	Handlers() []AuthHandler
 	SetAuthManager(manager AuthManager)

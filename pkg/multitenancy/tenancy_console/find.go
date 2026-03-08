@@ -50,15 +50,15 @@ func (a *FindHandler) PrepareId() (string, bool) {
 
 func (a *FindHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := a.PrepareId()
 
-	tenancy, err := controller.Find(ctx, id, idIsDisplay)
+	tenancy, err := controller.Find(sctx, id, idIsDisplay)
 	if err == nil {
 		fmt.Printf("Tenancy:\n%s\n", utils.DumpPrettyJson(tenancy))
 	}

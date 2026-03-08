@@ -28,7 +28,7 @@ func dbModels() []interface{} {
 }
 
 func initServer(t *testing.T, config ...string) (app_context.Context, *admin.Manager, bare_bones_server.Server) {
-	app := test_utils.InitAppContext(t, testDir, dbModels(), utils.OptionalArg("admin_api_server.jsonc", config...))
+	app, _ := test_utils.InitAppContext(t, testDir, dbModels(), utils.OptionalArg("admin_api_server.jsonc", config...))
 
 	admins := admin.NewManager()
 	admins.Init(app.Validator())

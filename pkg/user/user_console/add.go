@@ -56,14 +56,14 @@ func (a *AddHandler[T]) Data() interface{} {
 
 func (a *AddHandler[T]) Execute(args []string) error {
 
-	ctx, ctrl, err := a.Context(a.Data(), a.Login)
+	ctx, sctx, ctrl, err := a.Context(a.Data(), a.Login)
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	password := console_tool.ReadPassword()
-	user, err := ctrl.Add(ctx, a.Login, password)
+	user, err := ctrl.Add(sctx, a.Login, password)
 	if err != nil {
 		return err
 	}
@@ -89,13 +89,13 @@ func (a *AddNoPasswordHandler[T]) Data() interface{} {
 
 func (a *AddNoPasswordHandler[T]) Execute(args []string) error {
 
-	ctx, ctrl, err := a.Context(a.Data(), a.Login)
+	ctx, sctx, ctrl, err := a.Context(a.Data(), a.Login)
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
-	user, err := ctrl.Add(ctx, a.Login, "00000000")
+	user, err := ctrl.Add(sctx, a.Login, "00000000")
 	if err != nil {
 		return err
 	}
@@ -121,14 +121,14 @@ func (a *AddWithPhoneHandler[T]) Data() interface{} {
 
 func (a *AddWithPhoneHandler[T]) Execute(args []string) error {
 
-	ctx, ctrl, err := a.Context(a.Data(), a.Login)
+	ctx, sctx, ctrl, err := a.Context(a.Data(), a.Login)
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	password := console_tool.ReadPassword()
-	user, err := ctrl.Add(ctx, a.Login, password, user.Phone[T](a.Phone))
+	user, err := ctrl.Add(sctx, a.Login, password, user.Phone[T](a.Phone))
 	if err != nil {
 		return err
 	}
@@ -154,14 +154,14 @@ func (a *AddWithEmailHandler[T]) Data() interface{} {
 
 func (a *AddWithEmailHandler[T]) Execute(args []string) error {
 
-	ctx, ctrl, err := a.Context(a.Data(), a.Login)
+	ctx, sctx, ctrl, err := a.Context(a.Data(), a.Login)
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	password := console_tool.ReadPassword()
-	user, err := ctrl.Add(ctx, a.Login, password, user.Email[T](a.Email))
+	user, err := ctrl.Add(sctx, a.Login, password, user.Email[T](a.Email))
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package sms_mock
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/config"
@@ -42,8 +43,9 @@ func (s *SmsMock) Init(cfg config.Config, log logger.Logger, vld validator.Valid
 	return nil
 }
 
-func (s *SmsMock) Send(ctx op_context.Context, message string, recipient string, smsID ...string) (*sms.ProviderResponse, error) {
+func (s *SmsMock) Send(sctx context.Context, message string, recipient string, smsID ...string) (*sms.ProviderResponse, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("SmsMock.Send", logger.Fields{"recipient": recipient})
 	var err error
 	onExit := func() {

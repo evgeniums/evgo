@@ -1,6 +1,7 @@
 package sms
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"sort"
@@ -23,8 +24,8 @@ import (
 type SmsManager interface {
 	generic_error.ErrorDefinitions
 
-	Send(ctx auth.UserContext, message string, recipient string) (string, error)
-	FindSms(ctx op_context.Context, smsId string) (*SmsMessage, error)
+	Send(sctx context.Context, message string, recipient string) (string, error)
+	FindSms(sctx context.Context, smsId string) (*SmsMessage, error)
 }
 
 const (
@@ -174,9 +175,10 @@ func (s *SmsManagerBase) Init(cfg config.Config, log logger.Logger, vld validato
 	return nil
 }
 
-func (s *SmsManagerBase) InitDbService(ctx op_context.Context, poool pool.Pool, role string) error {
+func (s *SmsManagerBase) InitDbService(sctx context.Context, poool pool.Pool, role string) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("SmsManagerBase.InitDbService")
 	var err error
 	onExit := func() {
@@ -188,7 +190,7 @@ func (s *SmsManagerBase) InitDbService(ctx op_context.Context, poool pool.Pool, 
 	defer onExit()
 
 	// connect to database
-	s.db, err = pool.ConnectDatabaseService(ctx, poool, role, "")
+	s.db, err = pool.ConnectDatabaseService(sctx, poool, role, "")
 	if err != nil {
 		c.SetMessage("faield to connect to database service in the pool")
 		return err
@@ -205,9 +207,10 @@ func (s *SmsManagerBase) Db(ctx op_context.Context) db.DBHandlers {
 	return op_context.DB(ctx)
 }
 
-func (s *SmsManagerBase) Send(ctx auth.UserContext, message string, recipient string) (string, error) {
+func (s *SmsManagerBase) Send(sctx context.Context, message string, recipient string) (string, error) {
 
 	// setup
+	ctx := op_context.OpContext[auth.UserContext](sctx)
 	c := ctx.TraceInMethod("SmsManagerBase.Send", logger.Fields{"recipient": recipient})
 	var err error
 	onExit := func() {
@@ -254,7 +257,7 @@ func (s *SmsManagerBase) Send(ctx auth.UserContext, message string, recipient st
 	} else {
 		sms.Message = message
 	}
-	err = s.Db(ctx).Create(ctx, sms)
+	err = s.Db(ctx).Create(sctx, sms)
 	if err != nil {
 		c.SetMessage("failed to save SMS in database")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -262,7 +265,7 @@ func (s *SmsManagerBase) Send(ctx auth.UserContext, message string, recipient st
 	}
 
 	// send SMS
-	resp, err := provider.Send(ctx, message, recipient, sms.GetID())
+	resp, err := provider.Send(sctx, message, recipient, sms.GetID())
 	if resp != nil {
 		sms.RawResponse = resp.RawContent
 		sms.ForeignId = resp.ProviderMessageID
@@ -275,7 +278,7 @@ func (s *SmsManagerBase) Send(ctx auth.UserContext, message string, recipient st
 	}
 
 	// update status in database
-	err1 := db.Update(s.Db(ctx), ctx, sms, db.Fields{"status": sms.Status, "raw_response": sms.RawResponse, "foreign_id": sms.ForeignId})
+	err1 := db.Update(s.Db(ctx), sctx, sms, db.Fields{"status": sms.Status, "raw_response": sms.RawResponse, "foreign_id": sms.ForeignId})
 	if err1 != nil {
 		c.LoggerFields()["status"] = sms.Status
 		c.LoggerFields()["raw_response"] = sms.RawResponse
@@ -291,8 +294,9 @@ func (s *SmsManagerBase) AttachToErrorManager(errManager generic_error.ErrorMana
 	errManager.AddErrorProtocolCodes(SmsErrorHttpCodes)
 }
 
-func (s *SmsManagerBase) FindSms(ctx op_context.Context, smsId string) (*SmsMessage, error) {
+func (s *SmsManagerBase) FindSms(sctx context.Context, smsId string) (*SmsMessage, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("SmsManagerBase.FindSms", logger.Fields{"sms_id": smsId})
 	var err error
 	onExit := func() {
@@ -304,7 +308,7 @@ func (s *SmsManagerBase) FindSms(ctx op_context.Context, smsId string) (*SmsMess
 	defer onExit()
 
 	msg := &SmsMessage{}
-	found, err := s.Db(ctx).FindByField(ctx, "id", smsId, msg)
+	found, err := s.Db(ctx).FindByField(sctx, "id", smsId, msg)
 	if err != nil {
 		c.SetMessage("failed to find SMS in database")
 		return nil, err

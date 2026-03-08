@@ -1,6 +1,8 @@
 package confirmation_control_server
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/background_worker"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/multitenancy/app_with_multitenancy"
@@ -21,9 +23,10 @@ func New(externalServerCfg ...ExternalServerCfg) *ConfirmationControlServer {
 	return s
 }
 
-func (s *ConfirmationControlServer) Init(app app_with_multitenancy.AppWithMultitenancy, ctx op_context.Context, configPath ...string) error {
+func (s *ConfirmationControlServer) Init(app app_with_multitenancy.AppWithMultitenancy, sctx context.Context, configPath ...string) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("ConfirmationControlServer.Init")
 	var err error
 	onExit := func() {
@@ -39,14 +42,14 @@ func (s *ConfirmationControlServer) Init(app app_with_multitenancy.AppWithMultit
 	internalServerConfigPath := object_config.Key(path, "internal_server")
 
 	// init external server
-	err = s.ExternalServer.Init(app, ctx, externalServerConfigPath)
+	err = s.ExternalServer.Init(app, sctx, externalServerConfigPath)
 	if err != nil {
 		c.SetMessage("failed to init external server")
 		return err
 	}
 
 	// init internal server
-	err = s.InternalServer.Init(app, ctx, s.ExternalServer.BaseUrl(), internalServerConfigPath)
+	err = s.InternalServer.Init(app, sctx, s.ExternalServer.BaseUrl(), internalServerConfigPath)
 	if err != nil {
 		c.SetMessage("failed to init internal server")
 		return err

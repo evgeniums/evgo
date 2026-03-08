@@ -1,6 +1,8 @@
 package user_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/db"
@@ -14,20 +16,22 @@ type List[U user.User] struct {
 	result *api.ResponseList[U]
 }
 
-func (a *List[U]) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (a *List[U]) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("List.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, a.cmd, a.result)
+	err := client.Exec(sctx, operation, a.cmd, a.result)
 	c.SetError(err)
 	return err
 }
 
-func (u *UserClient[U]) FindUsers(ctx op_context.Context, filter *db.Filter) ([]U, int64, error) {
+func (u *UserClient[U]) FindUsers(sctx context.Context, filter *db.Filter) ([]U, int64, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("UserClient.FindUsers", logger.Fields{"user_type": u.userTypeName})
 	onExit := func() {
 		if err != nil {
@@ -48,7 +52,7 @@ func (u *UserClient[U]) FindUsers(ctx op_context.Context, filter *db.Filter) ([]
 		cmd:    cmd,
 		result: &api.ResponseList[U]{},
 	}
-	err = handler.Exec(u.Client(), ctx, u.list)
+	err = handler.Exec(u.Client(), sctx, u.list)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, 0, err

@@ -1,6 +1,7 @@
 package auth_sms
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -147,9 +148,10 @@ func (a *AuthSms) ErrorProtocolCodes() map[string]int {
 	return m
 }
 
-func (a *AuthSms) Handle(ctx auth.AuthContext) (bool, error) {
+func (a *AuthSms) Handle(sctx context.Context) (bool, error) {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthSms.Handle")
 	var err error
 	onExit := func() {
@@ -163,7 +165,7 @@ func (a *AuthSms) Handle(ctx auth.AuthContext) (bool, error) {
 	// precheck context
 	message := ""
 	var skip bool
-	err = ctx.CheckRequestContent(&message, &skip)
+	err = ctx.CheckRequestContent(sctx, &message, &skip)
 	if err != nil {
 		c.SetMessage("failed to check request content")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeFormat)
@@ -192,7 +194,7 @@ func (a *AuthSms) Handle(ctx auth.AuthContext) (bool, error) {
 		// extract and check token from request
 		token := &SmsToken{}
 		var exists bool
-		exists, err = a.Encryption.GetAuthParameter(ctx, a.Protocol(), TokenName, token, "")
+		exists, err = a.Encryption.GetAuthParameter(sctx, a.Protocol(), TokenName, token, "")
 		if !exists {
 			if err == nil {
 				err = errors.New("SMS token not found")
@@ -261,7 +263,7 @@ func (a *AuthSms) Handle(ctx auth.AuthContext) (bool, error) {
 
 			// keep cache token with increased tries count
 			cacheToken.Try += 1
-			err = a.setToken(ctx, c, cacheToken, token)
+			err = a.setToken(sctx, c, cacheToken, token)
 			if err != nil {
 				return true, err
 			}
@@ -337,12 +339,6 @@ func (a *AuthSms) Handle(ctx auth.AuthContext) (bool, error) {
 	h := a.hmacOfRequest(ctx, userId)
 	cacheToken.Checksum = h.SumStr()
 
-	// ctx.SetLoggerField("hash_cache_checksum", cacheToken.Checksum)
-	// ctx.SetLoggerField("hash_actual_checksum", h.SumStr())
-	// ctx.SetLoggerField("hash_path", ctx.GetRequestPath())
-	// ctx.SetLoggerField("hash_method", ctx.GetRequestMethod())
-	// ctx.SetLoggerField("hash_content_len", len(ctx.GetRequestContent()))
-
 	if a.TESTING {
 		LastSmsCode = cacheToken.Code
 	}
@@ -352,7 +348,7 @@ func (a *AuthSms) Handle(ctx auth.AuthContext) (bool, error) {
 		message = "code %s"
 	}
 	message = fmt.Sprintf(message, cacheToken.Code)
-	cacheToken.SmsId, err = a.smsManager.Send(ctx, message, phone)
+	cacheToken.SmsId, err = a.smsManager.Send(sctx, message, phone)
 	if err != nil {
 		c.SetMessage("failed to send SMS")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -360,7 +356,7 @@ func (a *AuthSms) Handle(ctx auth.AuthContext) (bool, error) {
 	}
 
 	// set token
-	err = a.setToken(ctx, c, cacheToken, token)
+	err = a.setToken(sctx, c, cacheToken, token)
 	if err != nil {
 		return true, err
 	}
@@ -409,10 +405,11 @@ func (a *AuthSms) genCode(phone string) string {
 	return str[len(str)-a.CODE_LENGTH:]
 }
 
-func (a *AuthSms) setToken(ctx auth.AuthContext, c op_context.CallContext, cacheToken *SmsCacheToken, requestToken *SmsToken) error {
+func (a *AuthSms) setToken(sctx context.Context, c op_context.CallContext, cacheToken *SmsCacheToken, requestToken *SmsToken) error {
 
 	// keep in cache
 	newCacheKey := a.smsTokenCacheKey(requestToken.GetID())
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	err := ctx.Cache().Set(newCacheKey, cacheToken, a.TOKEN_TTL_SECONDS)
 	if err != nil {
 		c.SetMessage("failed to save token in cache")
@@ -422,7 +419,7 @@ func (a *AuthSms) setToken(ctx auth.AuthContext, c op_context.CallContext, cache
 
 	// put token to response
 	requestToken.SetTTL(a.TOKEN_TTL_SECONDS)
-	err = a.Encryption.SetAuthParameter(ctx, a.Protocol(), TokenName, requestToken)
+	err = a.Encryption.SetAuthParameter(sctx, a.Protocol(), TokenName, requestToken)
 	if err != nil {
 		c.SetMessage("failed to put token to response")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)

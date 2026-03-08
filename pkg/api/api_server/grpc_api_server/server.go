@@ -21,6 +21,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pool"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/realip"
@@ -37,7 +38,6 @@ import (
 
 const OriginType = "grpc"
 const DefaultGrpcConfigSection string = "grpc"
-const RequestContextKey = "gu-request"
 const HeaderSizeKey = "gu-hsize"
 
 type ServerConfig struct {
@@ -185,7 +185,7 @@ func (s *Server) unknownHandler(srv interface{}, stream grpc.ServerStream) error
 	ep := &api_server.EndpointBase{}
 	ep.Init("")
 
-	request, _, _ := newRequest(ctx, s, ep)
+	request, _, sctx, _ := newRequest(ctx, s, ep)
 	request.SetName(method)
 	request.SetGenericErrorCode(generic_error.ErrorCodeUnimplemented)
 
@@ -193,7 +193,7 @@ func (s *Server) unknownHandler(srv interface{}, stream grpc.ServerStream) error
 	request.SetLoggerField("status", request.GenericError().Code())
 	request.statusCode = status.Code(err)
 	request.statusMessage = "unknown method"
-	request.Close()
+	request.Close(sctx)
 
 	return err
 }
@@ -258,14 +258,14 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 		buf = buf[:runtime.Stack(buf, false)]
 
 		s.App().Logger().Fatal("application crashed", fmt.Errorf("panic triggered: %v\nStack Trace:\n%s\n", p, buf))
-		req := ctx.Value(RequestContextKey)
+		req := ctx.Value(op_context.OpContextKey{})
 		err = status.Errorf(codes.Internal, "internal server error")
 		if request, ok := req.(*Request); ok {
 			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			request.SetLoggerField("status", request.GenericError().Code())
 			request.statusCode = status.Code(err)
 			request.statusMessage = "application crashed"
-			request.Close()
+			request.Close(ctx)
 		}
 		return
 	}

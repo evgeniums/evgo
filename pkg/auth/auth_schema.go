@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/config"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
@@ -115,9 +117,10 @@ func (a *AuthSchema) InitSchema(log logger.Logger, cfg config.Config, vld valida
 	return nil
 }
 
-func (a *AuthSchema) Handle(ctx AuthContext) (bool, error) {
+func (a *AuthSchema) Handle(sctx context.Context) (bool, error) {
 
 	// setup
+	ctx := op_context.OpContext[AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthSchema.Handle", logger.Fields{"path": ctx.GetRequestPath()})
 	var err error
 	onExit := func() {
@@ -131,7 +134,7 @@ func (a *AuthSchema) Handle(ctx AuthContext) (bool, error) {
 	authMethodFound := false
 	for _, handler := range a.handlers {
 		c.SetLoggerField("auth_method", handler.Name())
-		authMethodFound, err = handler.Handle(ctx)
+		authMethodFound, err = handler.Handle(sctx)
 		if !authMethodFound {
 			if a.config.AGGREGATION == Or {
 				continue

@@ -1,6 +1,8 @@
 package work_schedule
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/multitenancy"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pubsub/pool_pubsub"
@@ -14,8 +16,9 @@ type PoolWorkNotificationHandler[T Work] struct {
 	controller *WorkSchedule[T]
 }
 
-func (p *PoolWorkNotificationHandler[T]) Handle(ctx op_context.Context, msg *PubsubWork[T]) error {
+func (p *PoolWorkNotificationHandler[T]) Handle(sctx context.Context, msg *PubsubWork[T]) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolWorkNotificationHandler.Handle")
 	defer ctx.TraceOutMethod()
 
@@ -32,7 +35,7 @@ func (p *PoolWorkNotificationHandler[T]) Handle(ctx op_context.Context, msg *Pub
 		}
 	}
 
-	err = p.controller.InvokeWork(ctx, msg.Work, msg.Mode, tenancy)
+	err = p.controller.InvokeWork(sctx, msg.Work, msg.Mode, tenancy)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -56,13 +59,14 @@ func NewPoolSubscriber[T Work](tenancies multitenancy.Multitenancy, controller *
 	return p
 }
 
-func (p *PoolWorkSubscriber[T]) Init(ctx op_context.Context, pubsub pool_pubsub.PoolPubsub, topicName string) error {
+func (p *PoolWorkSubscriber[T]) Init(sctx context.Context, pubsub pool_pubsub.PoolPubsub, topicName string) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolWorkSubscriber.Init")
 	defer ctx.TraceOutMethod()
 
 	p.topic.TopicBase = pubsub_subscriber.New(topicName, MakePubsubWork[T])
-	_, err := pubsub.SubscribeSelfPool(ctx, p.topic)
+	_, err := pubsub.SubscribeSelfPool(sctx, p.topic)
 	if err != nil {
 		c.SetError(err)
 		return ctx.Logger().PushFatalStack("failed to subscribe to pubsub notifications in self pool", err)

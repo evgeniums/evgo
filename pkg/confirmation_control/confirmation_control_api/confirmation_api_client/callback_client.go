@@ -1,11 +1,14 @@
 package confirmation_api_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/confirmation_control"
 	"github.com/evgeniums/evgo/pkg/confirmation_control/confirmation_control_api"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type ConfirmationCallbackClient struct {
@@ -32,9 +35,10 @@ func NewConfirmationCallbackClient(client api_client.Client) *ConfirmationCallba
 	return c
 }
 
-func (cl *ConfirmationCallbackClient) ConfirmationCallback(ctx multitenancy.TenancyContext, operationId string, result *confirmation_control.ConfirmationResult) (string, error) {
+func (cl *ConfirmationCallbackClient) ConfirmationCallback(sctx context.Context, operationId string, result *confirmation_control.ConfirmationResult) (string, error) {
 
 	// setup
+	ctx := op_context.OpContext[multitenancy.TenancyContext](sctx)
 	c := ctx.TraceInMethod("ConfirmationCallbackClient.ConfirmationCallback")
 	var err error
 	onExit := func() {
@@ -51,7 +55,7 @@ func (cl *ConfirmationCallbackClient) ConfirmationCallback(ctx multitenancy.Tena
 		ConfirmationResult: *result,
 	}
 	handler := api_client.NewHandlerInTenancy(cmd, &confirmation_control_api.CallbackConfirmationResponse{})
-	err = handler.Exec(cl.ApiClient(), ctx, cl.callback_confirmation)
+	err = handler.Exec(cl.ApiClient(), sctx, cl.callback_confirmation)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return "", err

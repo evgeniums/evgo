@@ -1,10 +1,13 @@
 package confirmation_api_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/confirmation_control"
 	"github.com/evgeniums/evgo/pkg/confirmation_control/confirmation_control_api"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type CallbackEndpoint struct {
@@ -39,14 +42,15 @@ type CallbackConfirmationEndpoint struct {
 	CallbackEndpoint
 }
 
-func (e *CallbackConfirmationEndpoint) HandleRequest(request api_server.Request) error {
+func (e *CallbackConfirmationEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("ConfirmationCallbackService.CallbackConfirmation")
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd, err := api_server.ParseValidateRequest[confirmation_control_api.CallbackConfirmationCmd](request)
+	cmd, err := api_server.ParseValidateRequest[confirmation_control_api.CallbackConfirmationCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err
@@ -56,7 +60,7 @@ func (e *CallbackConfirmationEndpoint) HandleRequest(request api_server.Request)
 
 	// invoke callback
 	resp := &confirmation_control_api.CallbackConfirmationResponse{}
-	resp.Url, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(request, cmd.Id, &cmd.ConfirmationResult)
+	resp.Url, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(sctx, cmd.Id, &cmd.ConfirmationResult)
 	if err != nil {
 		c.SetMessage("failed to invoke callback")
 		return c.SetError(err)

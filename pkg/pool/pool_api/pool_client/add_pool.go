@@ -1,6 +1,8 @@
 package pool_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -13,20 +15,22 @@ type AddPool struct {
 	result *pool_api.PoolResponse
 }
 
-func (a *AddPool) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (a *AddPool) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("AddPool.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, a.cmd, a.result)
+	err := client.Exec(sctx, operation, a.cmd, a.result)
 	c.SetError(err)
 	return err
 }
 
-func (p *PoolClient) AddPool(ctx op_context.Context, pool pool.Pool) (pool.Pool, error) {
+func (p *PoolClient) AddPool(sctx context.Context, pool pool.Pool) (pool.Pool, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolClient.AddPool")
 	onExit := func() {
 		if err != nil {
@@ -41,7 +45,7 @@ func (p *PoolClient) AddPool(ctx op_context.Context, pool pool.Pool) (pool.Pool,
 		cmd:    pool,
 		result: &pool_api.PoolResponse{},
 	}
-	err = handler.Exec(p.Client(), ctx, p.add_pool)
+	err = handler.Exec(p.Client(), sctx, p.add_pool)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/db"
@@ -28,10 +29,11 @@ func ParseDbService(service *PoolServiceBaseData) (*db.DBConfig, error) {
 	return d, nil
 }
 
-func ConnectDatabaseService(ctx op_context.Context, pool Pool, role string, dbName string, newDb ...bool) (db.DB, error) {
+func ConnectDatabaseService(sctx context.Context, pool Pool, role string, dbName string, newDb ...bool) (db.DB, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("pool.ConnectDatabaseService", logger.Fields{"role": role})
 	onExit := func() {
 		if err != nil {
@@ -74,7 +76,7 @@ func ConnectDatabaseService(ctx op_context.Context, pool Pool, role string, dbNa
 
 		// connect to master database
 		database := ctx.App().Db().Clone()
-		err = database.InitWithConfig(ctx, ctx.App().Validator(), dbConfig)
+		err = database.InitWithConfig(sctx, ctx.App().Validator(), dbConfig)
 		if err != nil {
 			genErr := generic_error.NewFromOriginal(ErrorCodeServiceInitializationFailed, "Failed to connect to master database", err)
 			genErr.SetDetails(dbService.ServiceName)
@@ -84,7 +86,7 @@ func ConnectDatabaseService(ctx op_context.Context, pool Pool, role string, dbNa
 		}
 
 		// create new database
-		err = database.CreateDatabase(ctx, name)
+		err = database.CreateDatabase(sctx, name)
 		database.Close()
 		if err != nil {
 			genErr := generic_error.NewFromOriginal(ErrorCodeCreateServiceDatabaseFailed, "Failed to create database", err)
@@ -98,7 +100,7 @@ func ConnectDatabaseService(ctx op_context.Context, pool Pool, role string, dbNa
 	// create and init database connection
 	dbConfig.DB_NAME = name
 	database := ctx.App().Db().Clone()
-	err = database.InitWithConfig(ctx, ctx.App().Validator(), dbConfig)
+	err = database.InitWithConfig(sctx, ctx.App().Validator(), dbConfig)
 	if err != nil {
 		genErr := generic_error.NewFromOriginal(ErrorCodeServiceInitializationFailed, "Failed to connect to database", err)
 		genErr.SetDetails(dbService.ServiceName)

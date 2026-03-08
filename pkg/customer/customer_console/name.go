@@ -35,16 +35,16 @@ func (a *NameHandler[T]) Data() interface{} {
 
 func (a *NameHandler[T]) Execute(args []string) error {
 
-	ctx, ctrl, err := a.Context(a.Data(), a.Login)
+	ctx, sctx, ctrl, err := a.Context(a.Data(), a.Login)
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	setter, ok := ctrl.(customer.NameAndDescriptionSetter)
 	if !ok {
 		panic("Invalid type of user controller")
 	}
 
-	return setter.SetName(ctx, a.Login, a.Name, true)
+	return setter.SetName(sctx, a.Login, a.Name, true)
 }

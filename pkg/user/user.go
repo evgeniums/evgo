@@ -1,6 +1,8 @@
 package user
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/auth"
 	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_login_phash"
@@ -8,7 +10,6 @@ import (
 	"github.com/evgeniums/evgo/pkg/common"
 	"github.com/evgeniums/evgo/pkg/crud"
 	"github.com/evgeniums/evgo/pkg/db"
-	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type User interface {
@@ -90,7 +91,7 @@ func (u *UserBaseFields) Topic() string {
 	return ""
 }
 
-func (u *UserBaseFields) SetUserFields(ctx op_context.Context, user User) ([]CheckDuplicateField, error) {
+func (u *UserBaseFields) SetUserFields(sctx context.Context, user User) ([]CheckDuplicateField, error) {
 	user.SetEmail(u.Email())
 	user.SetPhone(u.Phone())
 	user.SetBlocked(u.IsBlocked())
@@ -158,7 +159,7 @@ func (u *UserBase) DbUser() interface{} {
 type UserFieldsSetter[T User] interface {
 	Login() string
 	Password() string
-	SetUserFields(ctx op_context.Context, user T) ([]CheckDuplicateField, error)
+	SetUserFields(sctx context.Context, user T) ([]CheckDuplicateField, error)
 }
 
 type CheckDuplicateField struct {
@@ -167,14 +168,14 @@ type CheckDuplicateField struct {
 	ErrorCode string
 }
 
-type SetUserFields[UserType interface{}] func(ctx op_context.Context, user UserType) ([]CheckDuplicateField, error)
+type SetUserFields[UserType interface{}] func(sctx context.Context, user UserType) ([]CheckDuplicateField, error)
 
 type UserFieldsSetterBase[T User] struct {
 	UserFieldsWithPassword
 }
 
 func Phone[UserType User](phone string, userSample ...UserType) SetUserFields[UserType] {
-	return func(ctx op_context.Context, user UserType) ([]CheckDuplicateField, error) {
+	return func(sctx context.Context, user UserType) ([]CheckDuplicateField, error) {
 		user.SetPhone(phone)
 		if phone != "" {
 			return []CheckDuplicateField{{"phone", phone, ErrorCodeDuplicatePhone}}, nil
@@ -184,7 +185,7 @@ func Phone[UserType User](phone string, userSample ...UserType) SetUserFields[Us
 }
 
 func Email[UserType User](email string, userSample ...UserType) SetUserFields[UserType] {
-	return func(ctx op_context.Context, user UserType) ([]CheckDuplicateField, error) {
+	return func(sctx context.Context, user UserType) ([]CheckDuplicateField, error) {
 		user.SetEmail(email)
 		if email != "" {
 			return []CheckDuplicateField{{"email", email, ErrorCodeDuplicateEmail}}, nil
@@ -193,10 +194,10 @@ func Email[UserType User](email string, userSample ...UserType) SetUserFields[Us
 	}
 }
 
-func FindByLogin(controller crud.CRUD, ctx op_context.Context, login string, user interface{}, dest ...interface{}) (bool, error) {
-	return controller.Read(ctx, db.Fields{"login": login}, user, dest...)
+func FindByLogin(controller crud.CRUD, sctx context.Context, login string, user interface{}, dest ...interface{}) (bool, error) {
+	return controller.Read(sctx, db.Fields{"login": login}, user, dest...)
 }
 
-func FindByLoginAndTopic(controller crud.CRUD, ctx op_context.Context, login string, topic string, user interface{}, dest ...interface{}) (bool, error) {
-	return controller.Read(ctx, db.Fields{"login": login, "topic": topic}, user, dest...)
+func FindByLoginAndTopic(controller crud.CRUD, sctx context.Context, login string, topic string, user interface{}, dest ...interface{}) (bool, error) {
+	return controller.Read(sctx, db.Fields{"login": login, "topic": topic}, user, dest...)
 }

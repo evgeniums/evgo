@@ -43,14 +43,13 @@ func TestSmsru(t *testing.T) {
 		t.Fatalf("failed to init smsru module")
 	}
 
-	opCtx := default_op_context.NewContext()
-	opCtx.Init(app, app.Logger(), app.Db())
+	opCtx, sctx := default_op_context.NewInitContexts(app, app.Logger(), app.Db())
 	errManager := &generic_error.ErrorManagerBase{}
 	errManager.Init(http.StatusBadRequest)
 	opCtx.SetErrorManager(errManager)
 
-	resp, err := sender.Send(opCtx, "Confirmation code 1015", phone)
-	opCtx.Close()
+	resp, err := sender.Send(sctx, "Confirmation code 1015", phone)
+	opCtx.Close(sctx)
 	if resp != nil {
 		t.Logf("Response: %+v", resp)
 	}

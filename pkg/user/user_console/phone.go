@@ -25,11 +25,11 @@ func (a *PhoneHandler[T]) Data() interface{} {
 
 func (a *PhoneHandler[T]) Execute(args []string) error {
 
-	ctx, ctrl, err := a.Context(a.Data(), a.Login)
+	ctx, sctx, ctrl, err := a.Context(a.Data(), a.Login)
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
-	return ctrl.SetPhone(ctx, a.Login, a.Phone, true)
+	return ctrl.SetPhone(sctx, a.Login, a.Phone, true)
 }

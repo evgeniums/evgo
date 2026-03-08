@@ -1,6 +1,7 @@
 package pool_client
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -17,20 +18,22 @@ type UpdatePool struct {
 	result *pool_api.PoolResponse
 }
 
-func (a *UpdatePool) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (a *UpdatePool) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("UpdatePool.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, a.cmd, a.result)
+	err := client.Exec(sctx, operation, a.cmd, a.result)
 	c.SetError(err)
 	return err
 }
 
-func (p *PoolClient) UpdatePool(ctx op_context.Context, id string, fields db.Fields, idIsName ...bool) (pool.Pool, error) {
+func (p *PoolClient) UpdatePool(sctx context.Context, id string, fields db.Fields, idIsName ...bool) (pool.Pool, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolClient.UpdatePool")
 	onExit := func() {
 		if err != nil {
@@ -41,7 +44,7 @@ func (p *PoolClient) UpdatePool(ctx op_context.Context, id string, fields db.Fie
 	defer onExit()
 
 	// adjust id
-	pId, po, err := p.poolId(ctx, id, idIsName...)
+	pId, po, err := p.poolId(sctx, id, idIsName...)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +61,7 @@ func (p *PoolClient) UpdatePool(ctx op_context.Context, id string, fields db.Fie
 	}
 	handler.cmd.Fields = fields
 	op := api.NamedResourceOperation(p.PoolResource, pId, pool_api.UpdatePool())
-	err = handler.Exec(p.Client(), ctx, op)
+	err = handler.Exec(p.Client(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

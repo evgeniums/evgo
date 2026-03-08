@@ -1,6 +1,8 @@
 package pool_pubsub
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/app_context"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pool/app_with_pools"
@@ -64,11 +66,11 @@ func NewApp(buildConfig *app_context.BuildConfig, appConfig ...AppConfigI) *AppW
 	return a
 }
 
-func (a *AppWithPubsubBase) InitWithArgs(configFile string, args []string, configType ...string) (op_context.Context, error) {
+func (a *AppWithPubsubBase) InitWithArgs(configFile string, args []string, configType ...string) (op_context.Context, context.Context, error) {
 
-	opCtx, err := a.AppWithPoolsBase.InitWithArgs(configFile, args, configType...)
+	opCtx, sctx, err := a.AppWithPoolsBase.InitWithArgs(configFile, args, configType...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	c := opCtx.TraceInMethod("AppWithPubsub.Init")
@@ -78,13 +80,13 @@ func (a *AppWithPubsubBase) InitWithArgs(configFile string, args []string, confi
 	if err != nil {
 		msg := "failed to init pubsub"
 		c.SetMessage(msg)
-		return opCtx, opCtx.Logger().PushFatalStack(msg, c.SetError(err))
+		return opCtx, sctx, opCtx.Logger().PushFatalStack(msg, c.SetError(err))
 	}
 
-	return opCtx, nil
+	return opCtx, sctx, nil
 }
 
-func (a *AppWithPubsubBase) Init(configFile string, configType ...string) (op_context.Context, error) {
+func (a *AppWithPubsubBase) Init(configFile string, configType ...string) (op_context.Context, context.Context, error) {
 	return a.InitWithArgs(configFile, nil, configType...)
 }
 

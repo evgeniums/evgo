@@ -41,9 +41,9 @@ func initTest(t *testing.T) *pool_test_utils.PoolTestContext {
 	initApp := func(t *testing.T, app app_context.Context, configFile string, args []string, configType ...string) error {
 		a, ok := app.(*app_with_pools.AppWithPoolsBase)
 		require.True(t, ok)
-		opCtx, err := a.InitWithArgs(configFile, args, configType...)
+		opCtx, sctx, err := a.InitWithArgs(configFile, args, configType...)
 		if opCtx != nil {
-			opCtx.Close()
+			opCtx.Close(sctx)
 		}
 		return err
 	}
@@ -79,22 +79,22 @@ func TestAddDeletePool(t *testing.T) {
 	filter := db.NewFilter()
 	filter.SortField = "name"
 	filter.SortDirection = db.SORT_ASC
-	pools, _, err := ctx.RemotePoolController.GetPools(ctx.ClientOp, nil)
+	pools, _, err := ctx.RemotePoolController.GetPools(ctx.ClientOpCtx, nil)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pools))
 	assert.Equal(t, p1.Name(), pools[0].Name())
 	assert.Equal(t, p2.Name(), pools[1].Name())
 
-	err = ctx.RemotePoolController.DeletePool(ctx.ClientOp, p1.Name(), true)
+	err = ctx.RemotePoolController.DeletePool(ctx.ClientOpCtx, p1.Name(), true)
 	require.NoError(t, err)
-	pools, _, err = ctx.RemotePoolController.GetPools(ctx.ClientOp, nil)
+	pools, _, err = ctx.RemotePoolController.GetPools(ctx.ClientOpCtx, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pools))
 	assert.Equal(t, p2.Name(), pools[0].Name())
 
-	err = ctx.RemotePoolController.DeletePool(ctx.ClientOp, p2.GetID())
+	err = ctx.RemotePoolController.DeletePool(ctx.ClientOpCtx, p2.GetID())
 	require.NoError(t, err)
-	pools, _, err = ctx.RemotePoolController.GetPools(ctx.ClientOp, nil)
+	pools, _, err = ctx.RemotePoolController.GetPools(ctx.ClientOpCtx, nil)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pools))
 }
@@ -113,7 +113,7 @@ func TestAddDeleteService(t *testing.T) {
 	filter := db.NewFilter()
 	filter.SortField = "name"
 	filter.SortDirection = db.SORT_ASC
-	services, _, err := ctx.RemotePoolController.GetServices(ctx.ClientOp, nil)
+	services, _, err := ctx.RemotePoolController.GetServices(ctx.ClientOpCtx, nil)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(services))
 	assert.Equal(t, s1.Name(), services[0].Name())
@@ -121,16 +121,16 @@ func TestAddDeleteService(t *testing.T) {
 	assert.Equal(t, s1.GetID(), services[0].GetID())
 	assert.Equal(t, s2.GetID(), services[1].GetID())
 
-	err = ctx.RemotePoolController.DeleteService(ctx.ClientOp, s1.Name(), true)
+	err = ctx.RemotePoolController.DeleteService(ctx.ClientOpCtx, s1.Name(), true)
 	require.NoError(t, err)
-	services, _, err = ctx.RemotePoolController.GetServices(ctx.ClientOp, nil)
+	services, _, err = ctx.RemotePoolController.GetServices(ctx.ClientOpCtx, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(services))
 	assert.Equal(t, s2.Name(), services[0].Name())
 
-	err = ctx.RemotePoolController.DeleteService(ctx.ClientOp, s2.GetID())
+	err = ctx.RemotePoolController.DeleteService(ctx.ClientOpCtx, s2.GetID())
 	require.NoError(t, err)
-	services, _, err = ctx.RemotePoolController.GetServices(ctx.ClientOp, nil)
+	services, _, err = ctx.RemotePoolController.GetServices(ctx.ClientOpCtx, nil)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(services))
 }
@@ -204,107 +204,107 @@ func TestBindings(t *testing.T) {
 	}
 
 	// add service to pool
-	err := ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, p.GetID(), service.GetID(), role)
+	err := ctx.RemotePoolController.AddServiceToPool(ctx.ClientOpCtx, p.GetID(), service.GetID(), role)
 	require.NoError(t, err)
 
 	// get services added to pool
-	bindings, err := ctx.LocalPoolController.GetPoolBindings(ctx.AdminOp, p.GetID())
+	bindings, err := ctx.LocalPoolController.GetPoolBindings(ctx.AdminOpCtx, p.GetID())
 	require.NoError(t, err)
 	checkList(bindings)
 	b1, _ := json.MarshalIndent(bindings[0], "", "  ")
 	t.Logf("Pool services: \n\n%s\n\n", string(b1))
 
 	// get pools the service is added to
-	bindings, err = ctx.LocalPoolController.GetServiceBindings(ctx.AdminOp, service.GetID())
+	bindings, err = ctx.LocalPoolController.GetServiceBindings(ctx.AdminOpCtx, service.GetID())
 	require.NoError(t, err)
 	checkList(bindings)
 
 	// try to add duplicate service to pool
-	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, p.GetID(), service.GetID(), role)
+	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOpCtx, p.GetID(), service.GetID(), role)
 	test_utils.CheckGenericError(t, err, pool.ErrorCodeServiceRoleConflict, "Pool already has service for that role")
 
 	// try to add unknown service to pool
-	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, p.GetID(), "unknown_id", role)
+	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOpCtx, p.GetID(), "unknown_id", role)
 	test_utils.CheckGenericError(t, err, pool.ErrorCodeServiceNotFound, "Service not found")
 
 	// try to add service to unknown pool
-	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, "unknown_id", "unknown_id", role)
+	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOpCtx, "unknown_id", "unknown_id", role)
 	test_utils.CheckGenericError(t, err, pool.ErrorCodePoolNotFound, "Pool not found")
 
 	// try to remove pool with services
-	err = ctx.RemotePoolController.DeletePool(ctx.ClientOp, p.GetID())
+	err = ctx.RemotePoolController.DeletePool(ctx.ClientOpCtx, p.GetID())
 	test_utils.CheckGenericError(t, err, pool.ErrorCodePoolServiceBindingsExist, "Can't delete pool with services. First, remove all services from the pool")
 
 	// try to remove bound service
-	err = ctx.RemotePoolController.DeleteService(ctx.ClientOp, service.GetID())
+	err = ctx.RemotePoolController.DeleteService(ctx.ClientOpCtx, service.GetID())
 	test_utils.CheckGenericError(t, err, pool.ErrorCodePoolServiceBoundToPool, "Can't delete service bound to pool. First, remove the services from all pools")
 
 	// try to remove unknown service from pool
-	err = ctx.RemotePoolController.RemoveServiceFromPool(ctx.ClientOp, "unknown_id", role)
+	err = ctx.RemotePoolController.RemoveServiceFromPool(ctx.ClientOpCtx, "unknown_id", role)
 	assert.NoErrorf(t, err, "unknown services and/or unknown pools must be ignored")
-	err = ctx.RemotePoolController.RemoveServiceFromPool(ctx.ClientOp, p.GetID(), "unknown_role")
+	err = ctx.RemotePoolController.RemoveServiceFromPool(ctx.ClientOpCtx, p.GetID(), "unknown_role")
 	assert.NoErrorf(t, err, "unknown services and/or unknown pools must be ignored")
 
 	// remove service from pool
-	err = ctx.RemotePoolController.RemoveServiceFromPool(ctx.ClientOp, p.GetID(), role)
+	err = ctx.RemotePoolController.RemoveServiceFromPool(ctx.ClientOpCtx, p.GetID(), role)
 	assert.NoError(t, err)
-	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOp, p.GetID())
+	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOpCtx, p.GetID())
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(bindings))
 
 	// add service to pool again
-	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, p.GetID(), service.GetID(), role)
+	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOpCtx, p.GetID(), service.GetID(), role)
 	require.NoError(t, err)
-	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOp, p.GetID())
+	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOpCtx, p.GetID())
 	assert.NoError(t, err)
 	checkList(bindings)
 
 	// add second service to pool
-	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, p.GetID(), service2.GetID(), role2)
+	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOpCtx, p.GetID(), service2.GetID(), role2)
 	require.NoError(t, err)
-	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOp, p.GetID())
+	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOpCtx, p.GetID())
 	assert.NoError(t, err)
 	checkList2(bindings)
 
 	// try to remove all services from unknown pool
-	err = ctx.RemotePoolController.RemoveAllServicesFromPool(ctx.ClientOp, "unknown_id")
+	err = ctx.RemotePoolController.RemoveAllServicesFromPool(ctx.ClientOpCtx, "unknown_id")
 	assert.NoErrorf(t, err, "unknown pools must be ignored")
-	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOp, p.GetID())
+	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOpCtx, p.GetID())
 	assert.NoError(t, err)
 	checkList2(bindings)
 
 	// remove all services from pool
-	err = ctx.RemotePoolController.RemoveAllServicesFromPool(ctx.ClientOp, p.GetID())
+	err = ctx.RemotePoolController.RemoveAllServicesFromPool(ctx.ClientOpCtx, p.GetID())
 	assert.NoError(t, err)
-	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOp, p.GetID())
+	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOpCtx, p.GetID())
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(bindings))
 
 	// add service to pool again
-	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, p.GetID(), service.GetID(), role)
+	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOpCtx, p.GetID(), service.GetID(), role)
 	require.NoError(t, err)
-	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOp, p.GetID())
+	bindings, err = ctx.LocalPoolController.GetPoolBindings(ctx.AdminOpCtx, p.GetID())
 	assert.NoError(t, err)
 	checkList(bindings)
 
 	// add service to second pool
-	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, p2.GetID(), service.GetID(), role)
+	err = ctx.RemotePoolController.AddServiceToPool(ctx.ClientOpCtx, p2.GetID(), service.GetID(), role)
 	require.NoError(t, err)
-	bindings, err = ctx.LocalPoolController.GetServiceBindings(ctx.AdminOp, service.GetID())
+	bindings, err = ctx.LocalPoolController.GetServiceBindings(ctx.AdminOpCtx, service.GetID())
 	assert.NoError(t, err)
 	checkList3(bindings)
 
 	// try to remove unknown service from all pools
-	err = ctx.RemotePoolController.RemoveServiceFromAllPools(ctx.ClientOp, "unknown_id")
+	err = ctx.RemotePoolController.RemoveServiceFromAllPools(ctx.ClientOpCtx, "unknown_id")
 	assert.NoErrorf(t, err, "unknown services must be ignored")
-	bindings, err = ctx.LocalPoolController.GetServiceBindings(ctx.AdminOp, service.GetID())
+	bindings, err = ctx.LocalPoolController.GetServiceBindings(ctx.AdminOpCtx, service.GetID())
 	assert.NoError(t, err)
 	checkList3(bindings)
 
 	// remove service from all pools
-	err = ctx.RemotePoolController.RemoveServiceFromAllPools(ctx.ClientOp, service.Name(), true)
+	err = ctx.RemotePoolController.RemoveServiceFromAllPools(ctx.ClientOpCtx, service.Name(), true)
 	assert.NoError(t, err)
-	bindings, err = ctx.LocalPoolController.GetServiceBindings(ctx.AdminOp, service.GetID())
+	bindings, err = ctx.LocalPoolController.GetServiceBindings(ctx.AdminOpCtx, service.GetID())
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(bindings))
 }
@@ -317,7 +317,7 @@ func TestUpdatePool(t *testing.T) {
 
 	// update and check pool
 	fields := db.Fields{"name": "updated name", "long_name": "updated long_name", "description": "updated description", "active": true}
-	updatedP, err := ctx.RemotePoolController.UpdatePool(ctx.ClientOp, p.GetID(), fields)
+	updatedP, err := ctx.RemotePoolController.UpdatePool(ctx.ClientOpCtx, p.GetID(), fields)
 	require.NoError(t, err)
 	assert.Equal(t, "updated name", updatedP.Name())
 	assert.Equal(t, "updated long_name", updatedP.LongName())
@@ -325,7 +325,7 @@ func TestUpdatePool(t *testing.T) {
 	assert.True(t, updatedP.IsActive())
 
 	// find and check pool
-	remotePool1, err := ctx.RemotePoolController.FindPool(ctx.ClientOp, p.GetID())
+	remotePool1, err := ctx.RemotePoolController.FindPool(ctx.ClientOpCtx, p.GetID())
 	require.NoError(t, err)
 	require.NotNil(t, remotePool1)
 	assert.Equal(t, "updated name", remotePool1.Name())
@@ -335,19 +335,19 @@ func TestUpdatePool(t *testing.T) {
 
 	// unknown pool
 	delete(fields, "name")
-	_, err = ctx.RemotePoolController.UpdatePool(ctx.ClientOp, "someid", fields)
+	_, err = ctx.RemotePoolController.UpdatePool(ctx.ClientOpCtx, "someid", fields)
 	require.Error(t, err)
 	test_utils.CheckGenericError(t, err, pool.ErrorCodePoolNotFound, "Pool not found")
 
 	// unknown field
 	fields = db.Fields{"unknown_field": "try me"}
-	_, err = ctx.RemotePoolController.UpdatePool(ctx.ClientOp, p.GetID(), fields)
+	_, err = ctx.RemotePoolController.UpdatePool(ctx.ClientOpCtx, p.GetID(), fields)
 	require.Error(t, err)
 	test_utils.CheckGenericError(t, err, generic_error.ErrorCodeFormat, "Invalid fields for update")
 
 	// duplicate name
 	fields = db.Fields{"name": "updated name"}
-	_, err = ctx.RemotePoolController.UpdatePool(ctx.ClientOp, p.GetID(), fields)
+	_, err = ctx.RemotePoolController.UpdatePool(ctx.ClientOpCtx, p.GetID(), fields)
 	require.Error(t, err)
 	test_utils.CheckGenericError(t, err, pool.ErrorCodePoolNameConflict, "Pool with such name already exists, choose another name")
 }
@@ -379,7 +379,7 @@ func TestUpdateService(t *testing.T) {
 	fields["parameter3_name"] = "new name of parameter 3"
 
 	// update and check service
-	updatedS, err := ctx.RemotePoolController.UpdateService(ctx.ClientOp, s.GetID(), fields)
+	updatedS, err := ctx.RemotePoolController.UpdateService(ctx.ClientOpCtx, s.GetID(), fields)
 	require.NoError(t, err)
 	assert.Equal(t, "updated name", updatedS.Name())
 	assert.Equal(t, "updated long_name", updatedS.LongName())
@@ -404,7 +404,7 @@ func TestUpdateService(t *testing.T) {
 	assert.False(t, updatedS.IsActive())
 
 	// find and check service
-	remoteService1, err := ctx.RemotePoolController.FindService(ctx.ClientOp, s.GetID())
+	remoteService1, err := ctx.RemotePoolController.FindService(ctx.ClientOpCtx, s.GetID())
 	require.NoError(t, err)
 	require.NotNil(t, remoteService1)
 	assert.Equal(t, "updated name", remoteService1.Name())
@@ -431,19 +431,19 @@ func TestUpdateService(t *testing.T) {
 
 	// unknown service
 	delete(fields, "name")
-	_, err = ctx.RemotePoolController.UpdateService(ctx.ClientOp, "someid", fields)
+	_, err = ctx.RemotePoolController.UpdateService(ctx.ClientOpCtx, "someid", fields)
 	require.Error(t, err)
 	test_utils.CheckGenericError(t, err, pool.ErrorCodeServiceNotFound, "Service not found")
 
 	// unknown field
 	fields = db.Fields{"unknown_field": "try me"}
-	_, err = ctx.RemotePoolController.UpdateService(ctx.ClientOp, s.GetID(), fields)
+	_, err = ctx.RemotePoolController.UpdateService(ctx.ClientOpCtx, s.GetID(), fields)
 	require.Error(t, err)
 	test_utils.CheckGenericError(t, err, generic_error.ErrorCodeFormat, "Invalid fields for update")
 
 	// duplicate name
 	fields = db.Fields{"name": "updated name"}
-	_, err = ctx.RemotePoolController.UpdateService(ctx.ClientOp, s.GetID(), fields)
+	_, err = ctx.RemotePoolController.UpdateService(ctx.ClientOpCtx, s.GetID(), fields)
 	require.Error(t, err)
 	test_utils.CheckGenericError(t, err, pool.ErrorCodeServiceNameConflict, "Service with such name already exists, choose another name")
 }

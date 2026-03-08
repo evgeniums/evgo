@@ -42,10 +42,10 @@ func (p *PubsubInmem) Publish(topicName string, obj interface{}) error {
 		return err
 	}
 
-	opCtx := p.NewOpContext(topicName)
-	defer opCtx.Close()
+	opCtx, sctx := p.NewOpContext(topicName)
+	defer opCtx.Close(sctx)
 
-	p.Handle(opCtx, topicName, msg)
+	p.Handle(sctx, topicName, msg)
 
 	return nil
 }

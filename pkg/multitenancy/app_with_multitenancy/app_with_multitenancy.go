@@ -1,6 +1,7 @@
 package app_with_multitenancy
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/evgeniums/evgo/pkg/app_context"
@@ -29,7 +30,7 @@ func (a *AppWithMultitenancyBase) Multitenancy() multitenancy.Multitenancy {
 	return a.tenancyManager
 }
 
-type TenancyManagerBuilder = func(app pool_pubsub.AppWithPubsub, ctx op_context.Context) (multitenancy.Multitenancy, error)
+type TenancyManagerBuilder = func(app pool_pubsub.AppWithPubsub, sctx context.Context) (multitenancy.Multitenancy, error)
 
 type MultitenancyConfigI interface {
 	GetTenancyManagerBuilder() TenancyManagerBuilder
@@ -76,11 +77,13 @@ func NewApp(buildConfig *app_context.BuildConfig, tenancyDbModels *multitenancy.
 		tenancyManager.SetController(tenancy_manager.DefaultTenancyController(tenancyManager))
 		tenancyManager.SetCustomerController(customer.LocalCustomerController())
 
-		a.tenancyManagerBuilder = func(app pool_pubsub.AppWithPubsub, opCtx op_context.Context) (multitenancy.Multitenancy, error) {
+		a.tenancyManagerBuilder = func(app pool_pubsub.AppWithPubsub, sctx context.Context) (multitenancy.Multitenancy, error) {
+
+			opCtx := op_context.OpContext[op_context.Context](sctx)
 			c := opCtx.TraceInMethod("AppWithMultitenancy.Init")
 			defer opCtx.TraceOutMethod()
 
-			err := tenancyManager.Init(opCtx, "multitenancy")
+			err := tenancyManager.Init(sctx, "multitenancy")
 			if err != nil {
 				msg := "failed to init multitenancy"
 				c.SetMessage(msg)
@@ -94,23 +97,23 @@ func NewApp(buildConfig *app_context.BuildConfig, tenancyDbModels *multitenancy.
 	return a
 }
 
-func (a *AppWithMultitenancyBase) InitWithArgs(configFile string, args []string, configType ...string) (op_context.Context, error) {
+func (a *AppWithMultitenancyBase) InitWithArgs(configFile string, args []string, configType ...string) (op_context.Context, context.Context, error) {
 
-	opCtx, err := a.AppWithPubsubBase.InitWithArgs(configFile, args, configType...)
+	opCtx, sctx, err := a.AppWithPubsubBase.InitWithArgs(configFile, args, configType...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	a.tenancyManager, err = a.tenancyManagerBuilder(a, opCtx)
+	a.tenancyManager, err = a.tenancyManagerBuilder(a, sctx)
 	if err != nil {
 		msg := "failed to build tenancy manager"
-		return nil, opCtx.Logger().PushFatalStack(msg, err)
+		return nil, nil, opCtx.Logger().PushFatalStack(msg, err)
 	}
 
-	return opCtx, nil
+	return opCtx, sctx, nil
 }
 
-func (a *AppWithMultitenancyBase) Init(configFile string, configType ...string) (op_context.Context, error) {
+func (a *AppWithMultitenancyBase) Init(configFile string, configType ...string) (op_context.Context, context.Context, error) {
 	return a.InitWithArgs(configFile, nil, configType...)
 }
 
@@ -121,8 +124,8 @@ func (a *AppWithMultitenancyBase) Close() {
 	a.AppWithPoolsBase.Close()
 }
 
-func BackgroundOpContext(app app_context.Context, tenancy multitenancy.Tenancy, name string) multitenancy.TenancyContext {
-	opCtx := multitenancy.NewInitContext(app, app.Logger(), app.Db())
+func BackgroundOpContext(app app_context.Context, tenancy multitenancy.Tenancy, name string) (multitenancy.TenancyContext, context.Context) {
+	opCtx, sctx := multitenancy.NewInitContext(app, app.Logger(), app.Db())
 	opCtx.SetName(name)
 	errManager := &generic_error.ErrorManagerBase{}
 	errManager.Init(http.StatusInternalServerError)
@@ -132,5 +135,5 @@ func BackgroundOpContext(app app_context.Context, tenancy multitenancy.Tenancy, 
 	origin.SetUserType(op_context.AutoUserType)
 	opCtx.SetOrigin(origin)
 	opCtx.SetTenancy(tenancy)
-	return opCtx
+	return opCtx, sctx
 }

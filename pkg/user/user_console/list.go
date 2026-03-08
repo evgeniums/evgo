@@ -33,18 +33,18 @@ func (a *ListHandler[T]) Data() interface{} {
 
 func (a *ListHandler[T]) Execute(args []string) error {
 
-	ctx, ctrl, err := a.Context(a.Data())
+	ctx, sctx, ctrl, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	filter, err := db.ParseQuery(ctx.Db(), a.Query, ctrl.MakeUser(), "")
 	if err != nil {
 		return fmt.Errorf("failed to parse query: %s", err)
 	}
 
-	users, count, err := ctrl.FindUsers(ctx, filter)
+	users, count, err := ctrl.FindUsers(sctx, filter)
 	if err != nil {
 		return err
 	}

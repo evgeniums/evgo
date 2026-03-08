@@ -1,6 +1,7 @@
 package user_client
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -16,21 +17,23 @@ type Find[U user.User] struct {
 	result *user_api.UserResponse[U]
 }
 
-func (a *Find[U]) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (a *Find[U]) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Find.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, nil, a.result)
+	err := client.Exec(sctx, operation, nil, a.result)
 	c.SetError(err)
 	return err
 }
 
-func (u *UserClient[U]) Find(ctx op_context.Context, id string) (U, error) {
+func (u *UserClient[U]) Find(sctx context.Context, id string) (U, error) {
 
 	var nilU U
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("UserClient.Find")
 	defer ctx.TraceOutMethod()
 
@@ -40,7 +43,7 @@ func (u *UserClient[U]) Find(ctx op_context.Context, id string) (U, error) {
 
 	// prepare and exec handler
 	op := api.NamedResourceOperation(u.UserResource, id, user_api.Find(u.userTypeName))
-	err := handler.Exec(u.Client(), ctx, op)
+	err := handler.Exec(u.Client(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nilU, c.SetError(err)
@@ -50,16 +53,17 @@ func (u *UserClient[U]) Find(ctx op_context.Context, id string) (U, error) {
 	return handler.result.User, nil
 }
 
-func (u *UserClient[U]) FindByLogin(ctx op_context.Context, login string) (U, error) {
+func (u *UserClient[U]) FindByLogin(sctx context.Context, login string) (U, error) {
 
 	var nilU U
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("UserClient.FindByLogin")
 	defer ctx.TraceOutMethod()
 
 	filter := db.NewFilter()
 	filter.AddField("login", login)
 
-	users, _, err := u.FindUsers(ctx, filter)
+	users, _, err := u.FindUsers(sctx, filter)
 	if err != nil {
 		return nilU, c.SetError(err)
 	}
@@ -71,8 +75,9 @@ func (u *UserClient[U]) FindByLogin(ctx op_context.Context, login string) (U, er
 	return users[0], nil
 }
 
-func (u *UserClient[U]) GetUserId(ctx op_context.Context, id string, idIsLogin ...bool) (string, error) {
+func (u *UserClient[U]) GetUserId(sctx context.Context, id string, idIsLogin ...bool) (string, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("UserClient.SetBlocked")
 	defer ctx.TraceOutMethod()
 
@@ -80,7 +85,7 @@ func (u *UserClient[U]) GetUserId(ctx op_context.Context, id string, idIsLogin .
 		return id, nil
 	}
 
-	user, err := u.FindByLogin(ctx, id)
+	user, err := u.FindByLogin(sctx, id)
 	if err != nil {
 		return "", c.SetError(err)
 	}

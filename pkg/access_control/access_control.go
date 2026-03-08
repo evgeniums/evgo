@@ -1,13 +1,15 @@
 package access_control
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 // Interface for access controllers.
 type AccessControl interface {
-	CheckAccess(ctx op_context.Context, resource Resource, subject Subject, accessType AccessType) bool
+	CheckAccess(sctx context.Context, resource Resource, subject Subject, accessType AccessType) bool
 	DefaultAccess() Access
 	SetDefaultAccess(Access)
 }
@@ -31,8 +33,9 @@ func (a *AccessControlBase) Init(acl Acl, resourceManager ResourceManager, defau
 	a.defaultAccess = utils.OptionalArg[Access](&AccessBase{}, defaultAccess...)
 }
 
-func (a *AccessControlBase) CheckAccess(ctx op_context.Context, resource Resource, subject Subject, accessType AccessType) (bool, error) {
+func (a *AccessControlBase) CheckAccess(sctx context.Context, resource Resource, subject Subject, accessType AccessType) (bool, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.TraceInMethod("AccessControl.CheckAccess")
 	defer ctx.TraceOutMethod()
 
@@ -54,7 +57,7 @@ func (a *AccessControlBase) CheckAccess(ctx op_context.Context, resource Resourc
 	paths := resource.Paths()
 	for i := len(paths) - 1; i >= 0; i-- {
 		path := paths[i]
-		resourceTags, err := a.resourceManager.ResourceTags(ctx, path)
+		resourceTags, err := a.resourceManager.ResourceTags(sctx, path)
 		if err != nil {
 			return false, err
 		}
@@ -72,7 +75,7 @@ func (a *AccessControlBase) CheckAccess(ctx op_context.Context, resource Resourc
 			for _, tag := range resourceTags {
 				// look for a rule for any subject's role
 				for _, role := range subject.Roles() {
-					rule, err := a.acl.FindRule(ctx, path, tag, role)
+					rule, err := a.acl.FindRule(sctx, path, tag, role)
 					if err != nil {
 						return false, err
 					}

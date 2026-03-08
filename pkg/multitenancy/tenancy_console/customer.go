@@ -25,12 +25,12 @@ func (a *CustomerHandler) Data() interface{} {
 
 func (a *CustomerHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := PrepareId(a.Id, a.Customer, a.Role)
-	return controller.SetCustomer(ctx, id, a.TargetCustomer, idIsDisplay)
+	return controller.SetCustomer(sctx, id, a.TargetCustomer, idIsDisplay)
 }

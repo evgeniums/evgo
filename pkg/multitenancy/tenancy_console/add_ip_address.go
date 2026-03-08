@@ -18,12 +18,12 @@ type AddIpAddressHandler struct {
 
 func (a *AddIpAddressHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := a.PrepareId()
-	return controller.AddIpAddress(ctx, id, a.Ip, a.Tag, idIsDisplay)
+	return controller.AddIpAddress(sctx, id, a.Ip, a.Tag, idIsDisplay)
 }

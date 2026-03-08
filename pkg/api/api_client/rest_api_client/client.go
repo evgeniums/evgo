@@ -1,6 +1,7 @@
 package rest_api_client
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/evgeniums/evgo/pkg/access_control"
@@ -14,11 +15,11 @@ import (
 )
 
 type Auth interface {
-	MakeHeaders(ctx op_context.Context, operation api.Operation, cmd interface{}) (map[string]string, error)
+	MakeHeaders(sctx context.Context, operation api.Operation, cmd interface{}) (map[string]string, error)
 	HandleResponse(resp Response)
 }
 
-type RestApiMethod func(ctx op_context.Context, path string, cmd interface{}, response interface{}, headers ...map[string]string) (Response, error)
+type RestApiMethod func(sctx context.Context, path string, cmd interface{}, response interface{}, headers ...map[string]string) (Response, error)
 
 type Client struct {
 	RestApiClient      RestApiClient
@@ -57,11 +58,10 @@ func (cl *Client) SetPropagateContextId(val bool) {
 	cl.propagateContextId = true
 }
 
-func (cl *Client) Exec(ctx op_context.Context, operation api.Operation, cmd interface{}, response interface{}, tenancyArg ...multitenancy.TenancyPath) error {
-
-	// TODO support hateoas links of resource
+func (cl *Client) Exec(sctx context.Context, operation api.Operation, cmd interface{}, response interface{}, tenancyArg ...multitenancy.TenancyPath) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Client.Exec")
 	defer ctx.TraceOutMethod()
 
@@ -118,7 +118,7 @@ func (cl *Client) Exec(ctx op_context.Context, operation api.Operation, cmd inte
 
 		exec := func() {
 			// make auth headers
-			headers, err1 := cl.auth.MakeHeaders(ctx, operation, cmd)
+			headers, err1 := cl.auth.MakeHeaders(sctx, operation, cmd)
 			if err1 != nil {
 				c.SetMessage("failed to make auth headers")
 				errr = err1
@@ -127,7 +127,7 @@ func (cl *Client) Exec(ctx op_context.Context, operation api.Operation, cmd inte
 				utils.AppendMap(headers, forwardHeaders)
 			}
 			// invoke method with auth headers
-			resp, err = method(ctx, path, cmd, response, headers)
+			resp, err = method(sctx, path, cmd, response, headers)
 			cl.auth.HandleResponse(resp)
 		}
 		exec()
@@ -145,10 +145,10 @@ func (cl *Client) Exec(ctx op_context.Context, operation api.Operation, cmd inte
 
 	} else if forwardHeaders != nil {
 		// invoke method with context auth user
-		resp, err = method(ctx, path, cmd, response, forwardHeaders)
+		resp, err = method(sctx, path, cmd, response, forwardHeaders)
 	} else {
 		// invoke method without auth headers
-		resp, err = method(ctx, path, cmd, response)
+		resp, err = method(sctx, path, cmd, response)
 	}
 
 	// process generic error

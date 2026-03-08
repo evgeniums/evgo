@@ -1,7 +1,10 @@
 package user_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/user"
 	"github.com/evgeniums/evgo/pkg/user/user_api"
 )
@@ -12,21 +15,22 @@ type AddEndpoint[U user.User] struct {
 	setterBuilder func() user.UserFieldsSetter[U]
 }
 
-func (e *AddEndpoint[U]) HandleRequest(request api_server.Request) error {
+func (e *AddEndpoint[U]) HandleRequest(sctx context.Context) error {
 
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.Add")
 	defer request.TraceOutMethod()
 
 	// TODO implement special case to fill object from request
 	cmd := e.setterBuilder()
-	err := request.ParseAndValidate(cmd)
+	err := request.ParseAndValidate(sctx, cmd)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err
 	}
 
 	resp := &user_api.UserResponse[U]{}
-	resp.User, err = Users(e.service, request).Add(request, cmd.Login(), cmd.Password(), cmd.SetUserFields)
+	resp.User, err = Users(e.service, request).Add(sctx, cmd.Login(), cmd.Password(), cmd.SetUserFields)
 	if err != nil {
 		return c.SetError(err)
 	}

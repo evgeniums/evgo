@@ -1,6 +1,8 @@
 package confirmation_control_server
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/api/noauth_server"
 	"github.com/evgeniums/evgo/pkg/api/pool_microservice/pool_misrocervice_client"
@@ -55,9 +57,10 @@ func (s *ExternalServer) Config() interface{} {
 	return &s.ExternalServerConfig
 }
 
-func (s *ExternalServer) Init(app app_with_multitenancy.AppWithMultitenancy, ctx op_context.Context, configPath ...string) error {
+func (s *ExternalServer) Init(app app_with_multitenancy.AppWithMultitenancy, sctx context.Context, configPath ...string) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("ExternalServer.Init")
 	var err error
 	onExit := func() {
@@ -90,7 +93,7 @@ func (s *ExternalServer) Init(app app_with_multitenancy.AppWithMultitenancy, ctx
 				c.SetMessage("self pool must be specified")
 				return err
 			}
-			err = smsManager.InitDbService(ctx, selfPool, s.SMS_DB_SERVICE_ROLE)
+			err = smsManager.InitDbService(sctx, selfPool, s.SMS_DB_SERVICE_ROLE)
 			if err != nil {
 				c.SetMessage("failed to init database service for SMS manager")
 				return err

@@ -1,7 +1,10 @@
 package api_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/auth"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/op_context"
 )
@@ -37,7 +40,7 @@ func (e *EmbeddedClientHandlers) InitFromConfig(configPath ...string) error {
 	return nil
 }
 
-func (e *EmbeddedClientHandlers) InitDirect(ctx op_context.Context, login string, password string, tokenCacheKey string) error {
+func (e *EmbeddedClientHandlers) InitDirect(sctx context.Context, login string, password string, tokenCacheKey string) error {
 
 	e.LOGIN = login
 	e.PASSWORD = password
@@ -60,14 +63,15 @@ func (e *EmbeddedClientHandlers) GetRefreshToken() string {
 	return ""
 }
 
-func (e *EmbeddedClientHandlers) SaveRefreshToken(ctx op_context.Context, token string) {
+func (e *EmbeddedClientHandlers) SaveRefreshToken(sctx context.Context, token string) {
 	tokenKeeper := &TokenKeeper{Token: token}
 	err := e.App().Cache().Set(e.TOKEN_CACHE_KEY, tokenKeeper)
 	if err != nil {
+		ctx := op_context.OpContext[auth.AuthContext](sctx)
 		ctx.Logger().Error("failed to save client refresh token in cache", err)
 	}
 }
 
-func (e *EmbeddedClientHandlers) GetCredentials(ctx op_context.Context) (login string, password string, err error) {
+func (e *EmbeddedClientHandlers) GetCredentials(sctx context.Context) (login string, password string, err error) {
 	return e.LOGIN, e.PASSWORD, nil
 }

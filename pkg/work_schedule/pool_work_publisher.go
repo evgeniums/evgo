@@ -1,6 +1,8 @@
 package work_schedule
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/multitenancy"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pubsub/pool_pubsub"
@@ -41,8 +43,9 @@ func NewPoolWorkPublisher[T Work](pubsub pool_pubsub.PoolPubsub, topicName strin
 	return p
 }
 
-func (p *PoolWorkPublisher[T]) InvokeWork(ctx op_context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error {
+func (p *PoolWorkPublisher[T]) InvokeWork(sctx context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolWorkPublisher.InvokeWork")
 	defer ctx.TraceOutMethod()
 

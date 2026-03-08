@@ -1,6 +1,7 @@
 package customer
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/evgeniums/evgo/pkg/db"
@@ -22,8 +23,8 @@ var ErrorHttpCodes = map[string]int{
 }
 
 type NameAndDescriptionSetter interface {
-	SetName(ctx op_context.Context, id string, name string, idIsLogin ...bool) error
-	SetDescription(ctx op_context.Context, id string, description string, idIsLogin ...bool) error
+	SetName(sctx context.Context, id string, name string, idIsLogin ...bool) error
+	SetDescription(sctx context.Context, id string, description string, idIsLogin ...bool) error
 }
 
 type UserNameAndDescriptionController[T user.User] interface {
@@ -35,9 +36,10 @@ type UserNameAndDescriptionControllerB[T user.User] struct {
 	*user.UserControllerBase[T]
 }
 
-func (cu *UserNameAndDescriptionControllerB[T]) SetName(ctx op_context.Context, id string, name string, idIsLogin ...bool) error {
+func (cu *UserNameAndDescriptionControllerB[T]) SetName(sctx context.Context, id string, name string, idIsLogin ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.SetLoggerField("name", name)
 	c := ctx.TraceInMethod("Users.SetName")
 	var err error
@@ -50,24 +52,25 @@ func (cu *UserNameAndDescriptionControllerB[T]) SetName(ctx op_context.Context, 
 	defer onExit()
 
 	// find user
-	user, err := user.FindUser[T](cu.UserControllerBase, ctx, id, idIsLogin...)
+	user, err := user.FindUser(cu.UserControllerBase, sctx, id, idIsLogin...)
 	if err != nil {
 		return err
 	}
 
 	// set name
-	err = cu.CRUD().Update(ctx, user, db.Fields{"name": name})
+	err = cu.CRUD().Update(sctx, user, db.Fields{"name": name})
 	if err != nil {
 		return err
 	}
 
 	// done
-	cu.OpLog(ctx, "set_name", user.GetID(), user.Login())
+	cu.OpLog(sctx, "set_name", user.GetID(), user.Login())
 	return nil
 }
 
-func (cu *UserNameAndDescriptionControllerB[T]) SetDescription(ctx op_context.Context, id string, description string, idIsLogin ...bool) error {
+func (cu *UserNameAndDescriptionControllerB[T]) SetDescription(sctx context.Context, id string, description string, idIsLogin ...bool) error {
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Users.SetDescription")
 	var err error
 	onExit := func() {
@@ -79,19 +82,19 @@ func (cu *UserNameAndDescriptionControllerB[T]) SetDescription(ctx op_context.Co
 	defer onExit()
 
 	// find user
-	user, err := user.FindUser[T](cu.UserControllerBase, ctx, id, idIsLogin...)
+	user, err := user.FindUser(cu.UserControllerBase, sctx, id, idIsLogin...)
 	if err != nil {
 		return err
 	}
 
 	// set description
-	err = cu.CRUD().Update(ctx, user, db.Fields{"description": description})
+	err = cu.CRUD().Update(sctx, user, db.Fields{"description": description})
 	if err != nil {
 		return err
 	}
 
 	// done
-	cu.OpLog(ctx, "set_description", user.GetID(), user.Login())
+	cu.OpLog(sctx, "set_description", user.GetID(), user.Login())
 	return nil
 }
 

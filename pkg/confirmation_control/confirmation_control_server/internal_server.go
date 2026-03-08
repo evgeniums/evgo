@@ -1,6 +1,7 @@
 package confirmation_control_server
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/api/api_server"
@@ -34,9 +35,10 @@ func (s *InternalServer) Config() interface{} {
 	return &s.InternalServerConfig
 }
 
-func (s *InternalServer) Init(app app_with_multitenancy.AppWithMultitenancy, ctx op_context.Context, basePublicUrl string, configPath ...string) error {
+func (s *InternalServer) Init(app app_with_multitenancy.AppWithMultitenancy, sctx context.Context, basePublicUrl string, configPath ...string) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("InternalServer.Init")
 	var err error
 	onExit := func() {

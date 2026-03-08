@@ -30,12 +30,12 @@ func (a *ShowServiceHandler) Data() interface{} {
 
 func (a *ShowServiceHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
-	service, err := controller.FindService(ctx, a.Service, true)
+	defer ctx.Close(sctx)
+	service, err := controller.FindService(sctx, a.Service, true)
 	if err == nil {
 		if service != nil {
 			fmt.Printf("Service:\n\n%s\n\n", utils.DumpPrettyJson(service))

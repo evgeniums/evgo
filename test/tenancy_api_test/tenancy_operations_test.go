@@ -17,6 +17,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_api/tenancy_client"
 	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_api/tenancy_service"
 	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_manager"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pool"
 	"github.com/evgeniums/evgo/pkg/pool/pool_api/pool_client"
 	"github.com/evgeniums/evgo/pkg/pool/pool_api/pool_service"
@@ -89,9 +90,9 @@ func initContext(t *testing.T, newDb bool, configPrefix ...string) *TenancyTestC
 	initApp := func(t *testing.T, app app_context.Context, configFile string, args []string, configType ...string) error {
 		a, ok := app.(*app_with_multitenancy.AppWithMultitenancyBase)
 		require.True(t, ok)
-		opCtx, err := a.InitWithArgs(configFile, args, configType...)
+		opCtx, sctx, err := a.InitWithArgs(configFile, args, configType...)
 		if opCtx != nil {
-			opCtx.Close()
+			opCtx.Close(sctx)
 		}
 		return err
 	}
@@ -175,8 +176,8 @@ func preparePoolServices(t *testing.T, ctx *TenancyTestContext, config *TenancyP
 
 	services := prepareServices(t, ctx, &config.DbService, &config.PubsubService)
 
-	require.NoError(t, ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, p.GetID(), services[0].GetID(), multitenancy.TENANCY_DATABASE_ROLE))
-	require.NoError(t, ctx.RemotePoolController.AddServiceToPool(ctx.ClientOp, p.GetID(), services[1].GetID(), pool.TypePubsub))
+	require.NoError(t, ctx.RemotePoolController.AddServiceToPool(op_context.MakeOpContext(ctx.ClientOp), p.GetID(), services[0].GetID(), multitenancy.TENANCY_DATABASE_ROLE))
+	require.NoError(t, ctx.RemotePoolController.AddServiceToPool(op_context.MakeOpContext(ctx.ClientOp), p.GetID(), services[1].GetID(), pool.TypePubsub))
 
 	return p
 }
@@ -207,9 +208,9 @@ func preparePoolAndServices(t *testing.T, activatePools bool) (p1 pool.Pool, poo
 	p2 = preparePoolServices(t, prepareCtx, poolConfig2)
 
 	if activatePools {
-		_, err = pool.ActivatePool(prepareCtx.RemotePoolController, prepareCtx.ClientOp, p1.GetID())
+		_, err = pool.ActivatePool(prepareCtx.RemotePoolController, op_context.MakeOpContext(prepareCtx.ClientOp), p1.GetID())
 		require.NoError(t, err)
-		_, err = pool.ActivatePool(prepareCtx.RemotePoolController, prepareCtx.ClientOp, p2.GetID())
+		_, err = pool.ActivatePool(prepareCtx.RemotePoolController, op_context.MakeOpContext(prepareCtx.ClientOp), p2.GetID())
 		require.NoError(t, err)
 	}
 
@@ -225,10 +226,10 @@ func PrepareAppWithTenancies(t *testing.T, multiPoolConfig ...string) (multiPool
 	multiPoolCtx = initContext(t, false, multiPoolConfig...)
 	singlePoolCtx = initContext(t, false, "tenancy_single")
 
-	customer1, err := multiPoolCtx.LocalCustomerManager.Add(multiPoolCtx.AdminOp, "customer1", "12345678")
+	customer1, err := multiPoolCtx.LocalCustomerManager.Add(op_context.MakeOpContext(multiPoolCtx.AdminOp), "customer1", "12345678")
 	require.NoError(t, err)
 	require.NotNil(t, customer1)
-	customer2, err := multiPoolCtx.LocalCustomerManager.Add(multiPoolCtx.AdminOp, "customer2", "12345678")
+	customer2, err := multiPoolCtx.LocalCustomerManager.Add(op_context.MakeOpContext(multiPoolCtx.AdminOp), "customer2", "12345678")
 	require.NoError(t, err)
 	require.NotNil(t, customer2)
 
@@ -313,7 +314,7 @@ func AddTenancies(t *testing.T, ctx *TenancyTestContext) (*multitenancy.TenancyI
 	tenancyData1.ROLE = "dev"
 	tenancyData1.DESCRIPTION = "tenancy for development"
 	tenancyData1.CUSTOMER_ID = "customer1"
-	addedTenancy1, err := ctx.RemoteTenancyController.Add(ctx.ClientOp, tenancyData1)
+	addedTenancy1, err := ctx.RemoteTenancyController.Add(op_context.MakeOpContext(ctx.ClientOp), tenancyData1)
 	require.NoError(t, err)
 	require.NotNil(t, addedTenancy1)
 
@@ -322,7 +323,7 @@ func AddTenancies(t *testing.T, ctx *TenancyTestContext) (*multitenancy.TenancyI
 	tenancyData2.ROLE = "stage"
 	tenancyData2.DESCRIPTION = "tenancy for stage"
 	tenancyData2.CUSTOMER_ID = "customer1"
-	addedTenancy2, err := ctx.RemoteTenancyController.Add(ctx.ClientOp, tenancyData2)
+	addedTenancy2, err := ctx.RemoteTenancyController.Add(op_context.MakeOpContext(ctx.ClientOp), tenancyData2)
 	require.NoError(t, err)
 	require.NotNil(t, addedTenancy2)
 
@@ -346,7 +347,7 @@ func TestAddTenancy(t *testing.T) {
 	tenancyData1.ROLE = "dev"
 	tenancyData1.DESCRIPTION = "tenancy for development"
 	tenancyData1.CUSTOMER_ID = "customer1"
-	addedTenancy1, err := multiPoolCtx.RemoteTenancyController.Add(multiPoolCtx.ClientOp, tenancyData1)
+	addedTenancy1, err := multiPoolCtx.RemoteTenancyController.Add(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancyData1)
 	require.NoError(t, err)
 	require.NotNil(t, addedTenancy1)
 	b1, _ := json.MarshalIndent(addedTenancy1, "", "  ")
@@ -364,10 +365,10 @@ func TestAddTenancy(t *testing.T) {
 
 	// check if database tables were created
 	sample1 := &InTenancySample{Field1: "hello world", Field2: 10}
-	err = loadedTenancy1.Db().Create(multiPoolCtx.AdminOp, sample1)
+	err = loadedTenancy1.Db().Create(op_context.MakeOpContext(multiPoolCtx.AdminOp), sample1)
 	require.NoError(t, err)
 	readSample1 := &InTenancySample{}
-	found, err := loadedTenancy1.Db().FindByField(multiPoolCtx.AdminOp, "field2", 10, readSample1)
+	found, err := loadedTenancy1.Db().FindByField(op_context.MakeOpContext(multiPoolCtx.AdminOp), "field2", 10, readSample1)
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, sample1, readSample1)
@@ -378,7 +379,7 @@ func TestAddTenancy(t *testing.T) {
 	tenancyData2.ROLE = "stage"
 	tenancyData2.DESCRIPTION = "tenancy for stage"
 	tenancyData2.CUSTOMER_ID = "customer1"
-	addedTenancy2, err := multiPoolCtx.RemoteTenancyController.Add(multiPoolCtx.ClientOp, tenancyData2)
+	addedTenancy2, err := multiPoolCtx.RemoteTenancyController.Add(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancyData2)
 	require.NoError(t, err)
 	require.NotNil(t, addedTenancy2)
 	b1, _ = json.MarshalIndent(addedTenancy2, "", "  ")
@@ -452,7 +453,7 @@ func TestListTenancies(t *testing.T) {
 	// list tenancies
 	filter := db.NewFilter()
 	filter.SetSorting("pool_name", db.SORT_DESC)
-	tenancies, _, err := multiPoolCtx.RemoteTenancyController.List(multiPoolCtx.ClientOp, filter)
+	tenancies, _, err := multiPoolCtx.RemoteTenancyController.List(op_context.MakeOpContext(multiPoolCtx.ClientOp), filter)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(tenancies))
 	b, _ := json.MarshalIndent(tenancies, "", "  ")
@@ -485,22 +486,22 @@ func TestTenancySetters(t *testing.T) {
 
 	// change path
 	newPath := "tenancy1path"
-	err = multiPoolCtx.RemoteTenancyController.SetPath(multiPoolCtx.ClientOp, tenancy1.GetID(), newPath)
+	err = multiPoolCtx.RemoteTenancyController.SetPath(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), newPath)
 	require.NoError(t, err)
 	singleAppTenancy, err = singlePoolCtx.AppWithTenancy.Multitenancy().Tenancy(tenancy1.GetID())
 	require.NoError(t, err)
 	require.NotNil(t, singleAppTenancy)
 	assert.Equal(t, newPath, singleAppTenancy.Path())
 	// try duplicate path
-	err = multiPoolCtx.RemoteTenancyController.SetPath(multiPoolCtx.ClientOp, tenancy1.GetID(), newPath)
+	err = multiPoolCtx.RemoteTenancyController.SetPath(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), newPath)
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeTenancyConflictPath)
 	// try duplicate shadow path
-	err = multiPoolCtx.RemoteTenancyController.SetShadowPath(multiPoolCtx.ClientOp, tenancy1.GetID(), newPath)
+	err = multiPoolCtx.RemoteTenancyController.SetShadowPath(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), newPath)
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeTenancyConflictPath)
 
 	// change shadow path
 	shadowPath := "tenancy1shadowpath"
-	err = multiPoolCtx.RemoteTenancyController.SetShadowPath(multiPoolCtx.ClientOp, tenancy1.GetID(), shadowPath)
+	err = multiPoolCtx.RemoteTenancyController.SetShadowPath(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), shadowPath)
 	require.NoError(t, err)
 	singleAppTenancy, err = singlePoolCtx.AppWithTenancy.Multitenancy().Tenancy(tenancy1.GetID())
 	require.NoError(t, err)
@@ -508,38 +509,38 @@ func TestTenancySetters(t *testing.T) {
 	assert.Equal(t, newPath, singleAppTenancy.Path())
 	assert.Equal(t, shadowPath, singleAppTenancy.ShadowPath())
 	// try duplicate path
-	err = multiPoolCtx.RemoteTenancyController.SetPath(multiPoolCtx.ClientOp, tenancy1.GetID(), shadowPath)
+	err = multiPoolCtx.RemoteTenancyController.SetPath(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), shadowPath)
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeTenancyConflictPath)
 	// try duplicate shadow path
-	err = multiPoolCtx.RemoteTenancyController.SetShadowPath(multiPoolCtx.ClientOp, tenancy1.GetID(), shadowPath)
+	err = multiPoolCtx.RemoteTenancyController.SetShadowPath(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), shadowPath)
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeTenancyConflictPath)
 
 	// change role
 	newRole := "prod"
-	err = multiPoolCtx.RemoteTenancyController.SetRole(multiPoolCtx.ClientOp, tenancy1.GetID(), newRole)
+	err = multiPoolCtx.RemoteTenancyController.SetRole(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), newRole)
 	require.NoError(t, err)
 	singleAppTenancy, err = singlePoolCtx.AppWithTenancy.Multitenancy().Tenancy(tenancy1.GetID())
 	require.NoError(t, err)
 	require.NotNil(t, singleAppTenancy)
 	assert.Equal(t, newRole, singleAppTenancy.Role())
 	// try duplicate role
-	err = multiPoolCtx.RemoteTenancyController.SetRole(multiPoolCtx.ClientOp, tenancy1.GetID(), newRole)
+	err = multiPoolCtx.RemoteTenancyController.SetRole(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), newRole)
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeTenancyConflictRole)
 
 	// change customer
 	newCustomer := "customer2"
-	err = multiPoolCtx.RemoteTenancyController.SetCustomer(multiPoolCtx.ClientOp, tenancy1.GetID(), newCustomer)
+	err = multiPoolCtx.RemoteTenancyController.SetCustomer(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), newCustomer)
 	require.NoError(t, err)
 	singleAppTenancy, err = singlePoolCtx.AppWithTenancy.Multitenancy().Tenancy(tenancy1.GetID())
 	require.NoError(t, err)
 	require.NotNil(t, singleAppTenancy)
 	assert.Equal(t, newCustomer, singleAppTenancy.CustomerDisplay())
 	// try customer with duplicate role/path
-	err = multiPoolCtx.RemoteTenancyController.SetCustomer(multiPoolCtx.ClientOp, tenancy1.GetID(), newCustomer)
+	err = multiPoolCtx.RemoteTenancyController.SetCustomer(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), newCustomer)
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeTenancyConflictRole)
 
 	// deactivate tenancy
-	err = multiPoolCtx.RemoteTenancyController.SetActive(multiPoolCtx.ClientOp, tenancy1.GetID(), false)
+	err = multiPoolCtx.RemoteTenancyController.SetActive(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), false)
 	require.NoError(t, err)
 	singleAppTenancy, err = singlePoolCtx.AppWithTenancy.Multitenancy().Tenancy(tenancy1.GetID())
 	require.NoError(t, err)
@@ -547,7 +548,7 @@ func TestTenancySetters(t *testing.T) {
 	assert.False(t, singleAppTenancy.IsActive())
 
 	// activate tenancy
-	err = multiPoolCtx.RemoteTenancyController.SetActive(multiPoolCtx.ClientOp, tenancy1.GetID(), true)
+	err = multiPoolCtx.RemoteTenancyController.SetActive(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), true)
 	require.NoError(t, err)
 	singleAppTenancy, err = singlePoolCtx.AppWithTenancy.Multitenancy().Tenancy(tenancy1.GetID())
 	require.NoError(t, err)
@@ -556,7 +557,7 @@ func TestTenancySetters(t *testing.T) {
 
 	// change pool or db
 	newDb := tenancy1.DbName()
-	err = multiPoolCtx.RemoteTenancyController.ChangePoolOrDb(multiPoolCtx.ClientOp, tenancy1.GetID(), tenancy2.PoolId(), newDb)
+	err = multiPoolCtx.RemoteTenancyController.ChangePoolOrDb(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), tenancy2.PoolId(), newDb)
 	require.NoError(t, err)
 	singleAppTenancy, err = singlePoolCtx.AppWithTenancy.Multitenancy().Tenancy(tenancy1.GetID())
 	require.Error(t, err)
@@ -567,7 +568,7 @@ func TestTenancySetters(t *testing.T) {
 	assert.Equal(t, tenancy2.PoolId(), multiAppTenancy.PoolId())
 	// try set db of foreign tenancy
 	newDb = tenancy2.DbName()
-	err = multiPoolCtx.RemoteTenancyController.ChangePoolOrDb(multiPoolCtx.ClientOp, tenancy1.GetID(), "pool2", newDb)
+	err = multiPoolCtx.RemoteTenancyController.ChangePoolOrDb(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), "pool2", newDb)
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeForeignDatabase)
 	assert.Equal(t, tenancy2.PoolId(), multiAppTenancy.PoolId())
 
@@ -598,32 +599,32 @@ func TestFindDelete(t *testing.T) {
 	assert.Equal(t, tenancy2.DbName(), multiAppTenancy2.DbName())
 
 	// find tenancy
-	tenancy, err := multiPoolCtx.RemoteTenancyController.Find(multiPoolCtx.ClientOp, tenancy1.GetID())
+	tenancy, err := multiPoolCtx.RemoteTenancyController.Find(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID())
 	require.NoError(t, err)
 	require.NotNil(t, tenancy)
 	assert.Equal(t, tenancy1, tenancy)
 
 	// try to find tenancy with unknown ID
-	_, err = multiPoolCtx.RemoteTenancyController.Find(multiPoolCtx.ClientOp, "unknown_id")
+	_, err = multiPoolCtx.RemoteTenancyController.Find(op_context.MakeOpContext(multiPoolCtx.ClientOp), "unknown_id")
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeTenancyNotFound)
 
 	// find tenancy by customer/role
 	// dev role
 	id := "customer1/dev"
-	tenancy, err = multiPoolCtx.RemoteTenancyController.Find(multiPoolCtx.ClientOp, id, true)
+	tenancy, err = multiPoolCtx.RemoteTenancyController.Find(op_context.MakeOpContext(multiPoolCtx.ClientOp), id, true)
 	require.NoError(t, err)
 	require.NotNil(t, tenancy)
 	assert.Equal(t, tenancy1, tenancy)
 	// stage role
 	id = "customer1/stage"
-	tenancy, err = multiPoolCtx.RemoteTenancyController.Find(multiPoolCtx.ClientOp, id, true)
+	tenancy, err = multiPoolCtx.RemoteTenancyController.Find(op_context.MakeOpContext(multiPoolCtx.ClientOp), id, true)
 	require.NoError(t, err)
 	require.NotNil(t, tenancy)
 	assert.Equal(t, tenancy2, tenancy)
 
 	// try to find tenancy with unknown role
 	id = "customer1/prod"
-	_, err = multiPoolCtx.RemoteTenancyController.Find(multiPoolCtx.ClientOp, id, true)
+	_, err = multiPoolCtx.RemoteTenancyController.Find(op_context.MakeOpContext(multiPoolCtx.ClientOp), id, true)
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeTenancyNotFound)
 
 	// check if tenancy exists
@@ -631,17 +632,17 @@ func TestFindDelete(t *testing.T) {
 	fields := db.Fields{}
 	fields["customer_id"] = tenancy.CustomerId()
 	fields["role"] = "dev"
-	exists, err := multiPoolCtx.RemoteTenancyController.Exists(multiPoolCtx.ClientOp, fields)
+	exists, err := multiPoolCtx.RemoteTenancyController.Exists(op_context.MakeOpContext(multiPoolCtx.ClientOp), fields)
 	require.NoError(t, err)
 	assert.True(t, exists)
 	fields["role"] = "prod"
-	exists, err = multiPoolCtx.RemoteTenancyController.Exists(multiPoolCtx.ClientOp, fields)
+	exists, err = multiPoolCtx.RemoteTenancyController.Exists(op_context.MakeOpContext(multiPoolCtx.ClientOp), fields)
 	require.NoError(t, err)
 	assert.False(t, exists)
 
 	// delete tenancy
 	id = "customer1/dev"
-	err = multiPoolCtx.RemoteTenancyController.Delete(multiPoolCtx.ClientOp, id, false, true)
+	err = multiPoolCtx.RemoteTenancyController.Delete(op_context.MakeOpContext(multiPoolCtx.ClientOp), id, false, true)
 	require.NoError(t, err)
 
 	// check if tenancy was deleted from applications
@@ -657,7 +658,7 @@ func TestFindDelete(t *testing.T) {
 	assert.Equal(t, tenancy2.DbName(), multiAppTenancy2.DbName())
 
 	// try to find deleted tenancy
-	_, err = multiPoolCtx.RemoteTenancyController.Find(multiPoolCtx.ClientOp, id, true)
+	_, err = multiPoolCtx.RemoteTenancyController.Find(op_context.MakeOpContext(multiPoolCtx.ClientOp), id, true)
 	test_utils.CheckGenericError(t, err, multitenancy.ErrorCodeTenancyNotFound)
 
 	// close apps
@@ -677,13 +678,13 @@ func TestIpAddresses(t *testing.T) {
 	// add IP address to tenancy 1
 	ip1 := "192.168.0.1"
 	tag1 := "test"
-	err := multiPoolCtx.RemoteTenancyController.AddIpAddress(multiPoolCtx.ClientOp, tenancy1.GetID(), ip1, tag1)
+	err := multiPoolCtx.RemoteTenancyController.AddIpAddress(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy1.GetID(), ip1, tag1)
 	require.NoError(t, err)
 
 	// list adresses
-	addresses, count, err := multiPoolCtx.RemoteTenancyController.ListIpAddresses(multiPoolCtx.ClientOp, nil)
+	addresses, count, err := multiPoolCtx.RemoteTenancyController.ListIpAddresses(op_context.MakeOpContext(multiPoolCtx.ClientOp), nil)
 	test_utils.DumpObject(t, addresses, "Addresses 1")
-	test_utils.NoError(t, multiPoolCtx.ClientOp, err)
+	test_utils.NoError(t, op_context.MakeOpContext(multiPoolCtx.ClientOp), err)
 	require.Equal(t, int64(1), count)
 	assert.Equal(t, tenancy1.GetID(), addresses[0].TenancyId)
 	assert.Equal(t, tenancy1.CustomerLogin, addresses[0].CustomerLogin)
@@ -694,13 +695,13 @@ func TestIpAddresses(t *testing.T) {
 	// add IP address to tenancy 2
 	ip2 := "192.168.0.2"
 	tag2 := "test2"
-	err = multiPoolCtx.RemoteTenancyController.AddIpAddress(multiPoolCtx.ClientOp, tenancy2.GetID(), ip2, tag2)
+	err = multiPoolCtx.RemoteTenancyController.AddIpAddress(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy2.GetID(), ip2, tag2)
 	require.NoError(t, err)
 
 	// list adresses
-	addresses, count, err = multiPoolCtx.RemoteTenancyController.ListIpAddresses(multiPoolCtx.ClientOp, nil)
+	addresses, count, err = multiPoolCtx.RemoteTenancyController.ListIpAddresses(op_context.MakeOpContext(multiPoolCtx.ClientOp), nil)
 	test_utils.DumpObject(t, addresses, "Addresses 2")
-	test_utils.NoError(t, multiPoolCtx.ClientOp, err)
+	test_utils.NoError(t, op_context.MakeOpContext(multiPoolCtx.ClientOp), err)
 	require.Equal(t, int64(2), count)
 	assert.Equal(t, tenancy1.GetID(), addresses[0].TenancyId)
 	assert.Equal(t, tenancy1.CustomerLogin, addresses[0].CustomerLogin)
@@ -714,12 +715,12 @@ func TestIpAddresses(t *testing.T) {
 	assert.Equal(t, tag2, addresses[1].Tag)
 
 	// delete IP address from tenancy 2
-	err = multiPoolCtx.RemoteTenancyController.DeleteIpAddress(multiPoolCtx.ClientOp, tenancy2.GetID(), ip2, tag2)
+	err = multiPoolCtx.RemoteTenancyController.DeleteIpAddress(op_context.MakeOpContext(multiPoolCtx.ClientOp), tenancy2.GetID(), ip2, tag2)
 	require.NoError(t, err)
 	// list adresses
-	addresses, count, err = multiPoolCtx.RemoteTenancyController.ListIpAddresses(multiPoolCtx.ClientOp, nil)
+	addresses, count, err = multiPoolCtx.RemoteTenancyController.ListIpAddresses(op_context.MakeOpContext(multiPoolCtx.ClientOp), nil)
 	test_utils.DumpObject(t, addresses, "Addresses 3")
-	test_utils.NoError(t, multiPoolCtx.ClientOp, err)
+	test_utils.NoError(t, op_context.MakeOpContext(multiPoolCtx.ClientOp), err)
 	require.Equal(t, int64(1), count)
 	assert.Equal(t, tenancy1.GetID(), addresses[0].TenancyId)
 	assert.Equal(t, tenancy1.CustomerLogin, addresses[0].CustomerLogin)

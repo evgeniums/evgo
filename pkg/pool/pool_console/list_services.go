@@ -21,12 +21,12 @@ type ListServicesHandler struct {
 
 func (a *ListServicesHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
-	services, _, err := controller.GetServices(ctx, nil)
+	defer ctx.Close(sctx)
+	services, _, err := controller.GetServices(sctx, nil)
 	if err == nil {
 		fmt.Printf("Services:\n\n%s\n\n", utils.DumpPrettyJson(services))
 	}

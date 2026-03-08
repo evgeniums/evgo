@@ -1,6 +1,8 @@
 package oplog
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/common"
 	"github.com/evgeniums/evgo/pkg/db"
 )
@@ -117,6 +119,6 @@ func (o *OplogBase) SetUserType(val string) {
 }
 
 type OplogController interface {
-	Write(o Oplog) error
-	Read(filter *db.Filter, docs interface{}) (int64, error)
+	Write(sctx context.Context, o Oplog) error
+	Read(sctx context.Context, filter *db.Filter, docs interface{}) (int64, error)
 }

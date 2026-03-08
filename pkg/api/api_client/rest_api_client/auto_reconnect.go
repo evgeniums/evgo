@@ -1,6 +1,7 @@
 package rest_api_client
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"sync"
@@ -38,16 +39,18 @@ func (a *autoReconnect) init() {
 	}
 }
 
-func (a *autoReconnect) resend(ctx op_context.Context, send func(opCtx op_context.Context) (Response, error), tries int) (Response, error) {
+func (a *autoReconnect) resend(sctx context.Context, send func(opSctx context.Context) (Response, error), tries int) (Response, error) {
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.ClearError()
-	resp, err := send(ctx)
-	return a.checkResponse(ctx, send, resp, err, tries-1)
+	resp, err := send(sctx)
+	return a.checkResponse(sctx, send, resp, err, tries-1)
 }
 
-func (a *autoReconnect) checkResponse(ctx op_context.Context, send func(opCtx op_context.Context) (Response, error), lastResp Response, lastErr error, resendTries int) (Response, error) {
+func (a *autoReconnect) checkResponse(sctx context.Context, send func(opSctx context.Context) (Response, error), lastResp Response, lastErr error, resendTries int) (Response, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("autoReconnect.checkResponse")
 	onExit := func() {
 		if err != nil {
@@ -80,13 +83,13 @@ func (a *autoReconnect) checkResponse(ctx op_context.Context, send func(opCtx op
 
 	// refresh CSRF token
 	if lastResp.Code() == http.StatusForbidden && auth_csrf.IsCsrfError(lastResp.Error().Code()) {
-		resp, err := a.client.UpdateCsrfToken(ctx)
+		resp, err := a.client.UpdateCsrfToken(sctx)
 		if !IsResponseOK(resp, err) {
 			c.SetMessage("failed to update CSRF")
 			return resp, err
 		}
 		c.Logger().Debug("resending after CSRF")
-		resp, err = a.resend(ctx, send, utils.Min(resendTries, 2))
+		resp, err = a.resend(sctx, send, utils.Min(resendTries, 2))
 		if err != nil {
 			c.SetMessage("failed to resend after CRSF")
 			return resp, err
@@ -114,7 +117,7 @@ func (a *autoReconnect) checkResponse(ctx op_context.Context, send func(opCtx op
 			return lastResp, err
 		}
 
-		login, password, err := a.handlers.GetCredentials(ctx)
+		login, password, err := a.handlers.GetCredentials(sctx)
 		if err != nil {
 			c.SetMessage("failed to get credentials")
 			return lastResp, err
@@ -136,7 +139,7 @@ func (a *autoReconnect) checkResponse(ctx op_context.Context, send func(opCtx op
 		a.lastPassword = password
 		a.mutex.Unlock()
 
-		resp, err := a.client.Login(ctx, login, password)
+		resp, err := a.client.Login(sctx, login, password)
 
 		a.mutex.Lock()
 		a.inLogin = false
@@ -152,8 +155,8 @@ func (a *autoReconnect) checkResponse(ctx op_context.Context, send func(opCtx op
 		}
 		ctx.ClearError()
 
-		a.handlers.SaveRefreshToken(ctx, a.client.RefreshToken)
-		resp, err = a.resend(ctx, send, utils.Min(resendTries, 1))
+		a.handlers.SaveRefreshToken(sctx, a.client.RefreshToken)
+		resp, err = a.resend(sctx, send, utils.Min(resendTries, 1))
 		if err != nil {
 			return resp, err
 		}
@@ -176,7 +179,7 @@ func (a *autoReconnect) checkResponse(ctx op_context.Context, send func(opCtx op
 		a.inLogin = true
 		a.mutex.Unlock()
 
-		resp, err := a.client.RequestRefreshToken(ctx)
+		resp, err := a.client.RequestRefreshToken(sctx)
 
 		a.mutex.Lock()
 		a.inLogin = false
@@ -186,8 +189,8 @@ func (a *autoReconnect) checkResponse(ctx op_context.Context, send func(opCtx op
 			c.SetMessage("failed to refresh auth token")
 			return resp, err
 		}
-		a.handlers.SaveRefreshToken(ctx, a.client.RefreshToken)
-		resp, err = a.resend(ctx, send, utils.Min(resendTries, 1))
+		a.handlers.SaveRefreshToken(sctx, a.client.RefreshToken)
+		resp, err = a.resend(sctx, send, utils.Min(resendTries, 1))
 		if err != nil {
 			c.SetMessage("failed to resend after refreshing auth token")
 			return resp, err
@@ -209,21 +212,21 @@ func NewAutoReconnectRestApiClient(reconnectHandlers api_client.AutoReconnectHan
 	reconnect := newAutoReconnectHelper(reconnectHandlers)
 	var client *RestApiClientWithConfig
 
-	sendWithBody := func(ctx op_context.Context, httpClient *http_request.HttpClient, method string, url string, cmd interface{}, headers ...map[string]string) (Response, error) {
-		send := func(opCtx op_context.Context) (Response, error) {
+	sendWithBody := func(sctx context.Context, httpClient *http_request.HttpClient, method string, url string, cmd interface{}, headers ...map[string]string) (Response, error) {
+		send := func(opSctx context.Context) (Response, error) {
 			hs := client.addTokens(headers...)
-			return DefaultSendWithBody(opCtx, httpClient, method, url, cmd, hs)
+			return DefaultSendWithBody(sctx, httpClient, method, url, cmd, hs)
 		}
 		hs := client.addTokens(headers...)
-		resp, err := DefaultSendWithBody(ctx, httpClient, method, url, cmd, hs)
-		return reconnect.checkResponse(ctx, send, resp, err, 5)
+		resp, err := DefaultSendWithBody(sctx, httpClient, method, url, cmd, hs)
+		return reconnect.checkResponse(sctx, send, resp, err, 5)
 	}
-	sendWithQuery := func(ctx op_context.Context, httpClient *http_request.HttpClient, method string, url string, cmd interface{}, headers ...map[string]string) (Response, error) {
-		send := func(opCtx op_context.Context) (Response, error) {
-			return DefaultSendWithQuery(opCtx, httpClient, method, url, cmd, headers...)
+	sendWithQuery := func(sctx context.Context, httpClient *http_request.HttpClient, method string, url string, cmd interface{}, headers ...map[string]string) (Response, error) {
+		send := func(opSctx context.Context) (Response, error) {
+			return DefaultSendWithQuery(sctx, httpClient, method, url, cmd, headers...)
 		}
-		resp, err := DefaultSendWithQuery(ctx, httpClient, method, url, cmd, headers...)
-		return reconnect.checkResponse(ctx, send, resp, err, 5)
+		resp, err := DefaultSendWithQuery(sctx, httpClient, method, url, cmd, headers...)
+		return reconnect.checkResponse(sctx, send, resp, err, 5)
 	}
 
 	client = NewRestApiClientWithConfig(sendWithBody, sendWithQuery)

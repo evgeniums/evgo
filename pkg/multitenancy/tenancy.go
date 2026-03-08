@@ -1,6 +1,7 @@
 package multitenancy
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -184,14 +185,15 @@ func (t *TenancyItem) CustomerDisplay() string {
 	return t.CustomerLogin
 }
 
-func CheckTenancyDatabase(ctx op_context.Context, database db.DB, tenancyId string) error {
+func CheckTenancyDatabase(sctx context.Context, database db.DB, tenancyId string) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("CheckTenancyDatabase", logger.Fields{"tenancy_id": tenancyId})
 	defer ctx.TraceOutMethod()
 
 	filter := db.NewFilter()
 	filter.AddField("id", tenancyId)
-	exists, err := database.Exists(ctx, filter, &TenancyMeta{})
+	exists, err := database.Exists(sctx, filter, &TenancyMeta{})
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -255,7 +257,7 @@ func (u *TenancyContextBase) SetTenancy(tenancy Tenancy) {
 		u.SetCache(tenancy.Cache())
 	}
 	if u.OplogHandler() != nil && u.OplogWriter() == nil {
-		u.SetOplogWriter(u.OplogHandler()(u))
+		u.SetOplogWriter(u.OplogHandler()())
 	}
 }
 
@@ -281,11 +283,11 @@ func NewContext(fromCtx ...op_context.Context) *TenancyContextBase {
 	return c
 }
 
-func NewInitContext(app app_context.Context, log logger.Logger, db db.DB) *TenancyContextBase {
+func NewInitContext(app app_context.Context, log logger.Logger, db db.DB) (*TenancyContextBase, context.Context) {
 	c := default_op_context.NewContext()
 	c.Init(app, log, db)
 	t := NewContext(c)
-	return t
+	return t, op_context.MakeOpContext(t)
 }
 
 type IpAddressCmd struct {

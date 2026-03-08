@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -27,29 +28,29 @@ var ErrorDescriptions = map[string]string{
 var ErrorHttpCodes = map[string]int{}
 
 type MainFieldSetters interface {
-	SetPassword(ctx op_context.Context, id string, password string, idIsLogin ...bool) error
-	SetPhone(ctx op_context.Context, id string, phone string, idIsLogin ...bool) error
-	SetEmail(ctx op_context.Context, id string, email string, idIsLogin ...bool) error
-	SetBlocked(ctx op_context.Context, id string, blocked bool, idIsLogin ...bool) error
+	SetPassword(sctx context.Context, id string, password string, idIsLogin ...bool) error
+	SetPhone(sctx context.Context, id string, phone string, idIsLogin ...bool) error
+	SetEmail(sctx context.Context, id string, email string, idIsLogin ...bool) error
+	SetBlocked(sctx context.Context, id string, blocked bool, idIsLogin ...bool) error
 }
 
 type UserFinder[U User] interface {
-	Find(ctx op_context.Context, id string) (U, error)
-	FindByLogin(ctx op_context.Context, login string) (U, error)
+	Find(sctx context.Context, id string) (U, error)
+	FindByLogin(sctx context.Context, login string) (U, error)
 }
 
 type UserController[UserType User] interface {
 	MainFieldSetters
 	UserFinder[UserType]
 
-	Add(ctx op_context.Context, login string, password string, extraFieldsSetters ...SetUserFields[UserType]) (UserType, error)
-	FindUsers(ctx op_context.Context, filter *db.Filter) ([]UserType, int64, error)
+	Add(sctx context.Context, login string, password string, extraFieldsSetters ...SetUserFields[UserType]) (UserType, error)
+	FindUsers(sctx context.Context, filter *db.Filter) ([]UserType, int64, error)
 
 	SetUserBuilder(builder func() UserType)
 	MakeUser() UserType
 
 	SetOplogBuilder(builder func() OpLogUserI)
-	OpLog(ctx op_context.Context, op string, userId string, login string)
+	OpLog(sctx context.Context, op string, userId string, login string)
 }
 
 type Users[UserType User] interface {
@@ -88,9 +89,10 @@ func (u *UserControllerBase[UserType]) MakeUser() UserType {
 	return u.userBuilder()
 }
 
-func (u *UserControllerBase[UserType]) Add(ctx op_context.Context, login string, password string, extraFieldsSetters ...SetUserFields[UserType]) (UserType, error) {
+func (u *UserControllerBase[UserType]) Add(sctx context.Context, login string, password string, extraFieldsSetters ...SetUserFields[UserType]) (UserType, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.SetLoggerField("login", login)
 	c := ctx.TraceInMethod("Users.Add")
 	var err error
@@ -120,7 +122,7 @@ func (u *UserControllerBase[UserType]) Add(ctx op_context.Context, login string,
 	filter := db.NewFilter()
 	filter.AddField("login", login)
 	filter.Limit = 1
-	users, _, err := u.FindUsers(ctx, filter)
+	users, _, err := u.FindUsers(sctx, filter)
 	if err != nil {
 		c.SetMessage("failed to check login duplicates")
 		return *new(UserType), err
@@ -137,7 +139,7 @@ func (u *UserControllerBase[UserType]) Add(ctx op_context.Context, login string,
 	user.SetLogin(login)
 	user.SetPassword(password)
 	for _, setter := range extraFieldsSetters {
-		checkDuplicateFields, err1 := setter(ctx, user)
+		checkDuplicateFields, err1 := setter(sctx, user)
 		err = err1
 		if err != nil {
 			c.SetMessage("failed to set extra fields")
@@ -147,7 +149,7 @@ func (u *UserControllerBase[UserType]) Add(ctx op_context.Context, login string,
 			filter := db.NewFilter()
 			filter.AddField(checkDup.Name, checkDup.Value)
 			filter.Limit = 1
-			users, _, err1 := u.FindUsers(ctx, filter)
+			users, _, err1 := u.FindUsers(sctx, filter)
 			err = err1
 			if err != nil {
 				c.SetLoggerField("unique_field", checkDup.Name)
@@ -165,20 +167,21 @@ func (u *UserControllerBase[UserType]) Add(ctx op_context.Context, login string,
 	}
 
 	// create in manager
-	err = u.crudController.Create(ctx, user)
+	err = u.crudController.Create(sctx, user)
 	if err != nil {
 		c.SetMessage("failed to create user")
 		return *new(UserType), err
 	}
-	u.OpLog(ctx, "add", user.GetID(), login)
+	u.OpLog(sctx, "add", user.GetID(), login)
 
 	// done
 	return user, nil
 }
 
-func (u *UserControllerBase[UserType]) Find(ctx op_context.Context, id string) (UserType, error) {
+func (u *UserControllerBase[UserType]) Find(sctx context.Context, id string) (UserType, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Users.Find", logger.Fields{"id": id})
 	var err error
 	onExit := func() {
@@ -191,7 +194,7 @@ func (u *UserControllerBase[UserType]) Find(ctx op_context.Context, id string) (
 
 	// find user
 	user := u.MakeUser()
-	found, err := u.crudController.Read(ctx, db.Fields{"id": id}, user)
+	found, err := u.crudController.Read(sctx, db.Fields{"id": id}, user)
 	if err != nil {
 		c.SetMessage("failed to find user in database")
 		return *new(UserType), err
@@ -206,9 +209,10 @@ func (u *UserControllerBase[UserType]) Find(ctx op_context.Context, id string) (
 	return user, nil
 }
 
-func (u *UserControllerBase[UserType]) FindByLogin(ctx op_context.Context, login string) (UserType, error) {
+func (u *UserControllerBase[UserType]) FindByLogin(sctx context.Context, login string) (UserType, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Users.FindByLogin", logger.Fields{"login": login})
 	var err error
 	onExit := func() {
@@ -221,7 +225,7 @@ func (u *UserControllerBase[UserType]) FindByLogin(ctx op_context.Context, login
 
 	// find user
 	user := u.MakeUser()
-	found, err := FindByLogin(u.crudController, ctx, login, user)
+	found, err := FindByLogin(u.crudController, sctx, login, user)
 	if err != nil {
 		c.SetMessage("failed to find user in database")
 		return *new(UserType), err
@@ -236,24 +240,26 @@ func (u *UserControllerBase[UserType]) FindByLogin(ctx op_context.Context, login
 	return user, nil
 }
 
-func FindUser[UserType User](u UserFinder[UserType], ctx op_context.Context, id string, idIsLogin ...bool) (user UserType, err error) {
+func FindUser[UserType User](u UserFinder[UserType], sctx context.Context, id string, idIsLogin ...bool) (user UserType, err error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	useLogin := utils.OptionalArg(false, idIsLogin...)
 
 	if useLogin {
 		ctx.SetLoggerField("login", id)
-		user, err = u.FindByLogin(ctx, id)
+		user, err = u.FindByLogin(sctx, id)
 	} else {
 		ctx.SetLoggerField("id", id)
-		user, err = u.Find(ctx, id)
+		user, err = u.Find(sctx, id)
 	}
 
 	return
 }
 
-func (u *UserControllerBase[UserType]) SetPassword(ctx op_context.Context, id string, password string, idIsLogin ...bool) error {
+func (u *UserControllerBase[UserType]) SetPassword(sctx context.Context, id string, password string, idIsLogin ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Users.SetPassword")
 	var err error
 	onExit := func() {
@@ -274,26 +280,27 @@ func (u *UserControllerBase[UserType]) SetPassword(ctx op_context.Context, id st
 	}
 
 	// find user
-	user, err := FindUser[UserType](u, ctx, id, idIsLogin...)
+	user, err := FindUser[UserType](u, sctx, id, idIsLogin...)
 	if err != nil {
 		return err
 	}
 
 	// set password
 	user.SetPassword(password)
-	err = u.crudController.Update(ctx, user, db.Fields{"password_hash": user.PasswordHash(), "password_salt": user.PasswordSalt()})
+	err = u.crudController.Update(sctx, user, db.Fields{"password_hash": user.PasswordHash(), "password_salt": user.PasswordSalt()})
 	if err != nil {
 		return err
 	}
 
 	// done
-	u.OpLog(ctx, "set_password", user.GetID(), user.Login())
+	u.OpLog(sctx, "set_password", user.GetID(), user.Login())
 	return nil
 }
 
-func (u *UserControllerBase[UserType]) SetPhone(ctx op_context.Context, id string, phone string, idIsLogin ...bool) error {
+func (u *UserControllerBase[UserType]) SetPhone(sctx context.Context, id string, phone string, idIsLogin ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.SetLoggerField("phone", phone)
 	c := ctx.TraceInMethod("Users.SetPhone")
 	var err error
@@ -306,25 +313,26 @@ func (u *UserControllerBase[UserType]) SetPhone(ctx op_context.Context, id strin
 	defer onExit()
 
 	// find user
-	user, err := FindUser[UserType](u, ctx, id, idIsLogin...)
+	user, err := FindUser[UserType](u, sctx, id, idIsLogin...)
 	if err != nil {
 		return err
 	}
 
 	// set phone
-	err = u.crudController.Update(ctx, user, db.Fields{"phone": phone})
+	err = u.crudController.Update(sctx, user, db.Fields{"phone": phone})
 	if err != nil {
 		return err
 	}
 
 	// done
-	u.OpLog(ctx, "set_phone", user.GetID(), user.Login())
+	u.OpLog(sctx, "set_phone", user.GetID(), user.Login())
 	return nil
 }
 
-func (u *UserControllerBase[UserType]) SetEmail(ctx op_context.Context, id string, email string, idIsLogin ...bool) error {
+func (u *UserControllerBase[UserType]) SetEmail(sctx context.Context, id string, email string, idIsLogin ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.SetLoggerField("email", email)
 	c := ctx.TraceInMethod("Users.SetEmail")
 	var err error
@@ -337,25 +345,26 @@ func (u *UserControllerBase[UserType]) SetEmail(ctx op_context.Context, id strin
 	defer onExit()
 
 	// find user
-	user, err := FindUser[UserType](u, ctx, id, idIsLogin...)
+	user, err := FindUser[UserType](u, sctx, id, idIsLogin...)
 	if err != nil {
 		return err
 	}
 
 	// set email
-	err = u.crudController.Update(ctx, user, db.Fields{"email": email})
+	err = u.crudController.Update(sctx, user, db.Fields{"email": email})
 	if err != nil {
 		return err
 	}
 
 	// done
-	u.OpLog(ctx, "set_email", user.GetID(), user.Login())
+	u.OpLog(sctx, "set_email", user.GetID(), user.Login())
 	return nil
 }
 
-func (u *UserControllerBase[UserType]) SetBlocked(ctx op_context.Context, id string, blocked bool, idIsLogin ...bool) error {
+func (u *UserControllerBase[UserType]) SetBlocked(sctx context.Context, id string, blocked bool, idIsLogin ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.SetLoggerField("blocked", blocked)
 	c := ctx.TraceInMethod("Users.SetBlocked")
 	var err error
@@ -368,33 +377,34 @@ func (u *UserControllerBase[UserType]) SetBlocked(ctx op_context.Context, id str
 	defer onExit()
 
 	// find user
-	user, err := FindUser[UserType](u, ctx, id, idIsLogin...)
+	user, err := FindUser[UserType](u, sctx, id, idIsLogin...)
 	if err != nil {
 		return err
 	}
 
 	// set blocked
-	err = u.crudController.Update(ctx, user, db.Fields{"blocked": blocked})
+	err = u.crudController.Update(sctx, user, db.Fields{"blocked": blocked})
 	if err != nil {
 		return err
 	}
 
 	// done
-	u.OpLog(ctx, "set_blocked", user.GetID(), user.Login())
+	u.OpLog(sctx, "set_blocked", user.GetID(), user.Login())
 	return nil
 }
 
-func (u *UserControllerBase[UserType]) FindUsers(ctx op_context.Context, filter *db.Filter) ([]UserType, int64, error) {
+func (u *UserControllerBase[UserType]) FindUsers(sctx context.Context, filter *db.Filter) ([]UserType, int64, error) {
 	var users []UserType
-	count, err := u.crudController.List(ctx, filter, &users)
+	count, err := u.crudController.List(sctx, filter, &users)
 	return users, count, err
 }
 
-func (u *UserControllerBase[UserType]) OpLog(ctx op_context.Context, op string, userId string, login string) {
+func (u *UserControllerBase[UserType]) OpLog(sctx context.Context, op string, userId string, login string) {
 	oplog := u.oplogBuilder()
 	oplog.SetOperation(op)
 	oplog.SetLogin(login)
 	oplog.SetUserId(userId)
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.Oplog(oplog)
 }
 

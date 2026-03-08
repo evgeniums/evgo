@@ -1,6 +1,7 @@
 package gatewayapi
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/config"
@@ -78,8 +79,9 @@ func (s *SmsGatewayapi) Init(cfg config.Config, log logger.Logger, vld validator
 	return nil
 }
 
-func (s *SmsGatewayapi) Send(ctx op_context.Context, message string, recipient string, smsID ...string) (*sms.ProviderResponse, error) {
+func (s *SmsGatewayapi) Send(sctx context.Context, message string, recipient string, smsID ...string) (*sms.ProviderResponse, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("SmsGatewayapi.Send", logger.Fields{"recipient": recipient})
 	var err error
 	onExit := func() {
@@ -105,7 +107,7 @@ func (s *SmsGatewayapi) Send(ctx op_context.Context, message string, recipient s
 		obj = &msg
 	}
 
-	request, err := s.HttpClient().NewPost(ctx, s.sendUrl, obj)
+	request, err := s.HttpClient().NewPost(sctx, s.sendUrl, obj)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +115,7 @@ func (s *SmsGatewayapi) Send(ctx op_context.Context, message string, recipient s
 	response := &GoodResponse{}
 	request.GoodResponse = response
 
-	err = request.Send(ctx)
+	err = request.Send(sctx)
 	c.LoggerFields()["response_content"] = request.ResponseContent
 	c.LoggerFields()["response_status"] = request.ResponseStatus
 	if err != nil {

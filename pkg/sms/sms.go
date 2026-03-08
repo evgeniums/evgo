@@ -1,13 +1,13 @@
 package sms
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/common"
 	"github.com/evgeniums/evgo/pkg/config"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/logger"
-	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
@@ -19,7 +19,7 @@ type ProviderResponse struct {
 
 type Provider interface {
 	object_config.Subobject
-	Send(ctx op_context.Context, message string, recipient string, smsID ...string) (*ProviderResponse, error)
+	Send(sctx context.Context, message string, recipient string, smsID ...string) (*ProviderResponse, error)
 }
 
 type ProviderBase struct {

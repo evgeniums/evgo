@@ -1,6 +1,7 @@
 package api_server
 
 import (
+	"context"
 	"mime/multipart"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -10,6 +11,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/db"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
@@ -71,7 +73,7 @@ type Request interface {
 	Response() Response
 	Endpoint() Endpoint
 
-	ParseAndValidate(cmd interface{}) error
+	ParseAndValidate(sctx context.Context, cmd interface{}) error
 	FormData() map[string][]string
 	FormFile() (*multipart.FileHeader, error)
 
@@ -135,7 +137,7 @@ func FullRequestServicePath(r Request) string {
 	return r.Endpoint().Resource().BuildActualPath(r.ResourceIds(), true)
 }
 
-func ParseDbQuery(request Request, model interface{}, queryName string, cmd ...api.Query) (*db.Filter, error) {
+func ParseDbQuery(sctx context.Context, model interface{}, queryName string, cmd ...api.Query) (*db.Filter, error) {
 
 	var q api.Query
 	if len(cmd) == 0 {
@@ -143,10 +145,11 @@ func ParseDbQuery(request Request, model interface{}, queryName string, cmd ...a
 	} else {
 		q = cmd[0]
 	}
+	request := op_context.OpContext[Request](sctx)
 	c := request.TraceInMethod("ParseDbQuery", logger.Fields{"query_name": queryName})
 	defer request.TraceOutMethod()
 
-	err := request.ParseAndValidate(q)
+	err := request.ParseAndValidate(sctx, q)
 	if err != nil {
 		c.SetMessage("failed to parse/verify query")
 		return nil, c.SetError(err)
@@ -169,7 +172,6 @@ func ParseDbQuery(request Request, model interface{}, queryName string, cmd ...a
 }
 
 func UniqueFormData(request Request) map[string]string {
-
 	form := request.FormData()
 	res := make(map[string]string)
 	for key, values := range form {
@@ -197,11 +199,12 @@ func MessageFromRequest[T any](request Request, init ...func(*T)) (*T, error) {
 	return msg, nil
 }
 
-func ParseValidateRequest[T any](request Request, init ...func(*T)) (*T, error) {
+func ParseValidateRequest[T any](sctx context.Context, init ...func(*T)) (*T, error) {
+	request := op_context.OpContext[Request](sctx)
 	msg, err := MessageFromRequest(request, init...)
 	if err != nil {
 		return nil, err
 	}
-	err = request.ParseAndValidate(msg)
+	err = request.ParseAndValidate(sctx, msg)
 	return msg, err
 }

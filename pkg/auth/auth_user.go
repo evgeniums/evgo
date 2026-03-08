@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/multitenancy"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
@@ -159,14 +161,15 @@ type UserContextBase struct {
 	User User
 }
 
-func NewUserContext(fromCtx ...op_context.Context) *UserContextBase {
+func NewUserContext(fromCtx ...context.Context) (*UserContextBase, context.Context) {
 	c := &UserContextBase{}
 	if len(fromCtx) == 0 {
 		c.Context = default_op_context.NewContext()
-	} else {
-		c.Context = fromCtx[0]
+		return c, op_context.MakeOpContext(c)
 	}
-	return c
+
+	c.Context = op_context.OpContext[op_context.Context](fromCtx[0])
+	return c, op_context.WrapOpContext(fromCtx[0], c)
 }
 
 func (u *UserContextBase) AuthUser() User {

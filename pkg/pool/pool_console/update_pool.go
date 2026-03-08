@@ -37,11 +37,11 @@ func (a *UpdatePoolHandler) Data() interface{} {
 
 func (a *UpdatePoolHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	field := strings.ToLower(a.Field)
 	fields := db.Fields{}
@@ -53,7 +53,7 @@ func (a *UpdatePoolHandler) Execute(args []string) error {
 		return vErr.Err
 	}
 
-	p, err := controller.UpdatePool(ctx, a.Pool, fields, true)
+	p, err := controller.UpdatePool(sctx, a.Pool, fields, true)
 	if err != nil {
 		return err
 	}

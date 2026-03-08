@@ -29,18 +29,18 @@ func (a *ListIpAddressesHandler) Data() interface{} {
 
 func (a *ListIpAddressesHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	filter, err := db.ParseQuery(ctx.Db(), a.Query, &multitenancy.TenancyItem{}, "")
 	if err != nil {
 		return fmt.Errorf("failed to parse query: %s", err)
 	}
 
-	tenancies, count, err := controller.ListIpAddresses(ctx, filter)
+	tenancies, count, err := controller.ListIpAddresses(sctx, filter)
 	if err == nil {
 		fmt.Printf("IP addresses:\n\n%s\n\nTotal count %d\n\n", utils.DumpPrettyJson(tenancies), count)
 	}

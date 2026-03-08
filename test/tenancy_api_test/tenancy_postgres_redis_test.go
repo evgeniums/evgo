@@ -6,6 +6,7 @@ import (
 
 	"github.com/evgeniums/evgo/pkg/db"
 	"github.com/evgeniums/evgo/pkg/multitenancy/tenancy_manager"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pool"
 	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_providers/pubsub_factory"
 	"github.com/evgeniums/evgo/pkg/pubsub/pubsub_providers/pubsub_redis"
@@ -38,10 +39,10 @@ func TestPostgresRedis(t *testing.T) {
 	doc1.InitObject()
 	doc1.Field1 = "value1"
 	doc1.Field2 = "value2"
-	require.NoError(t, prepareCtx.ServerApp.Db().Create(prepareCtx.ServerApp, doc1), "failed to create doc1 in database")
+	require.NoError(t, prepareCtx.ServerApp.Db().Create(prepareCtx.ServerAppCtx, doc1), "failed to create doc1 in database")
 
 	docDb1 := &SampleModel1{}
-	found, err := prepareCtx.ServerApp.Db().FindByFields(prepareCtx.ServerApp, db.Fields{"field1": "value1"}, docDb1)
+	found, err := prepareCtx.ServerApp.Db().FindByFields(prepareCtx.ServerAppCtx, db.Fields{"field1": "value1"}, docDb1)
 	require.NoError(t, err, "failed to find doc1 in database")
 	assert.Equal(t, found, true)
 	assert.True(t, doc1.GetCreatedAt().Equal(docDb1.GetCreatedAt()))
@@ -77,9 +78,9 @@ func TestPostgresRedis(t *testing.T) {
 	poolConfig2.PubsubService.DbName = "1"
 	p2 := preparePoolServices(t, prepareCtx, poolConfig2)
 
-	_, err = pool.ActivatePool(prepareCtx.RemotePoolController, prepareCtx.ClientOp, p1.GetID())
+	_, err = pool.ActivatePool(prepareCtx.RemotePoolController, op_context.MakeOpContext(prepareCtx.ClientOp), p1.GetID())
 	require.NoError(t, err)
-	_, err = pool.ActivatePool(prepareCtx.RemotePoolController, prepareCtx.ClientOp, p2.GetID())
+	_, err = pool.ActivatePool(prepareCtx.RemotePoolController, op_context.MakeOpContext(prepareCtx.ClientOp), p2.GetID())
 	require.NoError(t, err)
 
 	prepareCtx.Close()
@@ -88,10 +89,10 @@ func TestPostgresRedis(t *testing.T) {
 	multiPoolCtx := initContext(t, false, "postgres")
 
 	// add customers
-	customer1, err := multiPoolCtx.LocalCustomerManager.Add(multiPoolCtx.AdminOp, "customer1", "12345678")
+	customer1, err := multiPoolCtx.LocalCustomerManager.Add(op_context.MakeOpContext(multiPoolCtx.AdminOp), "customer1", "12345678")
 	require.NoError(t, err)
 	require.NotNil(t, customer1)
-	customer2, err := multiPoolCtx.LocalCustomerManager.Add(multiPoolCtx.AdminOp, "customer2", "12345678")
+	customer2, err := multiPoolCtx.LocalCustomerManager.Add(op_context.MakeOpContext(multiPoolCtx.AdminOp), "customer2", "12345678")
 	require.NoError(t, err)
 	require.NotNil(t, customer2)
 
@@ -111,10 +112,10 @@ func TestPostgresRedis(t *testing.T) {
 	// check if database tables were created
 	sample1 := &InTenancySample{Field1: "hello world", Field2: 10}
 	sample1.GenerateID()
-	err = loadedTenancy1.Db().Create(multiPoolCtx.AdminOp, sample1)
+	err = loadedTenancy1.Db().Create(op_context.MakeOpContext(multiPoolCtx.AdminOp), sample1)
 	require.NoError(t, err)
 	readSample1 := &InTenancySample{}
-	found, err = loadedTenancy1.Db().FindByField(multiPoolCtx.AdminOp, "field2", 10, readSample1)
+	found, err = loadedTenancy1.Db().FindByField(op_context.MakeOpContext(multiPoolCtx.AdminOp), "field2", 10, readSample1)
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, sample1, readSample1)
@@ -124,10 +125,10 @@ func TestPostgresRedis(t *testing.T) {
 	inPart1.InitObject()
 	inPart1.Field4 = "p1_field4"
 	inPart1.Field5 = 1010
-	err = loadedTenancy1.Db().Create(multiPoolCtx.AdminOp, inPart1)
+	err = loadedTenancy1.Db().Create(op_context.MakeOpContext(multiPoolCtx.AdminOp), inPart1)
 	require.NoError(t, err)
 	readInPart1 := &PartitionedItem{}
-	found, err = loadedTenancy1.Db().FindByField(multiPoolCtx.AdminOp, "field5", 1010, readInPart1)
+	found, err = loadedTenancy1.Db().FindByField(op_context.MakeOpContext(multiPoolCtx.AdminOp), "field5", 1010, readInPart1)
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, inPart1.GetID(), readInPart1.GetID())
@@ -154,9 +155,9 @@ func TestPostgresDup(t *testing.T) {
 	doc1.InitObject()
 	doc1.Field1 = "value1"
 	doc1.Field2 = "value2"
-	require.NoError(t, prepareCtx.ServerApp.Db().Create(prepareCtx.ServerApp, doc1), "failed to create doc1 in database")
+	require.NoError(t, prepareCtx.ServerApp.Db().Create(prepareCtx.ServerAppCtx, doc1), "failed to create doc1 in database")
 
-	dup, err := prepareCtx.ServerApp.Db().CreateDup(prepareCtx.ServerApp, doc1)
+	dup, err := prepareCtx.ServerApp.Db().CreateDup(prepareCtx.ServerAppCtx, doc1)
 	test_utils.DumpError(t, err)
 	require.True(t, dup)
 }

@@ -1,12 +1,14 @@
 package confirmation_control_api
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/auth"
 	"github.com/evgeniums/evgo/pkg/confirmation_control"
 	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 const ServiceName string = "confirmation"
@@ -69,9 +71,10 @@ func OperationIdCacheKey(operationId string) string {
 	return fmt.Sprintf("%s/%s", ConfirmationCacheKey, operationId)
 }
 
-func GetTokenFromCache(ctx auth.AuthContext) (*OperationCacheToken, error) {
+func GetTokenFromCache(sctx context.Context) (*OperationCacheToken, error) {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("GetTokenFromCache")
 	defer ctx.TraceOutMethod()
 
@@ -95,9 +98,10 @@ func GetTokenFromCache(ctx auth.AuthContext) (*OperationCacheToken, error) {
 	return cacheToken, nil
 }
 
-func DeleteTokenFromCache(ctx auth.AuthContext) {
+func DeleteTokenFromCache(sctx context.Context) {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("DeleteTokenFromCache")
 	defer ctx.TraceOutMethod()
 

@@ -1,6 +1,7 @@
 package test_utils
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -25,7 +26,7 @@ func CheckGenericError(t *testing.T, err error, expectedCode string, expectedMes
 
 func DumpError(t *testing.T, err error, message ...string) {
 	if err == nil {
-		t.Logf(utils.OptionalArg("Dump error", message...) + ": no error")
+		t.Logf("%s: no error", utils.OptionalArg("Dump error", message...))
 		return
 	}
 	gErr, ok := err.(generic_error.Error)
@@ -46,12 +47,13 @@ func ObjectEqual(t *testing.T, left common.Object, right common.Object) {
 	assert.Equal(t, left, right)
 }
 
-func NoError(t *testing.T, ctx op_context.Context, err error) {
+func NoError(t *testing.T, sctx context.Context, err error) {
 	if err == nil {
 		return
 	}
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	if ctx != nil {
-		ctx.Close()
+		ctx.Close(sctx)
 		gErr := ctx.GenericError()
 		if gErr != nil {
 			DumpObject(t, gErr, "Generic error")

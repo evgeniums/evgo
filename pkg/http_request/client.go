@@ -12,7 +12,6 @@ import (
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/message"
-	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
@@ -96,8 +95,8 @@ func (h *HttpClient) SetTlsConfig(cfg *tls.Config) {
 	}
 }
 
-func (h *HttpClient) NewPost(ctx op_context.Context, url string, msg interface{}, serializer ...message.Serializer) (*Request, error) {
-	req, err := NewPostWithContext(h.context, ctx, url, msg, serializer...)
+func (h *HttpClient) NewPost(sctx context.Context, url string, msg interface{}, serializer ...message.Serializer) (*Request, error) {
+	req, err := NewPostWithContext(h.context, sctx, url, msg, serializer...)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +105,8 @@ func (h *HttpClient) NewPost(ctx op_context.Context, url string, msg interface{}
 	return req, nil
 }
 
-func (h *HttpClient) NewGet(ctx op_context.Context, url string, msg interface{}) (*Request, error) {
-	req, err := NewGetWithContext(h.context, ctx, url, msg)
+func (h *HttpClient) NewGet(sctx context.Context, url string, msg interface{}) (*Request, error) {
+	req, err := NewGetWithContext(h.context, sctx, url, msg)
 	if err != nil {
 		return nil, err
 	}

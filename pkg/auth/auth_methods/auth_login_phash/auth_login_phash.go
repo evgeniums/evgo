@@ -1,6 +1,7 @@
 package auth_login_phash
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -125,9 +126,10 @@ func IsLoginError(err generic_error.Error) bool {
 	return found
 }
 
-func (l *LoginHandler) Handle(ctx auth.AuthContext) (bool, error) {
+func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("LoginHandler.Handle")
 	var err error
 	onExit := func() {
@@ -177,7 +179,7 @@ func (l *LoginHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	}
 
 	// load user
-	dbUser, err := l.users.AuthUserManager().FindAuthUser(ctx, login)
+	dbUser, err := l.users.AuthUserManager().FindAuthUser(sctx, login)
 	if err != nil {
 		err = errors.New("failed to load user")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -190,7 +192,7 @@ func (l *LoginHandler) Handle(ctx auth.AuthContext) (bool, error) {
 			ctx.SetAuthParameter(l.Protocol(), SaltName, crypt_utils.GenerateString())
 			ctx.SetGenericErrorCode(ErrorCodeCredentialsRequired)
 		} else {
-			l.setDelay(ctx, c, delayCacheKey, delayItem)
+			l.setDelay(sctx, c, delayCacheKey, delayItem)
 			ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
 		}
 
@@ -202,7 +204,7 @@ func (l *LoginHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	if dbUser.IsBlocked() {
 		err = errors.New("user blocked")
 		ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
-		l.setDelay(ctx, c, delayCacheKey, delayItem)
+		l.setDelay(sctx, c, delayCacheKey, delayItem)
 		return true, err
 	}
 
@@ -225,7 +227,7 @@ func (l *LoginHandler) Handle(ctx auth.AuthContext) (bool, error) {
 		if CheckPasswordHash(phashUser.PasswordHash(), phashUser.PasswordSalt(), phash) != nil {
 			err = errors.New("invalid password hash")
 			ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
-			l.setDelay(ctx, c, delayCacheKey, delayItem)
+			l.setDelay(sctx, c, delayCacheKey, delayItem)
 			return true, err
 		}
 
@@ -233,7 +235,7 @@ func (l *LoginHandler) Handle(ctx auth.AuthContext) (bool, error) {
 		ctx.SetAuthUser(dbUser)
 
 		// fill auth user
-		err = l.users.AuthUserManager().FillAuthUser(ctx)
+		err = l.users.AuthUserManager().FillAuthUser(sctx)
 		if err != nil {
 			c.SetMessage("failed to fill auth user")
 			return true, err
@@ -256,9 +258,10 @@ func (l *LoginHandler) delayCacheKey(userId string) string {
 	return fmt.Sprintf("%s/%s", DelayCacheKey, userId)
 }
 
-func (l *LoginHandler) setDelay(ctx op_context.Context, c op_context.CallContext, delayCacheKey string, delayItem *LoginDelay) {
+func (l *LoginHandler) setDelay(sctx context.Context, c op_context.CallContext, delayCacheKey string, delayItem *LoginDelay) {
 	if l.THROTTLE_DELAY_SECONDS != 0 {
 		delayItem.InitCreatedAt()
+		ctx := op_context.OpContext[op_context.Context](sctx)
 		err1 := ctx.Cache().Set(delayCacheKey, delayItem, l.THROTTLE_DELAY_SECONDS)
 		if err1 != nil {
 			c.Logger().Error("failed to save delay item in cache", err1)

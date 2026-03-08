@@ -1,6 +1,7 @@
 package auth_session
 
 import (
+	"context"
 	"time"
 
 	"github.com/evgeniums/evgo/pkg/auth"
@@ -12,16 +13,16 @@ import (
 )
 
 type SessionController interface {
-	CreateSession(ctx auth.ContextWithAuthUser, expiration time.Time) (Session, error)
-	FindSession(ctx op_context.Context, sessionId string) (Session, error)
-	UpdateSessionClient(ctx auth.AuthContext) error
-	UpdateSessionExpiration(ctx auth.AuthContext, session Session) error
-	InvalidateSession(ctx op_context.Context, userId string, sessionId string) error
-	InvalidateUserSessions(ctx op_context.Context, userId string) error
-	InvalidateAllSessions(ctx op_context.Context) error
+	CreateSession(ctx context.Context, expiration time.Time) (Session, error)
+	FindSession(sctx context.Context, sessionId string) (Session, error)
+	UpdateSessionClient(sctx context.Context) error
+	UpdateSessionExpiration(sctx context.Context, session Session) error
+	InvalidateSession(sctx context.Context, userId string, sessionId string) error
+	InvalidateUserSessions(sctx context.Context, userId string) error
+	InvalidateAllSessions(sctx context.Context) error
 
-	GetSessions(ctx op_context.Context, filter *db.Filter, sessions interface{}) (int64, error)
-	GetSessionClients(ctx op_context.Context, filter *db.Filter, sessionClients interface{}) (int64, error)
+	GetSessions(sctx context.Context, filter *db.Filter, sessions interface{}) (int64, error)
+	GetSessionClients(sctx context.Context, filter *db.Filter, sessionClients interface{}) (int64, error)
 
 	SetSessionBuilder(func() Session)
 	MakeSession() Session
@@ -59,8 +60,9 @@ func (s *SessionControllerBase) MakeSessionClient() SessionClient {
 	return s.sessionClientBuilder()
 }
 
-func (s *SessionControllerBase) CreateSession(ctx auth.ContextWithAuthUser, expiration time.Time) (Session, error) {
+func (s *SessionControllerBase) CreateSession(sctx context.Context, expiration time.Time) (Session, error) {
 
+	ctx := op_context.OpContext[auth.ContextWithAuthUser](sctx)
 	c := ctx.TraceInMethod("auth_session.CreateSession")
 	defer ctx.TraceOutMethod()
 
@@ -70,7 +72,7 @@ func (s *SessionControllerBase) CreateSession(ctx auth.ContextWithAuthUser, expi
 	session.SetValid(true)
 	session.SetExpiration(expiration)
 
-	err := s.crud.Create(ctx, session)
+	err := s.crud.Create(sctx, session)
 	if err != nil {
 		return nil, c.SetError(err)
 	}
@@ -78,13 +80,14 @@ func (s *SessionControllerBase) CreateSession(ctx auth.ContextWithAuthUser, expi
 	return session, nil
 }
 
-func (s *SessionControllerBase) FindSession(ctx op_context.Context, sessionId string) (Session, error) {
+func (s *SessionControllerBase) FindSession(sctx context.Context, sessionId string) (Session, error) {
 
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("auth_session.FindSession")
 	defer ctx.TraceOutMethod()
 
 	session := s.MakeSession()
-	_, err := s.crud.ReadByField(ctx, "id", sessionId, session)
+	_, err := s.crud.ReadByField(sctx, "id", sessionId, session)
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return nil, c.SetError(err)
@@ -93,9 +96,10 @@ func (s *SessionControllerBase) FindSession(ctx op_context.Context, sessionId st
 	return session, nil
 }
 
-func (s *SessionControllerBase) UpdateSessionClient(ctx auth.AuthContext) error {
+func (s *SessionControllerBase) UpdateSessionClient(sctx context.Context) error {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("auth_session.UpdateSessionClient")
 	var err error
 	onExit := func() {
@@ -116,7 +120,7 @@ func (s *SessionControllerBase) UpdateSessionClient(ctx auth.AuthContext) error 
 	tryUpdate := true
 	client := s.MakeSessionClient()
 	fields := db.Fields{"session_id": ctx.GetSessionId(), "client_hash": clientHash}
-	found, err := s.crud.Read(ctx, fields, client)
+	found, err := s.crud.Read(sctx, fields, client)
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		c.SetMessage("failed to find client in database")
@@ -131,7 +135,7 @@ func (s *SessionControllerBase) UpdateSessionClient(ctx auth.AuthContext) error 
 		client.SetSessionId(ctx.GetSessionId())
 		client.SetUser(ctx.AuthUser())
 		client.SetUserAgent(userAgent)
-		err1 := s.crud.Create(ctx, client)
+		err1 := s.crud.Create(sctx, client)
 		if err1 != nil {
 			c.Logger().Error("failed to create session client in database", err1)
 			tryUpdate = true
@@ -140,7 +144,7 @@ func (s *SessionControllerBase) UpdateSessionClient(ctx auth.AuthContext) error 
 
 	// update client
 	if tryUpdate {
-		err = s.crud.Update(ctx, client, db.Fields{"updated_at": time.Now()})
+		err = s.crud.Update(sctx, client, db.Fields{"updated_at": time.Now()})
 		if err != nil {
 			ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			c.SetMessage("failed to update client in database")
@@ -153,12 +157,13 @@ func (s *SessionControllerBase) UpdateSessionClient(ctx auth.AuthContext) error 
 	return nil
 }
 
-func (s *SessionControllerBase) UpdateSessionExpiration(ctx auth.AuthContext, session Session) error {
+func (s *SessionControllerBase) UpdateSessionExpiration(sctx context.Context, session Session) error {
 
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("auth_session.UpdateSessionExpiration")
 	defer ctx.TraceOutMethod()
 
-	err := s.crud.Update(ctx, session, db.Fields{"expiration": session.GetExpiration()})
+	err := s.crud.Update(sctx, session, db.Fields{"expiration": session.GetExpiration()})
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return c.SetError(err)
@@ -166,12 +171,13 @@ func (s *SessionControllerBase) UpdateSessionExpiration(ctx auth.AuthContext, se
 	return nil
 }
 
-func (s *SessionControllerBase) InvalidateSession(ctx op_context.Context, userId string, sessionId string) error {
+func (s *SessionControllerBase) InvalidateSession(sctx context.Context, userId string, sessionId string) error {
 
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("auth_session.InvalidateSession")
 	defer ctx.TraceOutMethod()
 
-	err := s.crud.UpdateMulti(ctx, s.MakeSession(), db.Fields{"id": sessionId, "user_id": userId}, db.Fields{"valid": false, "updated_at": time.Now()})
+	err := s.crud.UpdateMulti(sctx, s.MakeSession(), db.Fields{"id": sessionId, "user_id": userId}, db.Fields{"valid": false, "updated_at": time.Now()})
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return c.SetError(err)
@@ -180,11 +186,12 @@ func (s *SessionControllerBase) InvalidateSession(ctx op_context.Context, userId
 
 }
 
-func (s *SessionControllerBase) InvalidateUserSessions(ctx op_context.Context, userId string) error {
+func (s *SessionControllerBase) InvalidateUserSessions(sctx context.Context, userId string) error {
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("auth_session.InvalidateUserSessions")
 	defer ctx.TraceOutMethod()
 
-	err := s.crud.UpdateMulti(ctx, s.MakeSession(), db.Fields{"user_id": userId}, db.Fields{"valid": false, "updated_at": time.Now()})
+	err := s.crud.UpdateMulti(sctx, s.MakeSession(), db.Fields{"user_id": userId}, db.Fields{"valid": false, "updated_at": time.Now()})
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return c.SetError(err)
@@ -192,11 +199,12 @@ func (s *SessionControllerBase) InvalidateUserSessions(ctx op_context.Context, u
 	return nil
 }
 
-func (s *SessionControllerBase) InvalidateAllSessions(ctx op_context.Context) error {
+func (s *SessionControllerBase) InvalidateAllSessions(sctx context.Context) error {
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("auth_session.InvalidateAllSessions")
 	defer ctx.TraceOutMethod()
 
-	err := s.crud.UpdateMulti(ctx, s.MakeSession(), nil, db.Fields{"valid": false, "updated_at": time.Now()})
+	err := s.crud.UpdateMulti(sctx, s.MakeSession(), nil, db.Fields{"valid": false, "updated_at": time.Now()})
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return c.SetError(err)
@@ -205,11 +213,12 @@ func (s *SessionControllerBase) InvalidateAllSessions(ctx op_context.Context) er
 }
 
 // Get sessions using filter. Note that sessions argument must be of *[]Session type.
-func (s *SessionControllerBase) GetSessions(ctx op_context.Context, filter *db.Filter, sessions interface{}) (int64, error) {
+func (s *SessionControllerBase) GetSessions(sctx context.Context, filter *db.Filter, sessions interface{}) (int64, error) {
 
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("auth_session.GetSessions")
 	defer ctx.TraceOutMethod()
-	count, err := s.crud.List(ctx, filter, sessions)
+	count, err := s.crud.List(sctx, filter, sessions)
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return 0, c.SetError(err)
@@ -218,11 +227,12 @@ func (s *SessionControllerBase) GetSessions(ctx op_context.Context, filter *db.F
 }
 
 // Get sessions using filter. Note that sessions argument must be of *[]SessionClient type.
-func (s *SessionControllerBase) GetSessionClients(ctx op_context.Context, filter *db.Filter, sessions interface{}) (int64, error) {
+func (s *SessionControllerBase) GetSessionClients(sctx context.Context, filter *db.Filter, sessions interface{}) (int64, error) {
 
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("auth_session.GetSessionClients")
 	defer ctx.TraceOutMethod()
-	count, err := s.crud.List(ctx, filter, sessions)
+	count, err := s.crud.List(sctx, filter, sessions)
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return 0, c.SetError(err)

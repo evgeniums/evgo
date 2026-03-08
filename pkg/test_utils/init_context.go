@@ -1,6 +1,7 @@
 package test_utils
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/app_context/app_default"
 	"github.com/evgeniums/evgo/pkg/auth"
 	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
@@ -38,7 +40,7 @@ func SetAppHandlers(builder AppBuilder, initializer AppInitializer) {
 	appInitializer = initializer
 }
 
-func InitDefaultAppContextNoDb(t *testing.T, testDir string, config ...string) app_context.Context {
+func InitDefaultAppContextNoDb(t *testing.T, testDir string, config ...string) (app_context.Context, context.Context) {
 
 	SetTesting(t)
 
@@ -50,7 +52,7 @@ func InitDefaultAppContextNoDb(t *testing.T, testDir string, config ...string) a
 	app := DefaultAppBuilder(t, nil)
 	require.NoErrorf(t, DefaultAppInitializer(t, app, configFile, nil), "failed to init application context")
 
-	return app
+	return app, logger.MakeLoggetContext(app)
 }
 
 func InitAppContextNoDb(t *testing.T, testDir string, config ...string) app_context.Context {
@@ -95,7 +97,7 @@ func InitDbModels(t *testing.T, testDir string, dbModels []interface{}, config .
 	a.Close()
 }
 
-func InitAppContext(t *testing.T, testDir string, dbModels []interface{}, config string, newDb ...bool) app_context.Context {
+func InitAppContext(t *testing.T, testDir string, dbModels []interface{}, config string, newDb ...bool) (app_context.Context, context.Context) {
 
 	SetTesting(t)
 
@@ -117,7 +119,7 @@ func InitAppContext(t *testing.T, testDir string, dbModels []interface{}, config
 	require.NoErrorf(t, a.InitDB("db"), "failed to init database")
 	// app.Db().EnableDebug(true)
 
-	return app
+	return app, logger.MakeLoggetContext(app)
 }
 
 func prepareOpContext(ctx op_context.Context, name string) {
@@ -127,7 +129,7 @@ func prepareOpContext(ctx op_context.Context, name string) {
 	ctx.SetErrorManager(errManager)
 }
 
-func SimpleOpContext(app app_context.Context, name string) op_context.Context {
+func SimpleOpContext(app app_context.Context, name string) (op_context.Context, context.Context) {
 	ctx := default_op_context.NewContext()
 	ctx.Init(app, app.Logger(), app.Db())
 	prepareOpContext(ctx, name)
@@ -136,21 +138,21 @@ func SimpleOpContext(app app_context.Context, name string) op_context.Context {
 	origin.SetUserType("simple_op_context")
 	ctx.SetOrigin(origin)
 
-	return ctx
+	return ctx, op_context.MakeOpContext(ctx)
 }
 
-func MultitenancyOpContext(app app_context.Context, name string) multitenancy.TenancyContext {
-	ctx := multitenancy.NewInitContext(app, app.Logger(), app.Db())
+func MultitenancyOpContext(app app_context.Context, name string) (multitenancy.TenancyContext, context.Context) {
+	ctx, sctx := multitenancy.NewInitContext(app, app.Logger(), app.Db())
 	prepareOpContext(ctx, name)
 
 	origin := default_op_context.NewOrigin(app)
 	origin.SetUserType("multitenancy_op_context")
 	ctx.SetOrigin(origin)
 
-	return ctx
+	return ctx, sctx
 }
 
-func UserOpContext(app app_context.Context, name string, user auth.User, tenancy ...multitenancy.Tenancy) auth.UserContext {
+func UserOpContext(app app_context.Context, name string, user auth.User, tenancy ...multitenancy.Tenancy) (auth.UserContext, context.Context) {
 	ctx := &auth.TenancyUserContext{}
 	baseCtx := default_op_context.NewContext()
 	baseCtx.Init(app, app.Logger(), app.Db())
@@ -164,7 +166,7 @@ func UserOpContext(app app_context.Context, name string, user auth.User, tenancy
 	origin := default_op_context.NewOrigin(app)
 	origin.SetUser(user.Display())
 	ctx.SetOrigin(origin)
-	return ctx
+	return ctx, op_context.MakeOpContext(ctx)
 }
 
 func SetTesting(t *testing.T) {

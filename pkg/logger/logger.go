@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/utils"
@@ -107,6 +108,18 @@ func (w *WithLoggerBase) Init(logger Logger) {
 
 func (w *WithLoggerBase) SetLogger(logger Logger) {
 	w.logger = logger
+}
+
+type WithLoggerKey struct{}
+
+func MakeLoggetContext(ctx WithLogger) context.Context {
+	newCtx := context.WithValue(context.Background(), WithLoggerKey{}, ctx)
+	return newCtx
+}
+
+func LoggerContext(ctx context.Context) WithLogger {
+	v, _ := ctx.Value(WithLoggerKey{}).(WithLogger)
+	return v
 }
 
 func AppendFields(f Fields, fields ...Fields) {

@@ -1,10 +1,13 @@
 package confirmation_api_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/confirmation_control"
 	"github.com/evgeniums/evgo/pkg/confirmation_control/confirmation_control_api"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type ExternalEndpoint struct {
@@ -48,14 +51,15 @@ type CheckConfirmationEndpoint struct {
 	ExternalEndpoint
 }
 
-func (e *CheckConfirmationEndpoint) PrecheckBeforeAuth(request api_server.Request, smsMessage *string, skipSms *bool) error {
+func (e *CheckConfirmationEndpoint) PrecheckBeforeAuth(sctx context.Context, smsMessage *string, skipSms *bool) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("ConfirmationExternalService.PrecheckBeforeAuth")
 	defer request.TraceOutMethod()
 
 	// get token from cache
-	cacheToken, err := confirmation_control_api.GetTokenFromCache(request)
+	cacheToken, err := confirmation_control_api.GetTokenFromCache(sctx)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -75,10 +79,11 @@ func (e *CheckConfirmationEndpoint) PrecheckBeforeAuth(request api_server.Reques
 	return nil
 }
 
-func (e *CheckConfirmationEndpoint) HandleRequest(request api_server.Request) error {
+func (e *CheckConfirmationEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
 	var err error
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("ConfirmationExternalService.CheckConfirmation")
 	defer request.TraceOutMethod()
 
@@ -89,7 +94,7 @@ func (e *CheckConfirmationEndpoint) HandleRequest(request api_server.Request) er
 	var result = &confirmation_control.ConfirmationResult{}
 	if e.service.CheckCode {
 		// parse command
-		cmd, err := api_server.ParseValidateRequest[confirmation_control.ConfirmationResult](request)
+		cmd, err := api_server.ParseValidateRequest[confirmation_control.ConfirmationResult](sctx)
 		if err != nil {
 			c.SetLoggerField("request_content", string(request.GetRequestContent()))
 			c.SetMessage("failed to parse/validate command")
@@ -102,7 +107,7 @@ func (e *CheckConfirmationEndpoint) HandleRequest(request api_server.Request) er
 
 	// invoke callback
 	resp := &confirmation_control_api.CheckConfirmationResponse{}
-	resp.RedirectUrl, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(request, confirmationId.Value(), result)
+	resp.RedirectUrl, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(sctx, confirmationId.Value(), result)
 	request.SetLoggerField("redirect_url", resp.RedirectUrl)
 	if err != nil {
 		c.SetMessage("failed to invoke callback")
@@ -113,7 +118,7 @@ func (e *CheckConfirmationEndpoint) HandleRequest(request api_server.Request) er
 	request.Response().SetMessage(resp)
 
 	// delete token from cache
-	confirmation_control_api.DeleteTokenFromCache(request)
+	confirmation_control_api.DeleteTokenFromCache(sctx)
 
 	// done
 	return nil
@@ -129,14 +134,15 @@ type PrepareCheckConfirmationEndpoint struct {
 	ExternalEndpoint
 }
 
-func (e *PrepareCheckConfirmationEndpoint) HandleRequest(request api_server.Request) error {
+func (e *PrepareCheckConfirmationEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("ConfirmationExternalService.PrepareCheckConfirmation")
 	defer request.TraceOutMethod()
 
 	// get token from cache
-	cacheToken, err := confirmation_control_api.GetTokenFromCache(request)
+	cacheToken, err := confirmation_control_api.GetTokenFromCache(sctx)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -166,9 +172,10 @@ type FailedConfirmationEndpoint struct {
 	ExternalEndpoint
 }
 
-func (e *FailedConfirmationEndpoint) HandleRequest(request api_server.Request) error {
+func (e *FailedConfirmationEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	var err error
 	c := request.TraceInMethod("ConfirmationExternalService.FailedConfirmation")
 	defer request.TraceOutMethod()
@@ -177,7 +184,7 @@ func (e *FailedConfirmationEndpoint) HandleRequest(request api_server.Request) e
 	request.SetLoggerField("confirmation_id", confirmationId)
 
 	// parse command
-	result, err := api_server.ParseValidateRequest[confirmation_control.ConfirmationResult](request)
+	result, err := api_server.ParseValidateRequest[confirmation_control.ConfirmationResult](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return c.SetError(err)
@@ -189,7 +196,7 @@ func (e *FailedConfirmationEndpoint) HandleRequest(request api_server.Request) e
 
 	// invoke callback
 	resp := &confirmation_control_api.CheckConfirmationResponse{}
-	resp.RedirectUrl, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(request, confirmationId.Value(), result)
+	resp.RedirectUrl, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(sctx, confirmationId.Value(), result)
 	request.SetLoggerField("redirect_url", confirmationId)
 	if err != nil {
 		c.SetMessage("failed to invoke callback")

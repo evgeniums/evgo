@@ -35,7 +35,7 @@ func AddPool(t *testing.T, ctx *PoolTestContext, poolName ...string) pool.Pool {
 	p1.SetLongName(p1Sample.LongName())
 
 	// add pool
-	addedPool1, err := ctx.RemotePoolController.AddPool(ctx.ClientOp, p1)
+	addedPool1, err := ctx.RemotePoolController.AddPool(ctx.ClientOpCtx, p1)
 	require.NoError(t, err)
 	require.NotNil(t, addedPool1)
 	assert.Equal(t, p1Sample.Name(), addedPool1.Name())
@@ -45,7 +45,7 @@ func AddPool(t *testing.T, ctx *PoolTestContext, poolName ...string) pool.Pool {
 	assert.NotEmpty(t, addedPool1.GetID())
 
 	// find pool locally
-	dbPool1, err := ctx.LocalPoolController.FindPool(ctx.AdminOp, p1Sample.Name(), true)
+	dbPool1, err := ctx.LocalPoolController.FindPool(ctx.AdminOpCtx, p1Sample.Name(), true)
 	require.NoError(t, err)
 	require.NotNil(t, dbPool1)
 	b1, _ := json.Marshal(addedPool1)
@@ -53,7 +53,7 @@ func AddPool(t *testing.T, ctx *PoolTestContext, poolName ...string) pool.Pool {
 	assert.Equal(t, string(b1), string(b2))
 
 	// find pool remotely
-	remotePool1, err := ctx.RemotePoolController.FindPool(ctx.ClientOp, p1Sample.Name(), true)
+	remotePool1, err := ctx.RemotePoolController.FindPool(ctx.ClientOpCtx, p1Sample.Name(), true)
 	require.NoError(t, err)
 	require.NotNil(t, dbPool1)
 	b3, _ := json.Marshal(remotePool1)
@@ -64,7 +64,7 @@ func AddPool(t *testing.T, ctx *PoolTestContext, poolName ...string) pool.Pool {
 	p2.SetName(p1Sample.Name())
 	p2.SetDescription(p1Sample.Description())
 	p2.SetLongName(p1Sample.LongName())
-	_, err = ctx.RemotePoolController.AddPool(ctx.ClientOp, p2)
+	_, err = ctx.RemotePoolController.AddPool(ctx.ClientOpCtx, p2)
 	test_utils.CheckGenericError(t, err, pool.ErrorCodePoolNameConflict)
 
 	// done
@@ -116,7 +116,7 @@ func AddService(t *testing.T, ctx *PoolTestContext, serviceConfig *pool.PoolServ
 	p1.SetActive(true)
 
 	// add service
-	addedService1, err := ctx.RemotePoolController.AddService(ctx.ClientOp, p1)
+	addedService1, err := ctx.RemotePoolController.AddService(ctx.ClientOpCtx, p1)
 	require.NoError(t, err)
 	require.NotNil(t, addedService1)
 	assert.NotEmpty(t, addedService1.GetID())
@@ -127,7 +127,7 @@ func AddService(t *testing.T, ctx *PoolTestContext, serviceConfig *pool.PoolServ
 	assert.Equal(t, p1.Secret2(), addedService1.Secret2())
 
 	// find locally
-	dbService1, err := ctx.LocalPoolController.FindService(ctx.AdminOp, p1Sample.Name(), true)
+	dbService1, err := ctx.LocalPoolController.FindService(ctx.AdminOpCtx, p1Sample.Name(), true)
 	require.NoError(t, err)
 	require.NotNil(t, dbService1)
 
@@ -136,7 +136,7 @@ func AddService(t *testing.T, ctx *PoolTestContext, serviceConfig *pool.PoolServ
 	assert.Equal(t, string(b1), string(b2))
 
 	// find remotely
-	remoteService1, err := ctx.RemotePoolController.FindService(ctx.ClientOp, p1Sample.Name(), true)
+	remoteService1, err := ctx.RemotePoolController.FindService(ctx.ClientOpCtx, p1Sample.Name(), true)
 	require.NoError(t, err)
 	require.NotNil(t, remoteService1)
 
@@ -153,7 +153,7 @@ func AddService(t *testing.T, ctx *PoolTestContext, serviceConfig *pool.PoolServ
 	p2.PoolServiceBaseEssentials.ServiceConfigBase = p1Sample.ServiceConfigBase
 	p2.SECRET1 = "secret1"
 	p2.SECRET2 = "secret2"
-	_, err = ctx.RemotePoolController.AddService(ctx.ClientOp, p2)
+	_, err = ctx.RemotePoolController.AddService(ctx.ClientOpCtx, p2)
 	test_utils.CheckGenericError(t, err, pool.ErrorCodeServiceNameConflict)
 
 	// done

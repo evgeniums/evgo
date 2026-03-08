@@ -1,6 +1,8 @@
 package pool_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/db"
@@ -14,20 +16,22 @@ type ListPools struct {
 	result *pool_api.ListPoolsResponse
 }
 
-func (a *ListPools) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (a *ListPools) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("ListPools.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, a.cmd, a.result)
+	err := client.Exec(sctx, operation, a.cmd, a.result)
 	c.SetError(err)
 	return err
 }
 
-func (p *PoolClient) GetPools(ctx op_context.Context, filter *db.Filter) ([]*pool.PoolBase, int64, error) {
+func (p *PoolClient) GetPools(sctx context.Context, filter *db.Filter) ([]*pool.PoolBase, int64, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolClient.GetPools")
 	onExit := func() {
 		if err != nil {
@@ -45,7 +49,7 @@ func (p *PoolClient) GetPools(ctx op_context.Context, filter *db.Filter) ([]*poo
 		cmd:    cmd,
 		result: &pool_api.ListPoolsResponse{},
 	}
-	err = handler.Exec(p.Client(), ctx, p.list_pools)
+	err = handler.Exec(p.Client(), sctx, p.list_pools)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, 0, err

@@ -1,6 +1,7 @@
 package user_console
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/app_context"
@@ -42,10 +43,10 @@ type HandlerBase[T user.User] struct {
 	console_tool.HandlerBase[*UserCommands[T]]
 }
 
-func (b *HandlerBase[T]) Context(data interface{}, login ...string) (op_context.Context, user.Users[T], error) {
-	ctx, err := b.HandlerBase.Context(data)
+func (b *HandlerBase[T]) Context(data interface{}, login ...string) (op_context.Context, context.Context, user.Users[T], error) {
+	ctx, sctx, err := b.HandlerBase.Context(data)
 	if err != nil {
-		return ctx, nil, err
+		return ctx, sctx, nil, err
 	}
 	ctrl := b.Group.MakeController(ctx.App())
 	if len(login) != 0 {
@@ -54,5 +55,5 @@ func (b *HandlerBase[T]) Context(data interface{}, login ...string) (op_context.
 			app_context.AbortFatal(ctx.App(), fmt.Sprintf("Invalid login format: %s", err))
 		}
 	}
-	return ctx, ctrl, nil
+	return ctx, sctx, ctrl, nil
 }

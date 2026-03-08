@@ -1,6 +1,7 @@
 package work_schedule
 
 import (
+	"context"
 	"errors"
 	"sync/atomic"
 	"time"
@@ -65,14 +66,14 @@ type Work interface {
 
 type WorkBuilder[T Work] func() T
 
-type WorkInvoker[T Work] func(ctx op_context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error
+type WorkInvoker[T Work] func(sctx context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error
 
 type WorkScheduler[T Work] interface {
 	NewWork(referenceId string, referenceType string) T
-	AcquireWork(ctx op_context.Context, work T) error
-	ReleaseWork(ctx op_context.Context, work T) error
-	PostWork(ctx op_context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error
-	RemoveWork(ctx op_context.Context, referenceId string, referenceType string) error
+	AcquireWork(sctx context.Context, work T) error
+	ReleaseWork(sctx context.Context, work T) error
+	PostWork(sctx context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error
+	RemoveWork(sctx context.Context, referenceId string, referenceType string) error
 }
 
 type WorkSchedulerBase[T Work] struct {
@@ -91,24 +92,24 @@ func (s *WorkSchedulerBase[T]) NewWork(referenceId string, referenceType string)
 	return w
 }
 
-func (s *WorkSchedulerBase[T]) AcquireWork(ctx op_context.Context, work T) error {
+func (s *WorkSchedulerBase[T]) AcquireWork(sctx context.Context, work T) error {
 	return nil
 }
 
-func (s *WorkSchedulerBase[T]) ReleaseWork(ctx op_context.Context, work T) error {
+func (s *WorkSchedulerBase[T]) ReleaseWork(sctx context.Context, work T) error {
 	return nil
 }
 
-func (s *WorkSchedulerBase[T]) PostWork(ctx op_context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error {
+func (s *WorkSchedulerBase[T]) PostWork(sctx context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error {
 	return nil
 }
 
-func (s *WorkSchedulerBase[T]) RemoveWork(ctx op_context.Context, referenceId string) error {
+func (s *WorkSchedulerBase[T]) RemoveWork(sctx context.Context, referenceId string) error {
 	return nil
 }
 
 type WorkRunner[T Work] interface {
-	Run(ctx op_context.Context, work T) (bool, error)
+	Run(sctx context.Context, work T) (bool, error)
 }
 
 type WorkBase struct {
@@ -292,10 +293,11 @@ func (s *WorkSchedule[T]) SetRunner(runner WorkRunner[T]) {
 	s.workRunner = runner
 }
 
-func (s *WorkSchedule[T]) AcquireWork(ctx op_context.Context, work T) error {
+func (s *WorkSchedule[T]) AcquireWork(sctx context.Context, work T) error {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("WorkSchedule.AcquireWork")
 	defer ctx.TraceOutMethod()
 
@@ -314,7 +316,7 @@ func (s *WorkSchedule[T]) AcquireWork(ctx op_context.Context, work T) error {
 	work.SetLock(lock)
 
 	// reset next time flag
-	err = s.CRUD().Update(ctx, work, db.Fields{"next_time_set": false})
+	err = s.CRUD().Update(sctx, work, db.Fields{"next_time_set": false})
 	if err != nil {
 		c.SetMessage("failed to save next work time set flag in database")
 		return c.SetError(err)
@@ -324,9 +326,10 @@ func (s *WorkSchedule[T]) AcquireWork(ctx op_context.Context, work T) error {
 	return nil
 }
 
-func (s *WorkSchedule[T]) ReleaseWork(ctx op_context.Context, work T) error {
+func (s *WorkSchedule[T]) ReleaseWork(sctx context.Context, work T) error {
 
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("WorkSchedule.ReleaseWork")
 	defer ctx.TraceOutMethod()
 
@@ -353,10 +356,11 @@ func (s *WorkSchedule[T]) SetNextWorkTime(work T, reset ...bool) {
 	}
 }
 
-func (s *WorkSchedule[T]) PostWork(ctx op_context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error {
+func (s *WorkSchedule[T]) PostWork(sctx context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("WorkSchedule.PostWork")
 	defer ctx.TraceOutMethod()
 
@@ -369,7 +373,7 @@ func (s *WorkSchedule[T]) PostWork(ctx op_context.Context, work T, postMode Post
 
 	if work.IsNoDb() {
 		// invoke work
-		err = s.invoker(ctx, work, postMode, tenancy...)
+		err = s.invoker(sctx, work, postMode, tenancy...)
 		if err != nil {
 			c.SetMessage("failed to invoke work")
 			return err
@@ -378,7 +382,7 @@ func (s *WorkSchedule[T]) PostWork(ctx op_context.Context, work T, postMode Post
 	}
 
 	// create work in database
-	_, err = s.CRUD().CreateDup(ctx, work, true)
+	_, err = s.CRUD().CreateDup(sctx, work, true)
 	if err != nil {
 		c.SetLoggerField("work_reference_id", work.GetReferenceId())
 		c.SetMessage("failed to save work in database")
@@ -394,7 +398,7 @@ func (s *WorkSchedule[T]) PostWork(ctx op_context.Context, work T, postMode Post
 
 		// read work from database
 		dbWork := s.workBuilder()
-		found, err := s.CRUD().Read(ctx, db.Fields{"reference_id": work.GetReferenceId()}, dbWork)
+		found, err := s.CRUD().Read(sctx, db.Fields{"reference_id": work.GetReferenceId()}, dbWork)
 		if err != nil {
 			c.SetMessage("failed to read work from database")
 			return c.SetError(err)
@@ -405,7 +409,7 @@ func (s *WorkSchedule[T]) PostWork(ctx op_context.Context, work T, postMode Post
 		}
 
 		// invoke work
-		err = s.invoker(ctx, dbWork, postMode, tenancy...)
+		err = s.invoker(sctx, dbWork, postMode, tenancy...)
 		if err != nil {
 			c.SetMessage("failed to invoke work")
 			return err
@@ -416,15 +420,16 @@ func (s *WorkSchedule[T]) PostWork(ctx op_context.Context, work T, postMode Post
 	return nil
 }
 
-func (s *WorkSchedule[T]) RemoveWork(ctx op_context.Context, referenceId string, refernecType string) error {
+func (s *WorkSchedule[T]) RemoveWork(sctx context.Context, referenceId string, refernecType string) error {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("WorkSchedule.AddWork")
 	defer ctx.TraceOutMethod()
 
 	// delete from database
-	err = s.CRUD().DeleteByFields(ctx, db.Fields{"reference_id": referenceId, "reference_type": refernecType}, s.workBuilder())
+	err = s.CRUD().DeleteByFields(sctx, db.Fields{"reference_id": referenceId, "reference_type": refernecType}, s.workBuilder())
 	if err != nil {
 		c.SetLoggerField("work_reference_id", referenceId)
 		c.SetMessage("failed to delete work from database")
@@ -448,12 +453,12 @@ func (s *WorkSchedule[T]) ProcessWorks() {
 
 	// TODO support multitenancy
 
-	ctx := default_op_context.BackgroundOpContext(s.App(), s.name)
+	ctx, sctx := default_op_context.BackgroundOpContext(s.App(), s.name)
 	if s.db != nil {
 		ctx.SetOverrideDb(s.db)
 	}
 	ctx.SetWriteCloseLog(s.LOG_EMPTY_WORKS)
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 	c := ctx.TraceInMethod("WorkSchedule.ProcessWorks")
 
 	// process works
@@ -481,7 +486,7 @@ func (s *WorkSchedule[T]) ProcessWorks() {
 		handler := func() error {
 
 			var works1 []T
-			_, err := s.CRUD().List(ctx, filter, &works1)
+			_, err := s.CRUD().List(sctx, filter, &works1)
 			if err != nil {
 				c.SetMessage("failed to read works from database 1")
 				return err
@@ -492,13 +497,13 @@ func (s *WorkSchedule[T]) ProcessWorks() {
 			workIds := []string{}
 			for _, w := range works1 {
 				dbWork := s.workBuilder()
-				found, err := s.CRUD().ReadForUpdate(ctx, db.Fields{"id": w.GetID()}, dbWork)
+				found, err := s.CRUD().ReadForUpdate(sctx, db.Fields{"id": w.GetID()}, dbWork)
 				if err != nil {
 					c.SetMessage("failed to read work for hold from database")
 					return err
 				}
 				if found {
-					err = s.CRUD().Update(ctx, dbWork, db.Fields{"next_time": nextTime, "next_time_set": false})
+					err = s.CRUD().Update(sctx, dbWork, db.Fields{"next_time": nextTime, "next_time_set": false})
 					if err != nil {
 						c.SetLoggerField("work_reference_id", dbWork.GetReferenceId())
 						c.SetMessage("failed to hold work in database")
@@ -511,7 +516,7 @@ func (s *WorkSchedule[T]) ProcessWorks() {
 			// read updated works
 			f := db.NewFilter()
 			f.AddFieldIn("id", utils.ListInterfaces(workIds...)...)
-			_, err = s.CRUD().List(ctx, f, &works)
+			_, err = s.CRUD().List(sctx, f, &works)
 			if err != nil {
 				c.SetMessage("failed to read works from database 2")
 				return err
@@ -520,7 +525,7 @@ func (s *WorkSchedule[T]) ProcessWorks() {
 			// done
 			return nil
 		}
-		err := op_context.ExecDbTransaction(ctx, handler)
+		err := op_context.ExecDbTransaction(sctx, handler)
 		if err != nil {
 			c.SetError(err)
 			break
@@ -542,17 +547,18 @@ func (s *WorkSchedule[T]) ProcessWorks() {
 	}
 }
 
-func (s *WorkSchedule[T]) DoWork(ctx op_context.Context, work T) error {
+func (s *WorkSchedule[T]) DoWork(sctx context.Context, work T) error {
 
 	// setup
 	var err error
 	releaseWork := false
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.SetLoggerField("work_reference_id", work.GetReferenceId())
 	c := ctx.TraceInMethod("WorkSchedule.DoWork")
 	onExit := func() {
 
 		if releaseWork {
-			s.ReleaseWork(ctx, work)
+			s.ReleaseWork(sctx, work)
 		}
 		if err != nil {
 			c.SetError(err)
@@ -569,7 +575,7 @@ func (s *WorkSchedule[T]) DoWork(ctx op_context.Context, work T) error {
 	}
 
 	// acquire work
-	s.AcquireWork(ctx, work)
+	s.AcquireWork(sctx, work)
 	if err != nil {
 		return err
 	}
@@ -577,13 +583,13 @@ func (s *WorkSchedule[T]) DoWork(ctx op_context.Context, work T) error {
 
 	// run work
 	work.ResetNextTime()
-	done, err := s.workRunner.Run(ctx, work)
+	done, err := s.workRunner.Run(sctx, work)
 	s.SetNextWorkTime(work)
 	updateProcessedWork := func() error {
 
 		// read work from database
 		dbWork := s.workBuilder()
-		found, err := s.CRUD().ReadForUpdate(ctx, db.Fields{"id": work.GetID()}, dbWork)
+		found, err := s.CRUD().ReadForUpdate(sctx, db.Fields{"id": work.GetID()}, dbWork)
 		if err != nil {
 			c.SetMessage("failed to read processed work from database")
 			return err
@@ -595,7 +601,7 @@ func (s *WorkSchedule[T]) DoWork(ctx op_context.Context, work T) error {
 
 		// if done then just delete work
 		if done {
-			err = s.CRUD().Delete(ctx, dbWork)
+			err = s.CRUD().Delete(sctx, dbWork)
 			if err != nil {
 				c.SetMessage("failed to delete processed work from database")
 				return err
@@ -607,7 +613,7 @@ func (s *WorkSchedule[T]) DoWork(ctx op_context.Context, work T) error {
 		f := db.NewFilter()
 		f.AddField("id", work.GetID())
 		f.AddField("next_time_set", false)
-		err = s.CRUD().UpdateWithFilter(ctx, s.workBuilder(), f, db.Fields{"next_time": work.GetNextTime(), "next_time_set": true})
+		err = s.CRUD().UpdateWithFilter(sctx, s.workBuilder(), f, db.Fields{"next_time": work.GetNextTime(), "next_time_set": true})
 		if err != nil {
 			c.SetMessage("failed to save next work time in database")
 			return err
@@ -616,7 +622,7 @@ func (s *WorkSchedule[T]) DoWork(ctx op_context.Context, work T) error {
 		// done
 		return nil
 	}
-	err1 := op_context.ExecDbTransaction(ctx, updateProcessedWork)
+	err1 := op_context.ExecDbTransaction(sctx, updateProcessedWork)
 	if err1 != nil {
 		c.Logger().Error("failed to update processed work", err1)
 		if err == nil {
@@ -629,15 +635,16 @@ func (s *WorkSchedule[T]) DoWork(ctx op_context.Context, work T) error {
 	return nil
 }
 
-func (s *WorkSchedule[T]) InvokeWork(ctx op_context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error {
+func (s *WorkSchedule[T]) InvokeWork(sctx context.Context, work T, postMode PostMode, tenancy ...multitenancy.Tenancy) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("WorkSchedule.InvokeWork")
 	defer ctx.TraceOutMethod()
 
 	switch postMode {
 	case DIRECT:
 		// TODO support multitenancy
-		err := s.DoWork(ctx, work)
+		err := s.DoWork(sctx, work)
 		if err != nil {
 			return c.SetError(err)
 		}
@@ -647,12 +654,13 @@ func (s *WorkSchedule[T]) InvokeWork(ctx op_context.Context, work T, postMode Po
 	return nil
 }
 
-func (s *WorkSchedule[T]) UpdateWorkNextTime(ctx op_context.Context, work T, tenancy ...multitenancy.Tenancy) error {
+func (s *WorkSchedule[T]) UpdateWorkNextTime(sctx context.Context, work T, tenancy ...multitenancy.Tenancy) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("WorkSchedule.UpdateWorkNextTime")
 	defer ctx.TraceOutMethod()
 
-	err := s.CRUD().Update(ctx, work, db.Fields{"next_time": work.GetNextTime(), "next_time_set": true})
+	err := s.CRUD().Update(sctx, work, db.Fields{"next_time": work.GetNextTime(), "next_time_set": true})
 	if err != nil {
 		c.SetMessage("failed to save next work time in database")
 		return c.SetError(err)
@@ -671,16 +679,16 @@ func (s *WorkSchedule[T]) worker() {
 		}
 
 		if work.tenancy != nil {
-			ctx := app_with_multitenancy.BackgroundOpContext(s.App(), work.tenancy, s.name)
-			s.DoWork(ctx, work.work)
-			ctx.Close("Served queue work")
+			ctx, sctx := app_with_multitenancy.BackgroundOpContext(s.App(), work.tenancy, s.name)
+			s.DoWork(sctx, work.work)
+			ctx.Close(sctx, "Served queue work")
 		} else {
-			ctx := default_op_context.BackgroundOpContext(s.App(), s.name)
+			ctx, sctx := default_op_context.BackgroundOpContext(s.App(), s.name)
 			if s.db != nil {
 				ctx.SetOverrideDb(s.db)
 			}
-			s.DoWork(ctx, work.work)
-			ctx.Close("Served queue work")
+			s.DoWork(sctx, work.work)
+			ctx.Close(sctx, "Served queue work")
 		}
 
 		go s.ProcessWorks()

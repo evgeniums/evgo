@@ -2,6 +2,7 @@ package test_utils
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +11,6 @@ import (
 	"github.com/evgeniums/evgo/pkg/api/api_client/rest_api_client"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/http_request"
-	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-querystring/query"
@@ -136,11 +136,11 @@ func HttptestSendWithQuery(t *testing.T, g *gin.Engine, method string, url strin
 
 func RestApiTestClient(t *testing.T, g *gin.Engine, baseUrl string, userAgent ...string) *rest_api_client.RestApiClientBase {
 
-	sendWithBody := func(ctx op_context.Context, httpClient *http_request.HttpClient, method string, url string, cmd interface{}, headers ...map[string]string) (rest_api_client.Response, error) {
+	sendWithBody := func(sctx context.Context, httpClient *http_request.HttpClient, method string, url string, cmd interface{}, headers ...map[string]string) (rest_api_client.Response, error) {
 		resp := HttptestSendWithBody(t, g, method, url, cmd, headers...)
 		return resp, nil
 	}
-	sendWithQuery := func(ctx op_context.Context, httpClient *http_request.HttpClient, method string, url string, cmd interface{}, headers ...map[string]string) (rest_api_client.Response, error) {
+	sendWithQuery := func(sctx context.Context, httpClient *http_request.HttpClient, method string, url string, cmd interface{}, headers ...map[string]string) (rest_api_client.Response, error) {
 		resp := HttptestSendWithQuery(t, g, method, url, cmd, headers...)
 		return resp, nil
 	}

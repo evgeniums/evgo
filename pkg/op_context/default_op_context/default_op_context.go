@@ -1,6 +1,7 @@
 package default_op_context
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -118,6 +119,11 @@ func NewInitContext(app app_context.Context, log logger.Logger, db db.DB) *Conte
 	c := NewContext()
 	c.Init(app, log, db)
 	return c
+}
+
+func NewInitContexts(app app_context.Context, log logger.Logger, db db.DB) (*ContextBase, context.Context) {
+	c := NewInitContext(app, log, db)
+	return c, op_context.MakeOpContext(c)
 }
 
 func (c *ContextBase) SetID(id string) {
@@ -330,14 +336,14 @@ func (c *ContextBase) DumpLog(successMessage ...string) {
 	c.ClearError()
 }
 
-func (c *ContextBase) Close(successMessage ...string) {
+func (c *ContextBase) Close(sctx context.Context, successMessage ...string) {
 
 	// write oplog
 	if len(c.oplogs) != 0 {
 		if c.oplogHandler != nil || c.oplogWriter != nil {
 			oplogWriter := c.oplogWriter
 			if oplogWriter == nil {
-				oplogWriter = c.oplogHandler(c)
+				oplogWriter = c.oplogHandler()
 			}
 
 			for _, o := range c.oplogs {
@@ -352,7 +358,7 @@ func (c *ContextBase) Close(successMessage ...string) {
 					o.SetOriginClient(c.origin.SessionClient())
 					o.SetUserType(c.origin.UserType())
 				}
-				oplogWriter.Write(o)
+				oplogWriter.Write(sctx, o)
 			}
 		}
 		c.oplogs = make([]oplog.Oplog, 0)
@@ -521,7 +527,7 @@ func (o *Origin) CopyOrigin(other op_context.Origin) {
 	o.SetUserType(other.UserType())
 }
 
-func BackgroundOpContext(app app_context.Context, name string) *ContextBase {
+func BackgroundOpContext(app app_context.Context, name string) (*ContextBase, context.Context) {
 	opCtx := NewInitContext(app, app.Logger(), app.Db())
 	opCtx.SetName(name)
 	errManager := &generic_error.ErrorManagerBase{}
@@ -531,5 +537,5 @@ func BackgroundOpContext(app app_context.Context, name string) *ContextBase {
 	origin.SetUser(background_worker.ContextUser)
 	origin.SetUserType(op_context.AutoUserType)
 	opCtx.SetOrigin(origin)
-	return opCtx
+	return opCtx, op_context.MakeOpContext(opCtx)
 }

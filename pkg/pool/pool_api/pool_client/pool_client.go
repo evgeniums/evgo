@@ -1,6 +1,7 @@
 package pool_client
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -87,8 +88,9 @@ func (p *PoolClient) resourceForServicePools(serviceId string) api.Resource {
 	return poolsResource
 }
 
-func (p *PoolClient) poolId(ctx op_context.Context, id string, idIsName ...bool) (string, pool.Pool, error) {
+func (p *PoolClient) poolId(sctx context.Context, id string, idIsName ...bool) (string, pool.Pool, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolClient.serviceId")
 	defer ctx.TraceOutMethod()
 
@@ -98,7 +100,7 @@ func (p *PoolClient) poolId(ctx op_context.Context, id string, idIsName ...bool)
 
 	filter := db.NewFilter()
 	filter.AddField("name", id)
-	pools, _, err := p.GetPools(ctx, filter)
+	pools, _, err := p.GetPools(sctx, filter)
 	if err != nil {
 		return "", nil, c.SetError(err)
 	}
@@ -111,8 +113,9 @@ func (p *PoolClient) poolId(ctx op_context.Context, id string, idIsName ...bool)
 	return pool.GetID(), pool, nil
 }
 
-func (p *PoolClient) serviceId(ctx op_context.Context, id string, idIsName ...bool) (string, pool.PoolService, error) {
+func (p *PoolClient) serviceId(sctx context.Context, id string, idIsName ...bool) (string, pool.PoolService, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolClient.serviceId")
 	defer ctx.TraceOutMethod()
 
@@ -122,7 +125,7 @@ func (p *PoolClient) serviceId(ctx op_context.Context, id string, idIsName ...bo
 
 	filter := db.NewFilter()
 	filter.AddField("name", id)
-	services, _, err := p.GetServices(ctx, filter)
+	services, _, err := p.GetServices(sctx, filter)
 	if err != nil {
 		return "", nil, c.SetError(err)
 	}

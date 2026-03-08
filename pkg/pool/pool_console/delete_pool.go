@@ -24,11 +24,11 @@ func (d *DeletePoolHandler) Data() interface{} {
 
 func (d *DeletePoolHandler) Execute(args []string) error {
 
-	ctx, controller, err := d.Context(d.Data())
+	ctx, sctx, controller, err := d.Context(d.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
-	return controller.DeletePool(ctx, d.Pool, true)
+	return controller.DeletePool(sctx, d.Pool, true)
 }

@@ -1,6 +1,8 @@
 package pool_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -12,20 +14,22 @@ type FindPool struct {
 	result *pool_api.PoolResponse
 }
 
-func (a *FindPool) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (a *FindPool) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("FindPool.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, nil, a.result)
+	err := client.Exec(sctx, operation, nil, a.result)
 	c.SetError(err)
 	return err
 }
 
-func (p *PoolClient) FindPool(ctx op_context.Context, id string, idIsName ...bool) (pool.Pool, error) {
+func (p *PoolClient) FindPool(sctx context.Context, id string, idIsName ...bool) (pool.Pool, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolClient.FindPool")
 	onExit := func() {
 		if err != nil {
@@ -35,7 +39,7 @@ func (p *PoolClient) FindPool(ctx op_context.Context, id string, idIsName ...boo
 	}
 	defer onExit()
 
-	pId, pool, err := p.poolId(ctx, id, idIsName...)
+	pId, pool, err := p.poolId(sctx, id, idIsName...)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +52,7 @@ func (p *PoolClient) FindPool(ctx op_context.Context, id string, idIsName ...boo
 		result: &pool_api.PoolResponse{},
 	}
 	op := api.NamedResourceOperation(p.PoolResource, pId, pool_api.FindPool())
-	err = handler.Exec(p.Client(), ctx, op)
+	err = handler.Exec(p.Client(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

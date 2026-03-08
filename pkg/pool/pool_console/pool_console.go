@@ -1,6 +1,8 @@
 package pool_console
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/console_tool"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/pool"
@@ -48,10 +50,10 @@ type HandlerBase struct {
 	console_tool.HandlerBase[*PoolCommands]
 }
 
-func (b *HandlerBase) Context(data interface{}) (op_context.Context, pool.PoolController, error) {
-	ctx, err := b.HandlerBase.Context(data)
+func (b *HandlerBase) Context(data interface{}) (op_context.Context, context.Context, pool.PoolController, error) {
+	ctx, sctx, err := b.HandlerBase.Context(data)
 	if err != nil {
-		return ctx, nil, err
+		return ctx, sctx, nil, err
 	}
-	return ctx, b.Group.GetPoolController(), nil
+	return ctx, sctx, b.Group.GetPoolController(), nil
 }

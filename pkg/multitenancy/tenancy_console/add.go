@@ -27,13 +27,13 @@ func (a *AddHandler) Data() interface{} {
 
 func (a *AddHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
-	added, err := controller.Add(ctx, &a.TenancyData)
+	added, err := controller.Add(sctx, &a.TenancyData)
 	if err == nil {
 		fmt.Printf("Added tenancy:\n%s\n", utils.DumpPrettyJson(added))
 	}

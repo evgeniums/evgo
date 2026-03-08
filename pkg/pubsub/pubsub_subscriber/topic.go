@@ -1,6 +1,7 @@
 package pubsub_subscriber
 
 import (
+	"context"
 	"sync"
 
 	"github.com/evgeniums/evgo/pkg/message"
@@ -10,7 +11,7 @@ import (
 
 type SubscriberClient[T any] interface {
 	Name() string
-	Handle(ctx op_context.Context, msg T) error
+	Handle(sctx context.Context, msg T) error
 }
 
 type SubscriberClientBase struct {
@@ -27,7 +28,7 @@ func (s *SubscriberClientBase) Name() string {
 
 type Topic interface {
 	Name() string
-	Handle(ctx op_context.Context, msg []byte, serializer message.Serializer) error
+	Handle(sctx context.Context, msg []byte, serializer message.Serializer) error
 	Unsubscribe(id string)
 }
 
@@ -67,8 +68,9 @@ func (t *TopicBase[T]) Subscribe(subscriber SubscriberClient[T]) {
 	t.subscribers[subscriber.Name()] = subscriber
 }
 
-func (t *TopicBase[T]) Handle(ctx op_context.Context, msg []byte, serializer message.Serializer) error {
+func (t *TopicBase[T]) Handle(sctx context.Context, msg []byte, serializer message.Serializer) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("pubsub.Topic.Handle")
 	defer ctx.TraceOutMethod()
 
@@ -84,7 +86,7 @@ func (t *TopicBase[T]) Handle(ctx op_context.Context, msg []byte, serializer mes
 	t.mutex.RUnlock()
 
 	for _, subscriber := range subscribers {
-		err = subscriber.Handle(ctx, obj)
+		err = subscriber.Handle(sctx, obj)
 		if err != nil {
 			c.SetLoggerField("subscriber", subscriber.Name())
 			c.SetMessage("failed to handle message")

@@ -1,6 +1,7 @@
 package default_op_context
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/evgeniums/evgo/pkg/app_context"
@@ -8,7 +9,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
-func NewAppInitContext(app app_context.Context) op_context.Context {
+func NewAppInitContext(app app_context.Context) (op_context.Context, context.Context) {
 
 	opCtx := NewContext()
 	opCtx.Init(app, app.Logger(), app.Db())
@@ -22,5 +23,5 @@ func NewAppInitContext(app app_context.Context) op_context.Context {
 	origin.SetUserType("auto_init")
 	opCtx.SetOrigin(origin)
 
-	return opCtx
+	return opCtx, op_context.MakeOpContext(opCtx)
 }

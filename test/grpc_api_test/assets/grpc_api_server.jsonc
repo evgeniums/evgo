@@ -19,8 +19,8 @@
         "auth": {
             "manager" : {
                 "methods": {
-                    "login_phash_token": {},
-                    "token": {
+                    "evgo_login_phash_token": {},
+                    "evgo_token": {
                         "secret": "hdidyuvp98-32kj4p98y"
                     },
                     "noauth":{}

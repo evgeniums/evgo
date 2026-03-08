@@ -1,6 +1,7 @@
 package tenancy_manager
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/crud"
@@ -34,8 +35,9 @@ func DefaultTenancyController(manager *TenancyManager) *TenancyController {
 	return NewTenancyController(&crud.DbCRUD{}, manager)
 }
 
-func (t *TenancyController) OpLog(ctx op_context.Context, operation string, oplog *multitenancy.OpLogTenancy) {
+func (t *TenancyController) OpLog(sctx context.Context, operation string, oplog *multitenancy.OpLogTenancy) {
 	oplog.SetOperation(operation)
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.Oplog(oplog)
 }
 
@@ -51,28 +53,29 @@ func (t *TenancyController) PublishOp(tenancy *multitenancy.TenancyItem, op stri
 	}
 }
 
-func (t *TenancyController) Add(ctx op_context.Context, data *multitenancy.TenancyData) (*multitenancy.TenancyItem, error) {
+func (t *TenancyController) Add(sctx context.Context, data *multitenancy.TenancyData) (*multitenancy.TenancyItem, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.Add", logger.Fields{"customer": data.CUSTOMER_ID, "role": data.ROLE})
 	defer ctx.TraceOutMethod()
 
 	// create tenancy
-	tenancy, err := t.Manager.CreateTenancy(ctx, data)
+	tenancy, err := t.Manager.CreateTenancy(sctx, data)
 	if err != nil {
 		c.SetMessage("failed to create tenancy")
 		return nil, c.SetError(err)
 	}
 
 	// save tenancy in database
-	err = t.CRUD.Create(ctx, &tenancy.TenancyDb)
+	err = t.CRUD.Create(sctx, &tenancy.TenancyDb)
 	if err != nil {
 		c.SetMessage("failed to save tenancy in database")
 		return nil, c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpAdd, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpAdd, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), ShadowPath: tenancy.ShadowPath(), Path: tenancy.Path(), DbName: tenancy.DbName(), Pool: tenancy.PoolName, Customer: tenancy.CustomerDisplay()})
 
 	// publish notification
@@ -82,13 +85,14 @@ func (t *TenancyController) Add(ctx op_context.Context, data *multitenancy.Tenan
 	return tenancy, nil
 }
 
-func (t *TenancyController) Find(ctx op_context.Context, id string, idIsDisplay ...bool) (*multitenancy.TenancyItem, error) {
-	return multitenancy.FindTenancy(t, ctx, id, idIsDisplay...)
+func (t *TenancyController) Find(sctx context.Context, id string, idIsDisplay ...bool) (*multitenancy.TenancyItem, error) {
+	return multitenancy.FindTenancy(t, sctx, id, idIsDisplay...)
 }
 
-func (t *TenancyController) List(ctx op_context.Context, filter *db.Filter) ([]*multitenancy.TenancyItem, int64, error) {
+func (t *TenancyController) List(sctx context.Context, filter *db.Filter) ([]*multitenancy.TenancyItem, int64, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.List")
 	defer ctx.TraceOutMethod()
 
@@ -102,7 +106,7 @@ func (t *TenancyController) List(ctx op_context.Context, filter *db.Filter) ([]*
 
 	// invoke join
 	var tenancies []*multitenancy.TenancyItem
-	count, err := t.CRUD.Join(ctx, db.NewJoin(queryBuilder, "ListTenancies"), filter, &tenancies)
+	count, err := t.CRUD.Join(sctx, db.NewJoin(queryBuilder, "ListTenancies"), filter, &tenancies)
 	if err != nil {
 		c.SetMessage("failed to join tenancies")
 		return nil, 0, c.SetError(err)
@@ -112,39 +116,40 @@ func (t *TenancyController) List(ctx op_context.Context, filter *db.Filter) ([]*
 	return tenancies, count, nil
 }
 
-func (t *TenancyController) Exists(ctx op_context.Context, fields db.Fields) (bool, error) {
+func (t *TenancyController) Exists(sctx context.Context, fields db.Fields) (bool, error) {
 	filter := db.NewFilter()
 	filter.AddFields(fields)
-	return crud.Exists(t.CRUD, ctx, "TenancyController.Exists", filter, &multitenancy.TenancyDb{})
+	return crud.Exists(t.CRUD, sctx, "TenancyController.Exists", filter, &multitenancy.TenancyDb{})
 }
 
-func (t *TenancyController) SetPath(ctx op_context.Context, id string, path string, idIsDisplay ...bool) error {
+func (t *TenancyController) SetPath(sctx context.Context, id string, path string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.SetPath")
 	defer ctx.TraceOutMethod()
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// check if tenancy with such path in that pool
-	err = t.Manager.CheckDuplicatePath(ctx, c, tenancy.PoolId(), path)
+	err = t.Manager.CheckDuplicatePath(sctx, c, tenancy.PoolId(), path)
 	if err != nil {
 		return err
 	}
 
 	// update field
-	err = t.CRUD.Update(ctx, &tenancy.TenancyDb, db.Fields{"path": path})
+	err = t.CRUD.Update(sctx, &tenancy.TenancyDb, db.Fields{"path": path})
 	if err != nil {
 		c.SetMessage("failed to update tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpSetPath, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpSetPath, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), ShadowPath: tenancy.ShadowPath(), Path: tenancy.Path(), Customer: tenancy.CustomerDisplay()})
 
 	// publish notification
@@ -154,33 +159,34 @@ func (t *TenancyController) SetPath(ctx op_context.Context, id string, path stri
 	return nil
 }
 
-func (t *TenancyController) SetShadowPath(ctx op_context.Context, id string, path string, idIsDisplay ...bool) error {
+func (t *TenancyController) SetShadowPath(sctx context.Context, id string, path string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.SetShadowPath")
 	defer ctx.TraceOutMethod()
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// check if tenancy with such path in that pool
-	err = t.Manager.CheckDuplicatePath(ctx, c, tenancy.PoolId(), path)
+	err = t.Manager.CheckDuplicatePath(sctx, c, tenancy.PoolId(), path)
 	if err != nil {
 		return err
 	}
 
 	// update field
-	err = t.CRUD.Update(ctx, &tenancy.TenancyDb, db.Fields{"shadow_path": path})
+	err = t.CRUD.Update(sctx, &tenancy.TenancyDb, db.Fields{"shadow_path": path})
 	if err != nil {
 		c.SetMessage("failed to update tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpSetShadowPath, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpSetShadowPath, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), ShadowPath: tenancy.ShadowPath(), Path: tenancy.Path(), Customer: tenancy.CustomerDisplay()})
 
 	// publish notification
@@ -190,33 +196,34 @@ func (t *TenancyController) SetShadowPath(ctx op_context.Context, id string, pat
 	return nil
 }
 
-func (t *TenancyController) SetRole(ctx op_context.Context, id string, role string, idIsDisplay ...bool) error {
+func (t *TenancyController) SetRole(sctx context.Context, id string, role string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.SetRole")
 	defer ctx.TraceOutMethod()
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// check if tenancy with such role for this customer exists
-	err = t.Manager.CheckDuplicateRole(ctx, c, tenancy.CustomerId(), role)
+	err = t.Manager.CheckDuplicateRole(sctx, c, tenancy.CustomerId(), role)
 	if err != nil {
 		return err
 	}
 
 	// update field
-	err = t.CRUD.Update(ctx, &tenancy.TenancyDb, db.Fields{"role": role})
+	err = t.CRUD.Update(sctx, &tenancy.TenancyDb, db.Fields{"role": role})
 	if err != nil {
 		c.SetMessage("failed to update tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpSetRole, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpSetRole, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), Customer: tenancy.CustomerDisplay()})
 
 	// publish notification
@@ -226,27 +233,28 @@ func (t *TenancyController) SetRole(ctx op_context.Context, id string, role stri
 	return nil
 }
 
-func (t *TenancyController) Activate(ctx op_context.Context, id string, idIsDisplay ...bool) error {
+func (t *TenancyController) Activate(sctx context.Context, id string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.activate")
 	defer ctx.TraceOutMethod()
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// update field
-	err = t.CRUD.Update(ctx, &tenancy.TenancyDb, db.Fields{"active": true})
+	err = t.CRUD.Update(sctx, &tenancy.TenancyDb, db.Fields{"active": true})
 	if err != nil {
 		c.SetMessage("failed to update tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpActivate, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpActivate, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), Customer: tenancy.CustomerDisplay()})
 
 	// publish notification
@@ -256,27 +264,28 @@ func (t *TenancyController) Activate(ctx op_context.Context, id string, idIsDisp
 	return nil
 }
 
-func (t *TenancyController) Deactivate(ctx op_context.Context, id string, idIsDisplay ...bool) error {
+func (t *TenancyController) Deactivate(sctx context.Context, id string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.activate")
 	defer ctx.TraceOutMethod()
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// update field
-	err = t.CRUD.Update(ctx, &tenancy.TenancyDb, db.Fields{"active": false})
+	err = t.CRUD.Update(sctx, &tenancy.TenancyDb, db.Fields{"active": false})
 	if err != nil {
 		c.SetMessage("failed to update tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpDeactivate, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpDeactivate, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), Customer: tenancy.CustomerDisplay()})
 
 	// publish notification
@@ -286,39 +295,40 @@ func (t *TenancyController) Deactivate(ctx op_context.Context, id string, idIsDi
 	return nil
 }
 
-func (t *TenancyController) SetCustomer(ctx op_context.Context, id string, customer string, idIsDisplay ...bool) error {
+func (t *TenancyController) SetCustomer(sctx context.Context, id string, customer string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.SetRole")
 	defer ctx.TraceOutMethod()
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// find customer
-	cust, err := t.Manager.FindCustomer(ctx, c, customer)
+	cust, err := t.Manager.FindCustomer(sctx, c, customer)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// check if tenancy with such role for this customer exists
-	err = t.Manager.CheckDuplicateRole(ctx, c, cust.GetID(), tenancy.Role())
+	err = t.Manager.CheckDuplicateRole(sctx, c, cust.GetID(), tenancy.Role())
 	if err != nil {
 		return err
 	}
 
 	// update field
-	err = t.CRUD.Update(ctx, &tenancy.TenancyDb, db.Fields{"customer_id": cust.GetID()})
+	err = t.CRUD.Update(sctx, &tenancy.TenancyDb, db.Fields{"customer_id": cust.GetID()})
 	if err != nil {
 		c.SetMessage("failed to update tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpSetCustomer, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpSetCustomer, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), Customer: cust.Display()})
 
 	// publish notification
@@ -328,14 +338,15 @@ func (t *TenancyController) SetCustomer(ctx op_context.Context, id string, custo
 	return nil
 }
 
-func (t *TenancyController) ChangePoolOrDb(ctx op_context.Context, id string, poolId string, dbName string, idIsDisplay ...bool) error {
+func (t *TenancyController) ChangePoolOrDb(sctx context.Context, id string, poolId string, dbName string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.ChangePoolOrDb")
 	defer ctx.TraceOutMethod()
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -346,18 +357,18 @@ func (t *TenancyController) ChangePoolOrDb(ctx op_context.Context, id string, po
 	if pId == "" {
 		pId = tenancy.PoolId()
 	}
-	p, err := t.Manager.FindPool(ctx, c, pId)
+	p, err := t.Manager.FindPool(sctx, c, pId)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// check if tenancy with such path in new pool exists
 	if p.GetID() != tenancy.PoolId() {
-		err = t.Manager.CheckDuplicatePath(ctx, c, p.GetID(), tenancy.Path())
+		err = t.Manager.CheckDuplicatePath(sctx, c, p.GetID(), tenancy.Path())
 		if err != nil {
 			return err
 		}
-		err = t.Manager.CheckDuplicatePath(ctx, c, p.GetID(), tenancy.ShadowPath())
+		err = t.Manager.CheckDuplicatePath(sctx, c, p.GetID(), tenancy.ShadowPath())
 		if err != nil {
 			return err
 		}
@@ -373,7 +384,7 @@ func (t *TenancyController) ChangePoolOrDb(ctx op_context.Context, id string, po
 	// check database
 	if tenancy.IsActive() {
 		checkTenancy := NewTenancy(t.Manager)
-		err = checkTenancy.Init(ctx, &tenancy.TenancyDb)
+		err = checkTenancy.Init(sctx, &tenancy.TenancyDb)
 		multitenancy.CloseTenancyDb(checkTenancy)
 		if err != nil {
 			c.SetMessage("failed to init tenancy with new parameters")
@@ -387,14 +398,14 @@ func (t *TenancyController) ChangePoolOrDb(ctx op_context.Context, id string, po
 	}
 
 	// update fields
-	err = t.CRUD.Update(ctx, &tenancy.TenancyDb, db.Fields{"pool_id": p.GetID(), "dbname": dbN})
+	err = t.CRUD.Update(sctx, &tenancy.TenancyDb, db.Fields{"pool_id": p.GetID(), "dbname": dbN})
 	if err != nil {
 		c.SetMessage("failed to update tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpChangePoolOrDb, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpChangePoolOrDb, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), Customer: tenancy.CustomerDisplay(), Pool: p.Name(), DbName: dbN})
 
 	// publish notification
@@ -407,14 +418,15 @@ func (t *TenancyController) ChangePoolOrDb(ctx op_context.Context, id string, po
 	return nil
 }
 
-func (t *TenancyController) SetDbRole(ctx op_context.Context, id string, dbRole string, idIsDisplay ...bool) error {
+func (t *TenancyController) SetDbRole(sctx context.Context, id string, dbRole string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.SetDbRole")
 	defer ctx.TraceOutMethod()
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -422,7 +434,7 @@ func (t *TenancyController) SetDbRole(ctx op_context.Context, id string, dbRole 
 	// check database
 	tenancy.DB_ROLE = dbRole
 	checkTenancy := NewTenancy(t.Manager)
-	err = checkTenancy.Init(ctx, &tenancy.TenancyDb)
+	err = checkTenancy.Init(sctx, &tenancy.TenancyDb)
 	multitenancy.CloseTenancyDb(checkTenancy)
 	if err != nil {
 		c.SetMessage("failed to init tenancy with new parameters")
@@ -435,14 +447,14 @@ func (t *TenancyController) SetDbRole(ctx op_context.Context, id string, dbRole 
 	}
 
 	// update fields
-	err = t.CRUD.Update(ctx, &tenancy.TenancyDb, db.Fields{"db_role": dbRole})
+	err = t.CRUD.Update(sctx, &tenancy.TenancyDb, db.Fields{"db_role": dbRole})
 	if err != nil {
 		c.SetMessage("failed to update tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpSetDbRole, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpSetDbRole, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), Customer: tenancy.CustomerDisplay(), DbRole: dbRole})
 
 	// publish notification
@@ -452,9 +464,10 @@ func (t *TenancyController) SetDbRole(ctx op_context.Context, id string, dbRole 
 	return nil
 }
 
-func (t *TenancyController) Delete(ctx op_context.Context, id string, withDatabase bool, idIsDisplay ...bool) error {
+func (t *TenancyController) Delete(sctx context.Context, id string, withDatabase bool, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.Delete")
 	defer ctx.TraceOutMethod()
 
@@ -464,20 +477,20 @@ func (t *TenancyController) Delete(ctx op_context.Context, id string, withDataba
 	}
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
 
 	// delete tenancy
-	err = t.CRUD.Delete(ctx, &tenancy.TenancyDb)
+	err = t.CRUD.Delete(sctx, &tenancy.TenancyDb)
 	if err != nil {
 		c.SetMessage("failed to delete tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpDelete, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpDelete, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), Customer: tenancy.CustomerDisplay()})
 
 	// publish notification
@@ -487,9 +500,10 @@ func (t *TenancyController) Delete(ctx op_context.Context, id string, withDataba
 	return nil
 }
 
-func (t *TenancyController) ListIpAddresses(ctx op_context.Context, filter *db.Filter) ([]*multitenancy.TenancyIpAddressItem, int64, error) {
+func (t *TenancyController) ListIpAddresses(sctx context.Context, filter *db.Filter) ([]*multitenancy.TenancyIpAddressItem, int64, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.ListIpAddresses")
 	defer ctx.TraceOutMethod()
 
@@ -504,7 +518,7 @@ func (t *TenancyController) ListIpAddresses(ctx op_context.Context, filter *db.F
 
 	// invoke join
 	var addresses []*multitenancy.TenancyIpAddressItem
-	count, err := t.CRUD.Join(ctx, db.NewJoin(queryBuilder, "ListTenancyIpAddresses"), filter, &addresses)
+	count, err := t.CRUD.Join(sctx, db.NewJoin(queryBuilder, "ListTenancyIpAddresses"), filter, &addresses)
 	if err != nil {
 		c.SetMessage("failed to find tenancy")
 		return nil, 0, c.SetError(err)
@@ -514,14 +528,15 @@ func (t *TenancyController) ListIpAddresses(ctx op_context.Context, filter *db.F
 	return addresses, count, nil
 }
 
-func (t *TenancyController) DeleteIpAddress(ctx op_context.Context, id string, ipAddress string, tag string, idIsDisplay ...bool) error {
+func (t *TenancyController) DeleteIpAddress(sctx context.Context, id string, ipAddress string, tag string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.DeleteTenancyIpAddress")
 	defer ctx.TraceOutMethod()
 
 	// find
-	tenancy, err := multitenancy.FindTenancy(t, ctx, id, idIsDisplay...)
+	tenancy, err := multitenancy.FindTenancy(t, sctx, id, idIsDisplay...)
 	if err != nil {
 		c.SetMessage("failed to find tenancy")
 		return c.SetError(err)
@@ -529,14 +544,14 @@ func (t *TenancyController) DeleteIpAddress(ctx op_context.Context, id string, i
 
 	// delete tenancy
 	fields := db.Fields{"tenancy_id": tenancy.GetID(), "ip": ipAddress, "tag": tag}
-	err = t.CRUD.DeleteByFields(ctx, fields, &multitenancy.TenancyIpAddress{})
+	err = t.CRUD.DeleteByFields(sctx, fields, &multitenancy.TenancyIpAddress{})
 	if err != nil {
 		c.SetMessage("failed to delete tenancy IP address")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpDeleteIpAddress, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpDeleteIpAddress, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), Customer: tenancy.CustomerDisplay(), IpAddressTag: tag})
 
 	// publish notification
@@ -546,14 +561,15 @@ func (t *TenancyController) DeleteIpAddress(ctx op_context.Context, id string, i
 	return nil
 }
 
-func (t *TenancyController) AddIpAddress(ctx op_context.Context, id string, ipAddress string, tag string, idIsDisplay ...bool) error {
+func (t *TenancyController) AddIpAddress(sctx context.Context, id string, ipAddress string, tag string, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.AddIpAddress", logger.Fields{"id": id, "ip": ipAddress, "tag": tag})
 	defer ctx.TraceOutMethod()
 
 	// find
-	tenancy, err := multitenancy.FindTenancy(t, ctx, id, idIsDisplay...)
+	tenancy, err := multitenancy.FindTenancy(t, sctx, id, idIsDisplay...)
 	if err != nil {
 		c.SetMessage("failed to find tenancy")
 		return c.SetError(err)
@@ -565,14 +581,14 @@ func (t *TenancyController) AddIpAddress(ctx op_context.Context, id string, ipAd
 	obj.TenancyId = tenancy.GetID()
 	obj.Tag = tag
 	obj.Ip = ipAddress
-	_, err = t.CRUD.CreateDup(ctx, obj, true)
+	_, err = t.CRUD.CreateDup(sctx, obj, true)
 	if err != nil {
 		c.SetMessage("failed to add IP address")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpAddIpAddress, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpAddIpAddress, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		Role: tenancy.Role(), Customer: tenancy.CustomerDisplay(), IpAddressTag: tag, IpAddress: ipAddress})
 
 	// publish notification
@@ -582,14 +598,15 @@ func (t *TenancyController) AddIpAddress(ctx op_context.Context, id string, ipAd
 	return nil
 }
 
-func (t *TenancyController) SetPathBlocked(ctx op_context.Context, id string, blocked bool, mode multitenancy.TenancyBlockPathMode, idIsDisplay ...bool) error {
+func (t *TenancyController) SetPathBlocked(sctx context.Context, id string, blocked bool, mode multitenancy.TenancyBlockPathMode, idIsDisplay ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyController.SetPathBlocked")
 	defer ctx.TraceOutMethod()
 
 	// find tenancy
-	tenancy, err := t.Find(ctx, id, idIsDisplay...)
+	tenancy, err := t.Find(sctx, id, idIsDisplay...)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -605,14 +622,14 @@ func (t *TenancyController) SetPathBlocked(ctx op_context.Context, id string, bl
 		tenancy.BLOCK_SHADOW_PATH = blocked
 	}
 	fields := db.Fields{"block_path": tenancy.BLOCK_PATH, "block_shadow_path": tenancy.BLOCK_SHADOW_PATH}
-	err = t.CRUD.Update(ctx, &tenancy.TenancyDb, fields)
+	err = t.CRUD.Update(sctx, &tenancy.TenancyDb, fields)
 	if err != nil {
 		c.SetMessage("failed to update tenancy")
 		return c.SetError(err)
 	}
 
 	// save oplog
-	t.OpLog(ctx, multitenancy.OpSetPathBlocked, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
+	t.OpLog(sctx, multitenancy.OpSetPathBlocked, &multitenancy.OpLogTenancy{TenancyId: tenancy.GetID(),
 		BlockPath: tenancy.IsBlockedPath(), BlockShadowPath: tenancy.IsBlockedShadowPath(), Customer: tenancy.CustomerDisplay()})
 
 	// publish notification

@@ -106,8 +106,9 @@ func (p *PoolMicroserviceClient) Init(app app_with_pools.AppWithPools, configPat
 	return nil
 }
 
-func (p *PoolMicroserviceClient) SetService(ctx op_context.Context, service *pool.PoolServiceBinding) error {
+func (p *PoolMicroserviceClient) SetService(sctx context.Context, service *pool.PoolServiceBinding) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolMicroserviceClient.SetService")
 	defer ctx.TraceOutMethod()
 

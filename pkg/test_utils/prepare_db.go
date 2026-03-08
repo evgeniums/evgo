@@ -1,6 +1,7 @@
 package test_utils
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -96,11 +97,11 @@ func CheckDuplicateKeyError(provider string, result *gorm.DB) (bool, error) {
 	return false, result.Error
 }
 
-func PartitionedMonthMigrator(provider string, ctx logger.WithLogger, db *gorm.DB, models ...interface{}) error {
+func PartitionedMonthMigrator(provider string, sctx context.Context, db *gorm.DB, models ...interface{}) error {
 
 	switch provider {
 	case "postgres":
-		return db_gorm.PostgresPartitionedMonthAutoMigrate(ctx, db, models...)
+		return db_gorm.PostgresPartitionedMonthAutoMigrate(sctx, db, models...)
 	case "sqlite":
 		return db.AutoMigrate(models...)
 	}
@@ -130,7 +131,7 @@ func CreateDbModel(t *testing.T, app app_context.Context, models ...interface{})
 
 func CreateDbModels(t *testing.T, app app_context.Context, models []interface{}) {
 	if models != nil {
-		require.NoErrorf(t, app.Db().AutoMigrate(app, models), "failed to create database")
+		require.NoErrorf(t, app.Db().AutoMigrate(logger.MakeLoggetContext(app), models), "failed to create database")
 		db_gorm.GlobalModelStore.RegisterModels(models)
 	}
 }

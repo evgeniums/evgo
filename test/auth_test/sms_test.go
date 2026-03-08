@@ -17,13 +17,13 @@ type Cmd struct {
 }
 
 func TestSms(t *testing.T) {
-	app, users, server, opCtx := initOpTest(t)
+	app, users, server, _, sctx := initOpTest(t)
 	defer app.Close()
 
 	// create user1
 	login1 := "user1@example.com"
 	password1 := "password1"
-	user1, err := users.Add(opCtx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
+	user1, err := users.Add(sctx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
 	require.NoErrorf(t, err, "failed to add user")
 	require.NotNil(t, user1)
 

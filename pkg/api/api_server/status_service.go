@@ -1,8 +1,11 @@
 package api_server
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/access_control"
 	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
@@ -21,16 +24,18 @@ type StatusResponse struct {
 	Status string `json:"status"`
 }
 
-func (e *CheckStatusEndpoint) HandleRequest(request Request) error {
+func (e *CheckStatusEndpoint) HandleRequest(sctx context.Context) error {
 	resp := &StatusResponse{Status: "running"}
+	request := op_context.OpContext[Request](sctx)
 	request.Response().SetMessage(resp)
 	return nil
 }
 
 type CheckAccess struct{}
 
-func (e *CheckAccess) HandleRequest(request Request) error {
+func (e *CheckAccess) HandleRequest(sctx context.Context) error {
 	resp := &StatusResponse{Status: "success"}
+	request := op_context.OpContext[Request](sctx)
 	request.Response().SetMessage(resp)
 	return nil
 }
@@ -62,7 +67,8 @@ type EchoEndpoint struct {
 	EndpointBase
 }
 
-func (e *EchoEndpoint) HandleRequest(request Request) error {
+func (e *EchoEndpoint) HandleRequest(sctx context.Context) error {
+	request := op_context.OpContext[Request](sctx)
 	content := request.GetRequestContent()
 	request.Response().SetPayload(content)
 	return nil

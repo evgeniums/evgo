@@ -1,6 +1,7 @@
 package console_tool
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -174,16 +175,16 @@ func (h *HandlerBase[T]) HandlerDescription() string {
 	return h.HandlerBaseHolder.Description
 }
 
-func (h *HandlerBase[T]) Context(opData interface{}) (multitenancy.TenancyContext, error) {
-	ctx := h.HandlerBaseHolder.CtxBuilder(h.Group.Name(), h.HandlerBaseHolder.Name)
+func (h *HandlerBase[T]) Context(opData interface{}) (multitenancy.TenancyContext, context.Context, error) {
+	ctx, sctx := h.HandlerBaseHolder.CtxBuilder(h.Group.Name(), h.HandlerBaseHolder.Name)
 	if h.Group.InvokeInTenancy() && ctx.GetTenancy() == nil {
-		return ctx, errors.New("THIS COMMAND MUST BE INVOKED IN TENANCY")
+		return ctx, sctx, errors.New("THIS COMMAND MUST BE INVOKED IN TENANCY")
 	}
 	if !h.Group.InvokeInTenancy() && ctx.GetTenancy() != nil {
-		return ctx, errors.New("THIS COMMAND MUST BE INVOKED NOT IN TENANCY")
+		return ctx, sctx, errors.New("THIS COMMAND MUST BE INVOKED NOT IN TENANCY")
 	}
 	err := ctx.App().Validator().Validate(opData)
-	return ctx, err
+	return ctx, sctx, err
 }
 
 func (h *HandlerBase[T]) Data() interface{} {

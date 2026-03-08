@@ -18,12 +18,12 @@ type DeleteIpAddressHandler struct {
 
 func (a *DeleteIpAddressHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := a.PrepareId()
-	return controller.DeleteIpAddress(ctx, id, a.Ip, a.Tag, idIsDisplay)
+	return controller.DeleteIpAddress(sctx, id, a.Ip, a.Tag, idIsDisplay)
 }

@@ -31,13 +31,13 @@ func (d *DisablePoolHandler) Data() interface{} {
 
 func (d *DisablePoolHandler) Execute(args []string) error {
 
-	ctx, controller, err := d.Context(d.Data())
+	ctx, sctx, controller, err := d.Context(d.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
-	p, err := pool.DeactivatePool(controller, ctx, d.Pool, true)
+	p, err := pool.DeactivatePool(controller, sctx, d.Pool, true)
 	if err == nil {
 		fmt.Printf("Updated pool:\n\n%s\n\n", utils.DumpPrettyJson(p))
 	}

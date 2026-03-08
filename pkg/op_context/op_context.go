@@ -1,6 +1,7 @@
 package op_context
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/app_context"
@@ -101,11 +102,12 @@ type Context interface {
 	ClearError()
 	Reset()
 	DumpLog(successMessage ...string)
-	Close(successMessage ...string)
+	Close(sctx context.Context, successMessage ...string)
 }
 
-func ExecDbTransaction(ctx Context, handler func() error) error {
+func ExecDbTransaction(sctx context.Context, handler func() error) error {
 
+	ctx := OpContext[Context](sctx)
 	if ctx.DbTransaction() != nil {
 		return errors.New("nested transactions not supported")
 	}
@@ -126,7 +128,7 @@ type WithCtx interface {
 
 type CallContextBuilder = func(methodName string, parentLogger logger.Logger, fields ...logger.Fields) CallContext
 
-type OplogHandler = func(ctx Context) oplog.OplogController
+type OplogHandler = func() oplog.OplogController
 
 func DB(c Context, forceMainDb ...bool) db.DBHandlers {
 	if c.DbTransaction() != nil {
@@ -139,4 +141,22 @@ func DB(c Context, forceMainDb ...bool) db.DBHandlers {
 		return c.MainDB()
 	}
 	return c.Db()
+}
+
+type OpContextKey struct{}
+
+func WrapOpContext(ctx context.Context, opContext Context) context.Context {
+	newCtx := context.WithValue(ctx, OpContextKey{}, opContext)
+	return newCtx
+}
+
+func MakeOpContext(opContext Context) context.Context {
+	newCtx := context.WithValue(context.Background(), OpContextKey{}, opContext)
+	newCtx = context.WithValue(newCtx, logger.WithLoggerKey{}, newCtx)
+	return newCtx
+}
+
+func OpContext[T Context](ctx context.Context) T {
+	v, _ := ctx.Value(OpContextKey{}).(T)
+	return v
 }

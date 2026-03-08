@@ -38,11 +38,11 @@ func (a *UpdateServiceHandler) Data() interface{} {
 
 func (a *UpdateServiceHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	fields := db.Fields{}
 	field := strings.ToLower(a.Field)
@@ -64,7 +64,7 @@ func (a *UpdateServiceHandler) Execute(args []string) error {
 		return vErr.Err
 	}
 
-	service, err := controller.UpdateService(ctx, a.Service, fields, true)
+	service, err := controller.UpdateService(sctx, a.Service, fields, true)
 	if err != nil {
 		return err
 	}

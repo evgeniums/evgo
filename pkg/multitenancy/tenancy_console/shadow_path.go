@@ -27,11 +27,11 @@ func (a *ShadowPathHandler) Data() interface{} {
 
 func (a *ShadowPathHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	path := a.SHADOW_PATH
 	if path == "" {
@@ -39,5 +39,5 @@ func (a *ShadowPathHandler) Execute(args []string) error {
 	}
 
 	id, idIsDisplay := PrepareId(a.Id, a.Customer, a.Role)
-	return controller.SetShadowPath(ctx, id, a.SHADOW_PATH, idIsDisplay)
+	return controller.SetShadowPath(sctx, id, a.SHADOW_PATH, idIsDisplay)
 }

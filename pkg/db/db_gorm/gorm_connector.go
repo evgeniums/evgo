@@ -1,10 +1,10 @@
 package db_gorm
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/db"
-	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/mattn/go-sqlite3"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
@@ -67,11 +67,11 @@ func CheckDuplicateKeyError(provider string, result *gorm.DB) (bool, error) {
 	return false, result.Error
 }
 
-func PartitionedMonthMigrator(provider string, ctx logger.WithLogger, db *gorm.DB, models ...interface{}) error {
+func PartitionedMonthMigrator(provider string, sctx context.Context, db *gorm.DB, models ...interface{}) error {
 
 	switch provider {
 	case "postgres":
-		return PostgresPartitionedMonthAutoMigrate(ctx, db, models...)
+		return PostgresPartitionedMonthAutoMigrate(sctx, db, models...)
 	case "sqlite":
 		return db.AutoMigrate(models...)
 	}

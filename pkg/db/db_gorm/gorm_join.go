@@ -1,10 +1,10 @@
 package db_gorm
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/db"
-	"github.com/evgeniums/evgo/pkg/logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -125,7 +125,7 @@ type JoinQuery struct {
 	preparedSession *gorm.DB
 }
 
-func (j *JoinQuery) Join(ctx logger.WithLogger, filter *Filter, dest interface{}) (int64, error) {
+func (j *JoinQuery) Join(sctx context.Context, filter *Filter, dest interface{}) (int64, error) {
 	// TODO process filter fields to match nested field names
 	session := j.preparedSession.Session(&gorm.Session{})
 	if j.db != nil && j.db.ENABLE_DEBUG {
@@ -221,10 +221,10 @@ func (g *GormDB) Joiner() db.Joiner {
 	return newJoiner(g)
 }
 
-func (g *GormDB) Join(ctx logger.WithLogger, joinConfig *db.JoinQueryConfig, filter *Filter, dest interface{}) (int64, error) {
+func (g *GormDB) Join(sctx context.Context, joinConfig *db.JoinQueryConfig, filter *Filter, dest interface{}) (int64, error) {
 	q, err := g.joinQueries.FindOrCreate(joinConfig)
 	if err != nil {
 		return 0, err
 	}
-	return q.Join(ctx, filter, dest)
+	return q.Join(sctx, filter, dest)
 }

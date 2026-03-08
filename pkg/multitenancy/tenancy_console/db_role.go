@@ -27,12 +27,12 @@ func (a *DbRoleHandler) Data() interface{} {
 
 func (a *DbRoleHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := PrepareId(a.Id, a.Customer, a.Role)
-	return controller.SetDbRole(ctx, id, a.DbRole(), idIsDisplay)
+	return controller.SetDbRole(sctx, id, a.DbRole(), idIsDisplay)
 }

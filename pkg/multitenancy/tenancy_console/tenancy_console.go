@@ -1,6 +1,7 @@
 package tenancy_console
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -48,9 +49,9 @@ func (m *MultitenancyAppBuilder) InitApp(app app_context.Context, configFile str
 	if !ok {
 		return app.Logger().PushFatalStack("invalid application type", errors.New("failed to cast app to multitenancy app"))
 	}
-	ctx, err := a.InitWithArgs(configFile, args, configType...)
+	ctx, sctx, err := a.InitWithArgs(configFile, args, configType...)
 	if ctx != nil {
-		ctx.Close()
+		ctx.Close(sctx)
 	}
 	return err
 }
@@ -79,9 +80,9 @@ func (m *MultitenancyAppBuilder) InitSetupApp(app app_context.Context, configFil
 	if !ok {
 		return app.Logger().PushFatalStack("invalid application type", errors.New("failed to cast app to pools app"))
 	}
-	ctx, err := a.InitWithArgs(configFile, args, configType...)
+	ctx, sctx, err := a.InitWithArgs(configFile, args, configType...)
 	if ctx != nil {
-		ctx.Close()
+		ctx.Close(sctx)
 	}
 	return err
 }
@@ -90,14 +91,14 @@ func (m *MultitenancyAppBuilder) HasSetupApp() bool {
 	return true
 }
 
-func (m *MultitenancyAppBuilder) Tenancy(ctx op_context.Context, id string) (multitenancy.Tenancy, error) {
+func (m *MultitenancyAppBuilder) Tenancy(sctx context.Context, id string) (multitenancy.Tenancy, error) {
 
 	idIsDisplay := strings.Contains(id, "/")
 	if !idIsDisplay {
 		return m.App.Multitenancy().Tenancy(id)
 	}
 
-	tenancy, err := m.App.Multitenancy().TenancyController().Find(ctx, id, idIsDisplay)
+	tenancy, err := m.App.Multitenancy().TenancyController().Find(sctx, id, idIsDisplay)
 	if err != nil {
 		return nil, err
 	}
@@ -146,11 +147,11 @@ type HandlerBase struct {
 	console_tool.HandlerBase[*TenancyCommands]
 }
 
-func (b *HandlerBase) Context(data interface{}) (op_context.Context, multitenancy.TenancyController, error) {
+func (b *HandlerBase) Context(data interface{}) (op_context.Context, context.Context, multitenancy.TenancyController, error) {
 
-	ctx, err := b.HandlerBase.Context(data)
+	ctx, sctx, err := b.HandlerBase.Context(data)
 	if err != nil {
-		return ctx, nil, err
+		return ctx, sctx, nil, err
 	}
 
 	a, ok := ctx.App().(*app_with_multitenancy.AppWithMultitenancyBase)
@@ -158,5 +159,5 @@ func (b *HandlerBase) Context(data interface{}) (op_context.Context, multitenanc
 		panic(fmt.Errorf("invalid application type: %s", errors.New("failed to cast app to multitenancy app")))
 	}
 
-	return ctx, a.Multitenancy().TenancyController(), nil
+	return ctx, sctx, a.Multitenancy().TenancyController(), nil
 }

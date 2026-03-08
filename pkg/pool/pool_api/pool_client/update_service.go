@@ -1,6 +1,7 @@
 package pool_client
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -17,20 +18,22 @@ type UpdateService struct {
 	result *pool_api.ServiceResponse
 }
 
-func (a *UpdateService) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (a *UpdateService) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("UpdateService.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, a.cmd, a.result)
+	err := client.Exec(sctx, operation, a.cmd, a.result)
 	c.SetError(err)
 	return err
 }
 
-func (p *PoolClient) UpdateService(ctx op_context.Context, id string, fields db.Fields, idIsName ...bool) (pool.PoolService, error) {
+func (p *PoolClient) UpdateService(sctx context.Context, id string, fields db.Fields, idIsName ...bool) (pool.PoolService, error) {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolClient.UpdateService")
 	onExit := func() {
 		if err != nil {
@@ -41,7 +44,7 @@ func (p *PoolClient) UpdateService(ctx op_context.Context, id string, fields db.
 	defer onExit()
 
 	// adjust id
-	sId, service, err := p.serviceId(ctx, id, idIsName...)
+	sId, service, err := p.serviceId(sctx, id, idIsName...)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +61,7 @@ func (p *PoolClient) UpdateService(ctx op_context.Context, id string, fields db.
 	}
 	handler.cmd.Fields = fields
 	op := api.NamedResourceOperation(p.ServiceResource, sId, pool_api.UpdateService())
-	err = handler.Exec(p.Client(), ctx, op)
+	err = handler.Exec(p.Client(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return nil, err

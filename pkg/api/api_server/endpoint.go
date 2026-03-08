@@ -1,6 +1,8 @@
 package api_server
 
 import (
+	"context"
+
 	"github.com/stoewer/go-strcase"
 
 	"github.com/evgeniums/evgo/pkg/access_control"
@@ -47,6 +49,8 @@ func (m *MessageHandlersConfig) LogicResponseToTransport(msg MessageContent) err
 	return nil
 }
 
+type EndpointExtraHandler = func(sctx context.Context) (context.Context, error)
+
 // Interface of API endpoint.
 type Endpoint interface {
 	api.Operation
@@ -58,23 +62,23 @@ type Endpoint interface {
 	NewRequestMessage() interface{}
 
 	// Handle request to server API.
-	HandleRequest(request Request) error
+	HandleRequest(sctx context.Context) error
 
 	// Precheck request before some authorization methods
-	PrecheckBeforeAuth(request Request, smsMessage *string, skipSms *bool) error
+	PrecheckBeforeAuth(sctx context.Context, smsMessage *string, skipSms *bool) error
 
 	IsRequestPayloadNeeded() bool
 
-	SetRequestPreprocessor(handler EndpointHandler)
-	GetRequestPreprocessor() EndpointHandler
-	PreprocessBeforeAuth(request Request) error
+	SetRequestPreprocessor(handler EndpointExtraHandler)
+	GetRequestPreprocessor() EndpointExtraHandler
+	PreprocessBeforeAuth(sctx context.Context) (context.Context, error)
 
-	SetRequestPostprocessor(handler EndpointHandler)
-	GetRequestPostprocessor() EndpointHandler
-	Postprocess(request Request) error
+	SetRequestPostprocessor(handler EndpointExtraHandler)
+	GetRequestPostprocessor() EndpointExtraHandler
+	Postprocess(sctx context.Context) (context.Context, error)
 }
 
-type EndpointHandler = func(request Request) error
+type EndpointHandler = func(sctx context.Context) error
 
 // Base type for API endpoints.
 type EndpointBase struct {
@@ -82,8 +86,8 @@ type EndpointBase struct {
 	generic_error.ErrorsExtenderBase
 	MessageHandlers
 
-	preprocessRequest  EndpointHandler
-	postprocessRequest EndpointHandler
+	preprocessRequest  EndpointExtraHandler
+	postprocessRequest EndpointExtraHandler
 }
 
 func (e *EndpointBase) Construct(op api.Operation) {
@@ -107,42 +111,42 @@ func (e *EndpointBase) NewRequestMessage() interface{} {
 	return nil
 }
 
-func (e *EndpointBase) PrecheckBeforeAuth(request Request, smsMessage *string, skipSms *bool) error {
+func (e *EndpointBase) PrecheckBeforeAuth(sctx context.Context, smsMessage *string, skipSms *bool) error {
 	return nil
 }
 
-func (e *EndpointBase) HandleRequest(request Request) error {
+func (e *EndpointBase) HandleRequest(sctx context.Context) error {
 	return nil
 }
 
-func (e *EndpointBase) SetRequestPreprocessor(handler EndpointHandler) {
+func (e *EndpointBase) SetRequestPreprocessor(handler EndpointExtraHandler) {
 	e.preprocessRequest = handler
 }
 
-func (e *EndpointBase) GetRequestPreprocessor() EndpointHandler {
+func (e *EndpointBase) GetRequestPreprocessor() EndpointExtraHandler {
 	return e.preprocessRequest
 }
 
-func (e *EndpointBase) PreprocessBeforeAuth(request Request) error {
+func (e *EndpointBase) PreprocessBeforeAuth(sctx context.Context) (context.Context, error) {
 	if e.preprocessRequest != nil {
-		return e.preprocessRequest(request)
+		return e.preprocessRequest(sctx)
 	}
-	return nil
+	return sctx, nil
 }
 
-func (e *EndpointBase) SetRequestPostprocessor(handler EndpointHandler) {
+func (e *EndpointBase) SetRequestPostprocessor(handler EndpointExtraHandler) {
 	e.preprocessRequest = handler
 }
 
-func (e *EndpointBase) GetRequestPostprocessor() EndpointHandler {
+func (e *EndpointBase) GetRequestPostprocessor() EndpointExtraHandler {
 	return e.preprocessRequest
 }
 
-func (e *EndpointBase) Postprocess(request Request) error {
+func (e *EndpointBase) Postprocess(sctx context.Context) (context.Context, error) {
 	if e.postprocessRequest != nil {
-		return e.postprocessRequest(request)
+		return e.postprocessRequest(sctx)
 	}
-	return nil
+	return sctx, nil
 }
 
 type ResourceEndpointI interface {
@@ -185,6 +189,6 @@ func InitKebabEndpoint(ep ResourceEndpointI, operationName string, accessType ..
 // Base type for API endpoints with empty handlers.
 type EndpointNoHandler struct{}
 
-func (e *EndpointNoHandler) HandleRequest(request Request) error {
+func (e *EndpointNoHandler) HandleRequest(sctx context.Context) error {
 	return nil
 }

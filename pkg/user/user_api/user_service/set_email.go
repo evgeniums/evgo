@@ -1,7 +1,10 @@
 package user_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/user"
 	"github.com/evgeniums/evgo/pkg/user/user_api"
 )
@@ -10,17 +13,18 @@ type SetEmailEndpoint struct {
 	SetUserFieldEndpoint
 }
 
-func (s *SetEmailEndpoint) HandleRequest(request api_server.Request) error {
+func (s *SetEmailEndpoint) HandleRequest(sctx context.Context) error {
 
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.SetEmail")
 	defer request.TraceOutMethod()
 
-	cmd, err := api_server.ParseValidateRequest[user.UserEmail](request)
+	cmd, err := api_server.ParseValidateRequest[user.UserEmail](sctx)
 	if err != nil {
 		return err
 	}
 
-	err = Setter(s.users, request).SetEmail(request, request.GetResourceId(s.userTypeName).Value(), cmd.EMAIL)
+	err = Setter(s.users, request).SetEmail(sctx, request.GetResourceId(s.userTypeName).Value(), cmd.EMAIL)
 	if err != nil {
 		return c.SetError(err)
 	}

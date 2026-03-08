@@ -2,6 +2,7 @@ package http_request
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,7 +17,8 @@ import (
 	"github.com/gorilla/schema"
 )
 
-func ParseQuery(ctx op_context.Context, request *http.Request, cmd interface{}) error {
+func ParseQuery(sctx context.Context, request *http.Request, cmd interface{}) error {
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("http_request.ParseQuery", logger.Fields{"query": request.URL.RawQuery})
 	defer ctx.TraceOutMethod()
 
@@ -47,8 +49,9 @@ func ParseQuery(ctx op_context.Context, request *http.Request, cmd interface{}) 
 	return nil
 }
 
-func ParseBody(ctx op_context.Context, request *http.Request, cmd interface{}, serializer ...message.Serializer) error {
+func ParseBody(sctx context.Context, request *http.Request, cmd interface{}, serializer ...message.Serializer) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("http_request.ParseBody")
 	defer ctx.TraceOutMethod()
 

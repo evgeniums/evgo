@@ -34,7 +34,7 @@ func dbModels() []interface{} {
 
 func InitServer(t *testing.T, config ...string) (app_context.Context, *user_session_default.Users, bare_bones_server.Server) {
 
-	app := test_utils.InitAppContext(t, testDir, dbModels(), utils.OptionalArg("grpc_api_server.jsonc", config...))
+	app, _ := test_utils.InitAppContext(t, testDir, dbModels(), utils.OptionalArg("grpc_api_server.jsonc", config...))
 
 	users := user_session_default.NewUsers()
 	users.Init(app.Validator())

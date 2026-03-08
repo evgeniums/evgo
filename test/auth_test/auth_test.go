@@ -41,7 +41,7 @@ func dbModels() []interface{} {
 }
 
 func initServer(t *testing.T, config ...string) (app_context.Context, *user_session_default.Users, bare_bones_server.Server) {
-	app := test_utils.InitAppContext(t, testDir, dbModels(), utils.OptionalArg("auth_test.jsonc", config...))
+	app, _ := test_utils.InitAppContext(t, testDir, dbModels(), utils.OptionalArg("auth_test.jsonc", config...))
 
 	users := user_session_default.NewUsers()
 	users.Init(app.Validator())

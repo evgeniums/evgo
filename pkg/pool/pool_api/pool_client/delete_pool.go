@@ -1,6 +1,8 @@
 package pool_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -10,20 +12,22 @@ import (
 
 type DeletePool struct{}
 
-func (a *DeletePool) Exec(client api_client.Client, ctx op_context.Context, operation api.Operation) error {
+func (a *DeletePool) Exec(client api_client.Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("DeletePool.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, nil, nil)
+	err := client.Exec(sctx, operation, nil, nil)
 	c.SetError(err)
 	return err
 }
 
-func (p *PoolClient) DeletePool(ctx op_context.Context, id string, idIsName ...bool) error {
+func (p *PoolClient) DeletePool(sctx context.Context, id string, idIsName ...bool) error {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolClient.DeletePool")
 	onExit := func() {
 		if err != nil {
@@ -33,7 +37,7 @@ func (p *PoolClient) DeletePool(ctx op_context.Context, id string, idIsName ...b
 	}
 	defer onExit()
 
-	pId, pool, err := p.poolId(ctx, id, idIsName...)
+	pId, pool, err := p.poolId(sctx, id, idIsName...)
 	if err != nil {
 		return err
 	}
@@ -45,7 +49,7 @@ func (p *PoolClient) DeletePool(ctx op_context.Context, id string, idIsName ...b
 	// prepare and exec handler
 	handler := &DeletePool{}
 	op := api.NamedResourceOperation(p.PoolResource, pId, pool_api.DeletePool())
-	err = handler.Exec(p.Client(), ctx, op)
+	err = handler.Exec(p.Client(), sctx, op)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return err

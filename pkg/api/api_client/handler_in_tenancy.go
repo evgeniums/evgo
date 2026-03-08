@@ -1,8 +1,11 @@
 package api_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type HandlerInTenancy[Cmd any, Result any] struct {
@@ -10,12 +13,13 @@ type HandlerInTenancy[Cmd any, Result any] struct {
 	Result *Result
 }
 
-func (h *HandlerInTenancy[Cmd, Result]) Exec(client Client, ctx multitenancy.TenancyContext, operation api.Operation) error {
+func (h *HandlerInTenancy[Cmd, Result]) Exec(client Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[multitenancy.TenancyContext](sctx)
 	c := ctx.TraceInMethod("HandlerInTenancy.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, h.Cmd, h.Result, ctx.GetTenancy())
+	err := client.Exec(sctx, operation, h.Cmd, h.Result, ctx.GetTenancy())
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -31,12 +35,13 @@ type HandlerInTenancyCmd[Cmd any] struct {
 	Cmd *Cmd
 }
 
-func (h *HandlerInTenancyCmd[Cmd]) Exec(client Client, ctx multitenancy.TenancyContext, operation api.Operation) error {
+func (h *HandlerInTenancyCmd[Cmd]) Exec(client Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[multitenancy.TenancyContext](sctx)
 	c := ctx.TraceInMethod("HandlerInTenancy.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, h.Cmd, nil, ctx.GetTenancy())
+	err := client.Exec(sctx, operation, h.Cmd, nil, ctx.GetTenancy())
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -52,12 +57,13 @@ type HandlerInTenancyResult[Result any] struct {
 	Result *Result
 }
 
-func (h *HandlerInTenancyResult[Result]) Exec(client Client, ctx multitenancy.TenancyContext, operation api.Operation) error {
+func (h *HandlerInTenancyResult[Result]) Exec(client Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[multitenancy.TenancyContext](sctx)
 	c := ctx.TraceInMethod("HandlerInTenancy.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, nil, h.Result, ctx.GetTenancy())
+	err := client.Exec(sctx, operation, nil, h.Result, ctx.GetTenancy())
 	c.SetError(err)
 	return err
 }
@@ -70,12 +76,13 @@ func NewHandlerInTenancyResult[Result any](result *Result) *HandlerInTenancyResu
 type HandlerInTenancyNil struct {
 }
 
-func (h *HandlerInTenancyNil) Exec(client Client, ctx multitenancy.TenancyContext, operation api.Operation) error {
+func (h *HandlerInTenancyNil) Exec(client Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[multitenancy.TenancyContext](sctx)
 	c := ctx.TraceInMethod("HandlerInTenancy.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, nil, nil, ctx.GetTenancy())
+	err := client.Exec(sctx, operation, nil, nil, ctx.GetTenancy())
 	c.SetError(err)
 	return err
 }

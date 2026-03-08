@@ -1,6 +1,7 @@
 package confirmation_api_service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -8,6 +9,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/confirmation_control"
 	"github.com/evgeniums/evgo/pkg/confirmation_control/confirmation_control_api"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type InternalEndpoint struct {
@@ -43,14 +45,15 @@ type PrepareOperationEndpoint struct {
 	InternalEndpoint
 }
 
-func (e *PrepareOperationEndpoint) HandleRequest(request api_server.Request) error {
+func (e *PrepareOperationEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("ConfirmationInternalService.PrepareOperation")
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd, err := api_server.ParseValidateRequest[confirmation_control_api.PrepareOperationCmd](request)
+	cmd, err := api_server.ParseValidateRequest[confirmation_control_api.PrepareOperationCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

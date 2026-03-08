@@ -1,6 +1,8 @@
 package api_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/op_context"
 )
@@ -10,12 +12,13 @@ type Handler[Request any, Result any] struct {
 	Result  *Result
 }
 
-func (h *Handler[Request, Result]) Exec(client Client, ctx op_context.Context, operation api.Operation) error {
+func (h *Handler[Request, Result]) Exec(client Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Handler.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, h.Request, h.Result)
+	err := client.Exec(sctx, operation, h.Request, h.Result)
 	c.SetError(err)
 	return err
 }
@@ -29,12 +32,13 @@ type HandlerRequest[Request any] struct {
 	Request *Request
 }
 
-func (h *HandlerRequest[Request]) Exec(client Client, ctx op_context.Context, operation api.Operation) error {
+func (h *HandlerRequest[Request]) Exec(client Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Handler.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, h.Request, nil)
+	err := client.Exec(sctx, operation, h.Request, nil)
 	c.SetError(err)
 	return err
 }
@@ -48,12 +52,13 @@ type HandlerResult[Result any] struct {
 	Result *Result
 }
 
-func (h *HandlerResult[Result]) Exec(client Client, ctx op_context.Context, operation api.Operation) error {
+func (h *HandlerResult[Result]) Exec(client Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Handler.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, nil, h.Result)
+	err := client.Exec(sctx, operation, nil, h.Result)
 	c.SetError(err)
 	return err
 }
@@ -66,12 +71,13 @@ func NewHandlerResult[Result any](result *Result) *HandlerResult[Result] {
 type HandlerNil struct {
 }
 
-func (h *HandlerNil) Exec(client Client, ctx op_context.Context, operation api.Operation) error {
+func (h *HandlerNil) Exec(client Client, sctx context.Context, operation api.Operation) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Handler.Exec")
 	defer ctx.TraceOutMethod()
 
-	err := client.Exec(ctx, operation, nil, nil)
+	err := client.Exec(sctx, operation, nil, nil)
 	c.SetError(err)
 	return err
 }

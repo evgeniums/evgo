@@ -1,7 +1,10 @@
 package user_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/user"
 	"github.com/evgeniums/evgo/pkg/user/user_api"
 )
@@ -10,17 +13,18 @@ type SetPasswordEndpoint struct {
 	SetUserFieldEndpoint
 }
 
-func (s *SetPasswordEndpoint) HandleRequest(request api_server.Request) error {
+func (s *SetPasswordEndpoint) HandleRequest(sctx context.Context) error {
 
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.SetPassword")
 	defer request.TraceOutMethod()
 
-	cmd, err := api_server.ParseValidateRequest[user.UserPlainPassword](request)
+	cmd, err := api_server.ParseValidateRequest[user.UserPlainPassword](sctx)
 	if err != nil {
 		return err
 	}
 
-	err = Setter(s.users, request).SetPassword(request, request.GetResourceId(s.userTypeName).Value(), cmd.PlainPassword)
+	err = Setter(s.users, request).SetPassword(sctx, request.GetResourceId(s.userTypeName).Value(), cmd.PlainPassword)
 	if err != nil {
 		return c.SetError(err)
 	}

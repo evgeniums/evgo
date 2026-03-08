@@ -1,18 +1,21 @@
 package auth
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/access_control"
 	"github.com/evgeniums/evgo/pkg/config"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
 
 type Auth interface {
 	generic_error.ErrorDefinitions
-	HandleRequest(ctx AuthContext, path string, access access_control.AccessType) error
+	HandleRequest(sctx context.Context, path string, access access_control.AccessType) error
 }
 
 type EndpointsAuth interface {
@@ -22,7 +25,7 @@ type EndpointsAuth interface {
 }
 
 type AuthBaseConfig struct {
-	DEFAULT_SCHEMA string `default:"check_token"`
+	DEFAULT_SCHEMA string `default:"evgo_token"`
 }
 
 type AuthBase struct {
@@ -65,9 +68,10 @@ func (a *AuthBase) Init(cfg config.Config, log logger.Logger, vld validator.Vali
 	return nil
 }
 
-func (a *AuthBase) HandleRequest(ctx AuthContext, path string, access access_control.AccessType) error {
+func (a *AuthBase) HandleRequest(sctx context.Context, path string, access access_control.AccessType) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("AuthBase.Handle", logger.Fields{"auth_path": path})
 	var err error
 	onExit := func() {
@@ -85,7 +89,7 @@ func (a *AuthBase) HandleRequest(ctx AuthContext, path string, access access_con
 	}
 
 	// run handler
-	err = a.manager.Handle(ctx, schema)
+	err = a.manager.Handle(sctx, schema)
 	if err != nil {
 		return err
 	}

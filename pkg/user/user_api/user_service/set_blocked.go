@@ -1,7 +1,10 @@
 package user_service
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/user"
 	"github.com/evgeniums/evgo/pkg/user/user_api"
 )
@@ -10,17 +13,18 @@ type SetBlockedEndpoint struct {
 	SetUserFieldEndpoint
 }
 
-func (s *SetBlockedEndpoint) HandleRequest(request api_server.Request) error {
+func (s *SetBlockedEndpoint) HandleRequest(sctx context.Context) error {
 
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.SetBlocked")
 	defer request.TraceOutMethod()
 
-	cmd, err := api_server.ParseValidateRequest[user.UserBlocked](request)
+	cmd, err := api_server.ParseValidateRequest[user.UserBlocked](sctx)
 	if err != nil {
 		return err
 	}
 
-	err = Setter(s.users, request).SetBlocked(request, request.GetResourceId(s.userTypeName).Value(), cmd.BLOCKED)
+	err = Setter(s.users, request).SetBlocked(sctx, request.GetResourceId(s.userTypeName).Value(), cmd.BLOCKED)
 	if err != nil {
 		return c.SetError(err)
 	}

@@ -2,6 +2,7 @@ package rest_api_gin_server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -92,7 +93,7 @@ func (r *Request) GetRequestUserAgent() string {
 	return r.ginCtx.Request.UserAgent()
 }
 
-func (r *Request) Close(successMessage ...string) {
+func (r *Request) Close(sctx context.Context, successMessage ...string) {
 	var reponseBody interface{}
 	redirect := false
 	if r.response.RedirectPath() != "" {
@@ -144,7 +145,7 @@ func (r *Request) Close(successMessage ...string) {
 		r.Logger().Debug("Dump server HTTP response", logger.Fields{"response_header": h, "response_body": body})
 	}
 
-	r.RequestBase.Close("")
+	r.RequestBase.Close(sctx, "")
 	r.server.logGinRequest(r.Logger(), r.initialPath, r.start, r.ginCtx, r.LoggerFields())
 }
 
@@ -181,8 +182,8 @@ func (r *Request) GetAuthParameter(authMethodProtocol string, key string, direct
 	return getHttpHeader(r.ginCtx, AuthKey(key, directKeyName...))
 }
 
-func (r *Request) CheckRequestContent(smsMessage *string, skipSms *bool) error {
-	return r.Endpoint().PrecheckBeforeAuth(r, smsMessage, skipSms)
+func (r *Request) CheckRequestContent(sctx context.Context, smsMessage *string, skipSms *bool) error {
+	return r.Endpoint().PrecheckBeforeAuth(sctx, smsMessage, skipSms)
 }
 
 func (r *Request) ResourceIds() api.ResourceIds {
@@ -222,7 +223,7 @@ func (r *Request) Validate(cmd interface{}) error {
 	return nil
 }
 
-func (r *Request) ParseValidateQuery(cmd interface{}) error {
+func (r *Request) ParseValidateQuery(sctx context.Context, cmd interface{}) error {
 
 	if cmd == nil {
 		return nil
@@ -231,7 +232,7 @@ func (r *Request) ParseValidateQuery(cmd interface{}) error {
 	c := r.TraceInMethod("Request.ParseValidateQuery")
 	defer r.TraceOutMethod()
 
-	err := http_request.ParseQuery(r, r.ginCtx.Request, cmd)
+	err := http_request.ParseQuery(sctx, r.ginCtx.Request, cmd)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -244,7 +245,7 @@ func (r *Request) ParseValidateQuery(cmd interface{}) error {
 	return nil
 }
 
-func (r *Request) ParseValidateBody(cmd interface{}) error {
+func (r *Request) ParseValidateBody(sctx context.Context, cmd interface{}) error {
 
 	if cmd == nil {
 		return nil
@@ -253,7 +254,7 @@ func (r *Request) ParseValidateBody(cmd interface{}) error {
 	c := r.TraceInMethod("Request.ParseValidateBody")
 	defer r.TraceOutMethod()
 
-	err := http_request.ParseBody(r, r.ginCtx.Request, cmd)
+	err := http_request.ParseBody(sctx, r.ginCtx.Request, cmd)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -266,13 +267,13 @@ func (r *Request) ParseValidateBody(cmd interface{}) error {
 	return nil
 }
 
-func (r *Request) ParseAndValidate(cmd interface{}) error {
+func (r *Request) ParseAndValidate(sctx context.Context, cmd interface{}) error {
 
 	if access_control.HttpContentInQuery(r.Endpoint().AccessType()) {
-		return r.ParseValidateQuery(cmd)
+		return r.ParseValidateQuery(sctx, cmd)
 	}
 
-	return r.ParseValidateBody(cmd)
+	return r.ParseValidateBody(sctx, cmd)
 }
 
 func (r *Request) GetGinCtx() *gin.Context {

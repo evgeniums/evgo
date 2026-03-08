@@ -180,7 +180,7 @@ func (r *Request) GetRequestUserAgent() string {
 	return r.userAgent
 }
 
-func (r *Request) Close(successMessage ...string) {
+func (r *Request) Close(sctx context.Context, successMessage ...string) {
 	if r.GenericError() != nil {
 		r.SetLoggerField("status", r.GenericError().Code())
 	}
@@ -189,7 +189,7 @@ func (r *Request) Close(successMessage ...string) {
 		mem.DefaultBufferPool().Put(&content)
 		r.Message().SetBinaryContent(nil)
 	}
-	r.RequestBase.Close("")
+	r.RequestBase.Close(sctx, "")
 	r.server.logRequest(r.Logger(), r.start, r, r.LoggerFields())
 }
 
@@ -215,8 +215,8 @@ func (r *Request) GetAuthParameter(authMethodProtocol string, key string, direct
 	return r.GetRequestHeader(AuthKey(key, directKeyName...))
 }
 
-func (r *Request) CheckRequestContent(smsMessage *string, skipSms *bool) error {
-	return r.Endpoint().PrecheckBeforeAuth(r, smsMessage, skipSms)
+func (r *Request) CheckRequestContent(sctx context.Context, smsMessage *string, skipSms *bool) error {
+	return r.Endpoint().PrecheckBeforeAuth(sctx, smsMessage, skipSms)
 }
 
 func (r *Request) ResourceIds() api.ResourceIds {
@@ -231,7 +231,7 @@ func (r *Request) GetResourceId(resourceType string) api.ResourceId {
 	return r.resourceIds.GetId(resourceType)
 }
 
-func (r *Request) Validate(cmd interface{}) error {
+func (r *Request) Validate(sctx context.Context, cmd interface{}) error {
 
 	c := r.TraceInMethod("Request.Validate")
 	defer r.TraceOutMethod()
@@ -247,7 +247,7 @@ func (r *Request) Validate(cmd interface{}) error {
 	return nil
 }
 
-func (r *Request) ParseAndValidate(cmd interface{}) error {
+func (r *Request) ParseAndValidate(sctx context.Context, cmd interface{}) error {
 
 	if cmd == nil {
 		return nil
@@ -256,7 +256,7 @@ func (r *Request) ParseAndValidate(cmd interface{}) error {
 	c := r.TraceInMethod("Request.ParseValidate")
 	defer r.TraceOutMethod()
 
-	err := r.Validate(cmd)
+	err := r.Validate(sctx, cmd)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -322,10 +322,11 @@ func (r *Request) PayloadSize() int {
 	return r.payloadSize
 }
 
-func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Request, op_context.CallContext, error) {
+func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Request, op_context.CallContext, context.Context, error) {
 
 	request := &Request{}
 	request.SetEndpoint(ep)
+	sctx := op_context.MakeOpContext(request)
 
 	var err error
 
@@ -438,5 +439,5 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 	}
 
 	// done
-	return request, c, err
+	return request, c, sctx, err
 }

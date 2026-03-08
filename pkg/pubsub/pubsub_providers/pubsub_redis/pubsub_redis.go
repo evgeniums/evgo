@@ -163,11 +163,11 @@ func (s *Subscriber) Subscribe(topic pubsub_subscriber.Topic) (string, error) {
 	ch := channel.Channel()
 	readMessages := func() {
 		for msg := range ch {
-			opCtx := s.NewOpContext(topic.Name())
+			opCtx, sctx := s.NewOpContext(topic.Name())
 			opCtx.SetLoggerField("redis_topic_name", topic.Name())
 			opCtx.Logger().Debug("begin Redis notification")
-			s.Handle(opCtx, topic.Name(), []byte(msg.Payload))
-			opCtx.Close("Served Redis")
+			s.Handle(sctx, topic.Name(), []byte(msg.Payload))
+			opCtx.Close(sctx, "Served Redis")
 		}
 	}
 	go readMessages()

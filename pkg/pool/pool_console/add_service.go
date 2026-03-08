@@ -42,11 +42,11 @@ func (a *AddServiceHandler) Data() interface{} {
 
 func (a *AddServiceHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	if a.SECRET1 != "" {
 		a.SECRET1 = console_tool.ReadPassword("Please, enter secret 1:")
@@ -64,7 +64,7 @@ func (a *AddServiceHandler) Execute(args []string) error {
 	s.SecretsBase = a.SecretsBase
 	s.SetActive(a.Active == "true")
 
-	addedService, err := controller.AddService(ctx, s)
+	addedService, err := controller.AddService(sctx, s)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (a *AddServiceHandler) Execute(args []string) error {
 			return err
 		}
 
-		err = controller.AddServiceToPool(ctx, a.Pool, a.Name, a.Role, true)
+		err = controller.AddServiceToPool(sctx, a.Pool, a.Name, a.Role, true)
 		if err != nil {
 			return err
 		}

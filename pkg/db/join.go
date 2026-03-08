@@ -1,14 +1,14 @@
 package db
 
 import (
+	"context"
 	"sync"
 
-	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type JoinQuery interface {
-	Join(ctx logger.WithLogger, filter *Filter, dest interface{}) (int64, error)
+	Join(sctx context.Context, filter *Filter, dest interface{}) (int64, error)
 }
 
 type Joiner interface {

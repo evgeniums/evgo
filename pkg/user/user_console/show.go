@@ -29,13 +29,13 @@ func (a *ShowHandler[T]) Data() interface{} {
 
 func (a *ShowHandler[T]) Execute(args []string) error {
 
-	ctx, ctrl, err := a.Context(a.Data())
+	ctx, sctx, ctrl, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
-	user, err := ctrl.FindByLogin(ctx, a.Login)
+	user, err := ctrl.FindByLogin(sctx, a.Login)
 	if err != nil {
 		return err
 	}

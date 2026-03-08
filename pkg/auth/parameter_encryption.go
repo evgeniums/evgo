@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/config"
@@ -15,12 +16,12 @@ import (
 )
 
 type AuthParameterEncryption interface {
-	Encrypt(ctx op_context.Context, obj interface{}) (string, error)
-	SetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) error
-	GetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, tag string, directKeyName ...bool) (bool, error)
+	Encrypt(sctx context.Context, obj interface{}) (string, error)
+	SetAuthParameter(sctx context.Context, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) error
+	GetAuthParameter(sctx context.Context, authMethodProtocol string, name string, obj interface{}, tag string, directKeyName ...bool) (bool, error)
 
-	DecodeAuthParameter(ctx AuthContext, name string, value string, obj interface{}, tag ...string) (bool, error)
-	EncodeAuthParameter(ctx AuthContext, name string, obj interface{}) (string, error)
+	DecodeAuthParameter(sctx context.Context, name string, value string, obj interface{}, tag ...string) (bool, error)
+	EncodeAuthParameter(sctx context.Context, name string, obj interface{}) (string, error)
 
 	CurrentTag() string
 }
@@ -67,9 +68,10 @@ func (a *AuthParameterEncryptionBase) createCipher(salt []byte, tag ...string) (
 	return cipher, err
 }
 
-func (a *AuthParameterEncryptionBase) EncodeAuthParameter(ctx AuthContext, name string, obj interface{}) (string, error) {
+func (a *AuthParameterEncryptionBase) EncodeAuthParameter(sctx context.Context, name string, obj interface{}) (string, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("AuthParameterEncryptionBase.EncodeAuthParameter", logger.Fields{"name": name})
 	var err error
 	onExit := func() {
@@ -81,7 +83,7 @@ func (a *AuthParameterEncryptionBase) EncodeAuthParameter(ctx AuthContext, name 
 	defer onExit()
 
 	// encode data to string
-	data, err := a.Encrypt(ctx, obj)
+	data, err := a.Encrypt(sctx, obj)
 	if err != nil {
 		c.SetMessage("failed to encrypt")
 		return "", err
@@ -91,10 +93,11 @@ func (a *AuthParameterEncryptionBase) EncodeAuthParameter(ctx AuthContext, name 
 	return data, nil
 }
 
-func (a *AuthParameterEncryptionBase) SetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) error {
+func (a *AuthParameterEncryptionBase) SetAuthParameter(sctx context.Context, authMethodProtocol string, name string, obj interface{}, directKeyName ...bool) error {
 
 	// encode
-	data, err := a.EncodeAuthParameter(ctx, name, obj)
+	ctx := op_context.OpContext[AuthContext](sctx)
+	data, err := a.EncodeAuthParameter(sctx, name, obj)
 	if err != nil {
 		return err
 	}
@@ -106,28 +109,31 @@ func (a *AuthParameterEncryptionBase) SetAuthParameter(ctx AuthContext, authMeth
 	return nil
 }
 
-func EncodeAndSetBearer(ctx AuthContext, enc AuthParameterEncryption, obj interface{}) error {
-	value, err := enc.EncodeAuthParameter(ctx, AuthorizationBearer, obj)
+func EncodeAndSetBearer(sctx context.Context, enc AuthParameterEncryption, obj interface{}) error {
+	value, err := enc.EncodeAuthParameter(sctx, AuthorizationBearer, obj)
 	if err != nil {
 		return err
 	}
+	ctx := op_context.OpContext[AuthContext](sctx)
 	SetAuthBearer(ctx, value)
 	return nil
 }
 
-func (a *AuthParameterEncryptionBase) GetAuthParameter(ctx AuthContext, authMethodProtocol string, name string, obj interface{}, tag string, directKeyName ...bool) (bool, error) {
+func (a *AuthParameterEncryptionBase) GetAuthParameter(sctx context.Context, authMethodProtocol string, name string, obj interface{}, tag string, directKeyName ...bool) (bool, error) {
 
 	// read auth parameter
+	ctx := op_context.OpContext[AuthContext](sctx)
 	data := ctx.GetAuthParameter(authMethodProtocol, name, directKeyName...)
 	if data == "" {
 		return false, nil
 	}
-	return a.DecodeAuthParameter(ctx, name, data, obj, tag)
+	return a.DecodeAuthParameter(sctx, name, data, obj, tag)
 }
 
-func (a *AuthParameterEncryptionBase) DecodeAuthParameter(ctx AuthContext, name string, value string, obj interface{}, tag ...string) (bool, error) {
+func (a *AuthParameterEncryptionBase) DecodeAuthParameter(sctx context.Context, name string, value string, obj interface{}, tag ...string) (bool, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("AuthParameterEncryptionBase.DecodeAuthParameter", logger.Fields{"name": name})
 	var err error
 	onExit := func() {
@@ -178,17 +184,19 @@ func (a *AuthParameterEncryptionBase) DecodeAuthParameter(ctx AuthContext, name 
 	return true, nil
 }
 
-func GetAndDecodeBearer(ctx AuthContext, enc AuthParameterEncryption, obj interface{}) (bool, error) {
+func GetAndDecodeBearer(sctx context.Context, enc AuthParameterEncryption, obj interface{}) (bool, error) {
+	ctx := op_context.OpContext[AuthContext](sctx)
 	value := GetAuthBearer(ctx)
 	if value == "" {
 		return false, nil
 	}
-	return enc.DecodeAuthParameter(ctx, AuthorizationBearer, value, obj)
+	return enc.DecodeAuthParameter(sctx, AuthorizationBearer, value, obj)
 }
 
-func (a *AuthParameterEncryptionBase) Encrypt(ctx op_context.Context, obj interface{}) (string, error) {
+func (a *AuthParameterEncryptionBase) Encrypt(sctx context.Context, obj interface{}) (string, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("AuthParameterEncryptionBase.Encrypt")
 	var err error
 	onExit := func() {

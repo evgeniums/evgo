@@ -1,12 +1,14 @@
 package grpc_api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/evgeniums/evgo/pkg/access_control"
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type RepeatedLogic = Repeated
@@ -15,14 +17,15 @@ type RepeatedEndpoint struct {
 	api_server.EndpointBase
 }
 
-func (e *RepeatedEndpoint) HandleRequest(request api_server.Request) error {
+func (e *RepeatedEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("RepeatedEndpoint")
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd, err := api_server.ParseValidateRequest[RepeatedLogic](request)
+	cmd, err := api_server.ParseValidateRequest[RepeatedLogic](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return err

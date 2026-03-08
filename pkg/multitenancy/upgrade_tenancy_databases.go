@@ -1,6 +1,7 @@
 package multitenancy
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/logger"
@@ -8,11 +9,12 @@ import (
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
-func UpgradeTenancyDatabase(ctx op_context.Context, tenancy Tenancy, dbModels *TenancyDbModels) error {
+func UpgradeTenancyDatabase(sctx context.Context, tenancy Tenancy, dbModels *TenancyDbModels) error {
 
 	// setup
 	loggerFields := logger.Fields{"tenancy": tenancy.GetID(), "tenancy_db": tenancy.DbName()}
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("multitenancy.UpgradeTenancyDatabase", loggerFields)
 	onExit := func() {
 		if err != nil {
@@ -23,21 +25,21 @@ func UpgradeTenancyDatabase(ctx op_context.Context, tenancy Tenancy, dbModels *T
 	defer onExit()
 
 	// migrate internal implicit models
-	err = tenancy.Db().AutoMigrate(ctx, DbInternalModels())
+	err = tenancy.Db().AutoMigrate(sctx, DbInternalModels())
 	if err != nil {
 		c.SetMessage("failed to upgrade internal models in tenancy database")
 		return err
 	}
 
 	// migrate explicit models
-	err = tenancy.Db().AutoMigrate(ctx, dbModels.DbModels)
+	err = tenancy.Db().AutoMigrate(sctx, dbModels.DbModels)
 	if err != nil {
 		c.SetMessage("failed to upgrade ordinary models tenancy database")
 		return err
 	}
 
 	// migrate partitioned db models
-	err = tenancy.Db().PartitionedMonthAutoMigrate(ctx, dbModels.PartitionedDbModels)
+	err = tenancy.Db().PartitionedMonthAutoMigrate(sctx, dbModels.PartitionedDbModels)
 	if err != nil {
 		c.SetMessage("failed to upgrade partitioned models in tenancy database")
 		return err
@@ -47,8 +49,9 @@ func UpgradeTenancyDatabase(ctx op_context.Context, tenancy Tenancy, dbModels *T
 	return nil
 }
 
-func UpgradeTenancyDatabases(ctx op_context.Context, multitenancy Multitenancy, dbModels *TenancyDbModels, singleTenancy ...string) error {
+func UpgradeTenancyDatabases(sctx context.Context, multitenancy Multitenancy, dbModels *TenancyDbModels, singleTenancy ...string) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("multitenancy.UpgradeTenancyDatabases")
 	defer ctx.TraceOutMethod()
 
@@ -59,7 +62,7 @@ func UpgradeTenancyDatabases(ctx op_context.Context, multitenancy Multitenancy, 
 		if onlyTenancy == "" || TenancyDisplay(tenancy) == onlyTenancy {
 			if tenancy.Db() != nil {
 				fmt.Printf("Upgrading tenancy %s ...\n", TenancyDisplay(tenancy))
-				err := UpgradeTenancyDatabase(ctx, tenancy, dbModels)
+				err := UpgradeTenancyDatabase(sctx, tenancy, dbModels)
 				if err != nil {
 					return c.SetError(err)
 				}

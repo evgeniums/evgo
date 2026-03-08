@@ -1,6 +1,7 @@
 package work_schedule_console
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/app_context"
@@ -36,19 +37,19 @@ type HandlerBase[T work_schedule.Work] struct {
 	console_tool.HandlerBase[*WorkScheduleCommands[T]]
 }
 
-func (b *HandlerBase[T]) Context(data interface{}) (multitenancy.TenancyContext, work_schedule.WorkScheduler[T], error) {
+func (b *HandlerBase[T]) Context(data interface{}) (multitenancy.TenancyContext, context.Context, work_schedule.WorkScheduler[T], error) {
 
-	ctx, err := b.HandlerBase.Context(data)
+	ctx, sctx, err := b.HandlerBase.Context(data)
 	if err != nil {
-		return ctx, nil, err
+		return ctx, sctx, nil, err
 	}
 
 	ctrl, err := b.Group.MakeController(ctx.App())
 	if err != nil {
-		return ctx, nil, err
+		return ctx, sctx, nil, err
 	}
 
-	return ctx, ctrl, nil
+	return ctx, sctx, ctrl, nil
 }
 
 func DefaultControllerBuilder[T work_schedule.Work](app app_context.Context, workBuilder work_schedule.WorkBuilder[T], shedulerName string, pubsubTopicName string, configPath string) (work_schedule.WorkScheduler[T], error) {
@@ -62,7 +63,7 @@ func DefaultControllerBuilder[T work_schedule.Work](app app_context.Context, wor
 	workPublisher := work_schedule.NewPoolWorkPublisher[T](a.Pubsub(), pubsubTopicName)
 
 	// create work scheduler
-	workScheduler := work_schedule.NewWorkSchedule[T](shedulerName, work_schedule.Config[T]{
+	workScheduler := work_schedule.NewWorkSchedule(shedulerName, work_schedule.Config[T]{
 		WorkBuilder: workBuilder,
 		WorkInvoker: workPublisher.InvokeWork,
 	})

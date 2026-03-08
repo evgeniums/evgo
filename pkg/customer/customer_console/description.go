@@ -35,16 +35,16 @@ func (a *DescriptionHandler[T]) Data() interface{} {
 
 func (a *DescriptionHandler[T]) Execute(args []string) error {
 
-	ctx, ctrl, err := a.Context(a.Data(), a.Login)
+	ctx, sctx, ctrl, err := a.Context(a.Data(), a.Login)
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	setter, ok := ctrl.(customer.NameAndDescriptionSetter)
 	if !ok {
 		panic("Invalid type of user controller")
 	}
 
-	return setter.SetDescription(ctx, a.Login, a.Description, true)
+	return setter.SetDescription(sctx, a.Login, a.Description, true)
 }

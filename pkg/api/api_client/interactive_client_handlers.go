@@ -2,6 +2,7 @@ package api_client
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -62,8 +63,9 @@ func (e *InteractiveClientHandlers) GetRefreshToken() string {
 	return tokenKeeper.Token
 }
 
-func (e *InteractiveClientHandlers) SaveRefreshToken(ctx op_context.Context, token string) {
+func (e *InteractiveClientHandlers) SaveRefreshToken(sctx context.Context, token string) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("InteractiveClientHandlers.SaveRefreshToken")
 	defer ctx.TraceOutMethod()
 
@@ -80,8 +82,9 @@ func (e *InteractiveClientHandlers) SaveRefreshToken(ctx op_context.Context, tok
 	}
 }
 
-func (e *InteractiveClientHandlers) GetCredentials(ctx op_context.Context) (string, string, error) {
+func (e *InteractiveClientHandlers) GetCredentials(sctx context.Context) (string, string, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("InteractiveClientHandlers.GetCredentials")
 	defer ctx.TraceOutMethod()
 

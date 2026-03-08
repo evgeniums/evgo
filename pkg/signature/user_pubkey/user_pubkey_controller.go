@@ -1,6 +1,7 @@
 package user_pubkey
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -30,9 +31,9 @@ var ErrorHttpCodes = map[string]int{
 }
 
 type PubkeyController[T UserPubkeyI] interface {
-	AddPubKey(ctx op_context.Context, userId string, key string, idIsLogin ...bool) (string, error)
-	DeactivatePubKey(ctx op_context.Context, userId string, keyId string, idIsLogin ...bool) error
-	FindActivePubKey(ctx op_context.Context, userId string, idIsLogin ...bool) (T, error)
+	AddPubKey(sctx context.Context, userId string, key string, idIsLogin ...bool) (string, error)
+	DeactivatePubKey(sctx context.Context, userId string, keyId string, idIsLogin ...bool) error
+	FindActivePubKey(sctx context.Context, userId string, idIsLogin ...bool) (T, error)
 }
 
 type PubkeyControllerBase[T UserPubkeyI, U user.User] struct {
@@ -50,19 +51,21 @@ func (p *PubkeyControllerBase[T, U]) CRUD() crud.CRUD {
 	return p.crud
 }
 
-func (p *PubkeyControllerBase[T, U]) OpLog(ctx op_context.Context, op string, userId string, login string, keyId string, keyHash string) {
+func (p *PubkeyControllerBase[T, U]) OpLog(sctx context.Context, op string, userId string, login string, keyId string, keyHash string) {
 	oplog := NewOplog()
 	oplog.SetOperation(op)
 	oplog.SetLogin(login)
 	oplog.SetUserId(userId)
 	oplog.KeyId = keyId
 	oplog.KeyHash = keyHash
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.Oplog(oplog)
 }
 
-func (p *PubkeyControllerBase[T, U]) AddPubKey(ctx op_context.Context, userId string, key string, idIsLogin ...bool) (string, error) {
+func (p *PubkeyControllerBase[T, U]) AddPubKey(sctx context.Context, userId string, key string, idIsLogin ...bool) (string, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PubkeyController.AddPubKey")
 	var err error
 	onExit := func() {
@@ -74,14 +77,14 @@ func (p *PubkeyControllerBase[T, U]) AddPubKey(ctx op_context.Context, userId st
 	defer onExit()
 
 	// check key
-	err = p.signatureManager.CheckPubKey(ctx, key)
+	err = p.signatureManager.CheckPubKey(sctx, key)
 	if err != nil {
 		c.SetMessage("invalid key format")
 		return "", err
 	}
 
 	// find user
-	user, err := user.FindUser(p.userFinder, ctx, userId, idIsLogin...)
+	user, err := user.FindUser(p.userFinder, sctx, userId, idIsLogin...)
 	if err != nil {
 		return "", err
 	}
@@ -93,13 +96,13 @@ func (p *PubkeyControllerBase[T, U]) AddPubKey(ctx op_context.Context, userId st
 
 	// run transaction
 	doc := p.objectBuilder()
-	err = op_context.ExecDbTransaction(ctx, func() error {
+	err = op_context.ExecDbTransaction(sctx, func() error {
 
 		// check if this key was already loaded
 		filter := db.NewFilter()
 		filter.AddField("public_key_owner", user.GetID())
 		filter.AddField("public_key_hash", hash)
-		exists, err := p.crud.Exists(ctx, filter, p.objectBuilder())
+		exists, err := p.crud.Exists(sctx, filter, p.objectBuilder())
 		if err != nil {
 			c.SetMessage("failed to check if this key exists")
 			return err
@@ -111,7 +114,7 @@ func (p *PubkeyControllerBase[T, U]) AddPubKey(ctx op_context.Context, userId st
 		}
 
 		// deactivate old key
-		err = p.deactivateKey(ctx, c, user)
+		err = p.deactivateKey(sctx, c, user)
 		if err != nil {
 			return err
 		}
@@ -122,14 +125,14 @@ func (p *PubkeyControllerBase[T, U]) AddPubKey(ctx op_context.Context, userId st
 		doc.SetPubKey(key)
 		doc.SetPubKeyHash(hash)
 		doc.SetPubKeyOwner(user.GetID())
-		err = p.crud.Create(ctx, doc)
+		err = p.crud.Create(sctx, doc)
 		if err != nil {
 			c.SetMessage("failed to create pubkey in database")
 			return err
 		}
 
 		// done
-		p.OpLog(ctx, "add_pubkey", user.GetID(), user.Login(), doc.GetID(), hash)
+		p.OpLog(sctx, "add_pubkey", user.GetID(), user.Login(), doc.GetID(), hash)
 		return nil
 	})
 	if err != nil {
@@ -140,33 +143,34 @@ func (p *PubkeyControllerBase[T, U]) AddPubKey(ctx op_context.Context, userId st
 	return doc.GetID(), nil
 }
 
-func (p *PubkeyControllerBase[T, U]) deactivateKey(ctx op_context.Context, c op_context.CallContext, user U, keyId ...string) error {
+func (p *PubkeyControllerBase[T, U]) deactivateKey(sctx context.Context, c op_context.CallContext, user U, keyId ...string) error {
 
 	doc := p.objectBuilder()
 	fields := db.Fields{"public_key_owner": user.GetID(), "active": true}
 	if len(keyId) != 0 && keyId[0] != "" {
 		fields["id"] = keyId
 	}
-	found, err := p.crud.Read(ctx, fields, doc)
+	found, err := p.crud.Read(sctx, fields, doc)
 	if err != nil {
 		c.SetMessage("failed to find previous key")
 		return c.SetError(err)
 	}
 	if found {
-		err = p.crud.Update(ctx, doc, db.Fields{"active": false})
+		err = p.crud.Update(sctx, doc, db.Fields{"active": false})
 		if err != nil {
 			c.SetMessage("failed to deactivate previous key")
 			return c.SetError(err)
 		}
-		p.OpLog(ctx, "deactivate_pubkey", user.GetID(), user.Login(), doc.GetID(), doc.PubKeyHash())
+		p.OpLog(sctx, "deactivate_pubkey", user.GetID(), user.Login(), doc.GetID(), doc.PubKeyHash())
 	}
 
 	return nil
 }
 
-func (p *PubkeyControllerBase[T, U]) DeactivatePubKey(ctx op_context.Context, userId string, keyId string, idIsLogin ...bool) error {
+func (p *PubkeyControllerBase[T, U]) DeactivatePubKey(sctx context.Context, userId string, keyId string, idIsLogin ...bool) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PubkeyController.DeactivatePubKey", logger.Fields{"key_id": keyId})
 	var err error
 	onExit := func() {
@@ -178,14 +182,14 @@ func (p *PubkeyControllerBase[T, U]) DeactivatePubKey(ctx op_context.Context, us
 	defer onExit()
 
 	// find user
-	user, err := user.FindUser(p.userFinder, ctx, userId, idIsLogin...)
+	user, err := user.FindUser(p.userFinder, sctx, userId, idIsLogin...)
 	if err != nil {
 		return err
 	}
 	c.SetLoggerField("user", user.Display())
 
 	// deactivate old key document
-	err = p.deactivateKey(ctx, c, user, keyId)
+	err = p.deactivateKey(sctx, c, user, keyId)
 	if err != nil {
 		return err
 	}
@@ -194,9 +198,10 @@ func (p *PubkeyControllerBase[T, U]) DeactivatePubKey(ctx op_context.Context, us
 	return nil
 }
 
-func (p *PubkeyControllerBase[T, U]) FindActivePubKey(ctx op_context.Context, userId string, idIsLogin ...bool) (T, error) {
+func (p *PubkeyControllerBase[T, U]) FindActivePubKey(sctx context.Context, userId string, idIsLogin ...bool) (T, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PubkeyController.FindActivePubKey")
 	var err error
 	onExit := func() {
@@ -211,7 +216,7 @@ func (p *PubkeyControllerBase[T, U]) FindActivePubKey(ctx op_context.Context, us
 	uId := userId
 	useLogin := utils.OptionalArg(false, idIsLogin...)
 	if useLogin {
-		user, err := user.FindUser(p.userFinder, ctx, userId, idIsLogin...)
+		user, err := user.FindUser(p.userFinder, sctx, userId, idIsLogin...)
 		if err != nil {
 			return *new(T), err
 		}
@@ -222,7 +227,7 @@ func (p *PubkeyControllerBase[T, U]) FindActivePubKey(ctx op_context.Context, us
 	// find key
 	doc := p.objectBuilder()
 	fields := db.Fields{"public_key_owner": uId, "active": true}
-	found, err := p.crud.Read(ctx, fields, doc)
+	found, err := p.crud.Read(sctx, fields, doc)
 	if err != nil {
 		c.SetMessage("failed to find active public key")
 		return *new(T), err
@@ -237,9 +242,10 @@ func (p *PubkeyControllerBase[T, U]) FindActivePubKey(ctx op_context.Context, us
 	return doc, nil
 }
 
-func (p *PubkeyControllerBase[T, U]) ListPubKeys(ctx op_context.Context, filter *db.Filter) ([]T, int64, error) {
+func (p *PubkeyControllerBase[T, U]) ListPubKeys(sctx context.Context, filter *db.Filter) ([]T, int64, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PubkeyController.ListPubKeys")
 	var err error
 	onExit := func() {
@@ -252,7 +258,7 @@ func (p *PubkeyControllerBase[T, U]) ListPubKeys(ctx op_context.Context, filter 
 
 	// read docs
 	var docs []T
-	count, err := p.crud.List(ctx, filter, &docs)
+	count, err := p.crud.List(sctx, filter, &docs)
 	if err != nil {
 		c.SetMessage("failed to read documents from database")
 		return nil, 0, err
@@ -283,9 +289,10 @@ func NewPubkeyController[T UserPubkeyI, U user.User](objectBuilder func() T,
 	return p
 }
 
-func ListPubkeys[T UserPubkeyI](crud crud.CRUD, ctx op_context.Context, filter *db.Filter, keyModel UserPubkeyI, userModel user.User, destModel T, queryName string) ([]T, int64, error) {
+func ListPubkeys[T UserPubkeyI](crud crud.CRUD, sctx context.Context, filter *db.Filter, keyModel UserPubkeyI, userModel user.User, destModel T, queryName string) ([]T, int64, error) {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod(queryName)
 	defer ctx.TraceOutMethod()
 
@@ -298,7 +305,7 @@ func ListPubkeys[T UserPubkeyI](crud crud.CRUD, ctx op_context.Context, filter *
 
 	// invoke join
 	var pubkeys []T
-	count, err := crud.Join(ctx, db.NewJoin(queryBuilder, queryName), filter, &pubkeys)
+	count, err := crud.Join(sctx, db.NewJoin(queryBuilder, queryName), filter, &pubkeys)
 	if err != nil {
 		c.SetMessage("failed to list public keys")
 		return nil, 0, c.SetError(err)

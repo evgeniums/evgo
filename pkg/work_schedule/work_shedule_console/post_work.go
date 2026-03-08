@@ -35,15 +35,15 @@ func (a *PostWorkHandler[T]) Data() interface{} {
 
 func (a *PostWorkHandler[T]) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	work := controller.NewWork(a.ReferenceId, a.ReferenceType)
 	work.SetDelay(a.Delay)
-	err = controller.PostWork(ctx, work, work_schedule.Mode(a.Mode), ctx.GetTenancy())
+	err = controller.PostWork(sctx, work, work_schedule.Mode(a.Mode), ctx.GetTenancy())
 	if err != nil {
 		return err
 	}

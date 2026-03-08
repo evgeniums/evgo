@@ -1,6 +1,7 @@
 package plain_login_service
 
 import (
+	"context"
 	"crypto/subtle"
 
 	"github.com/evgeniums/evgo/pkg/access_control"
@@ -8,6 +9,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_login_phash"
 	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type UserWithPlainPassword interface {
@@ -39,22 +41,23 @@ func (r *requestWrapper) SetAuthParameter(authMethodProtocol string, key string,
 	r.token = value
 }
 
-func (e *LoginEndpoint) HandleRequest(request api_server.Request) error {
+func (e *LoginEndpoint) HandleRequest(sctx context.Context) error {
 
 	// setup
 	var err error
+	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("auth.PLainLogin")
 	defer request.TraceOutMethod()
 
 	// parse command
-	cmd, err := api_server.ParseValidateRequest[LoginCmd](request)
+	cmd, err := api_server.ParseValidateRequest[LoginCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
 		return c.SetError(err)
 	}
 
 	// find user
-	user, err := e.service.users.AuthUserManager().FindAuthUser(request, cmd.Username)
+	user, err := e.service.users.AuthUserManager().FindAuthUser(sctx, cmd.Username)
 	if err != nil {
 		c.SetMessage("user not found")
 		request.SetGenericErrorCode(auth_login_phash.ErrorCodeLoginFailed)
@@ -77,7 +80,7 @@ func (e *LoginEndpoint) HandleRequest(request api_server.Request) error {
 	request.SetAuthUser(user)
 
 	// fill auth user
-	err = e.service.users.AuthUserManager().FillAuthUser(request)
+	err = e.service.users.AuthUserManager().FillAuthUser(sctx)
 	if err != nil {
 		c.SetMessage("failed to fill auth user")
 		return err
@@ -85,7 +88,8 @@ func (e *LoginEndpoint) HandleRequest(request api_server.Request) error {
 
 	// generate session token
 	requestWrapper := &requestWrapper{Request: request}
-	_, _, err = e.service.tokenHandler.Process(requestWrapper)
+	ctxWrapper := op_context.WrapOpContext(sctx, requestWrapper)
+	_, _, err = e.service.tokenHandler.Process(ctxWrapper)
 	if err != nil {
 		c.SetMessage("failed to process token")
 		return c.SetError(err)

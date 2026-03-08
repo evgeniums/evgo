@@ -7,6 +7,7 @@ import (
 
 	"github.com/evgeniums/evgo/pkg/app_context/app_default"
 	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
 	"github.com/evgeniums/evgo/pkg/sms/providers/gatewayapi"
 	"github.com/evgeniums/evgo/pkg/test_utils"
@@ -43,14 +44,14 @@ func TestGatewayapi(t *testing.T) {
 		t.Fatalf("failed to init gatewayapi module")
 	}
 
-	opCtx := default_op_context.NewContext()
-	opCtx.Init(app, app.Logger(), app.Db())
+	opCtx := default_op_context.NewInitContext(app, app.Logger(), app.Db())
+	sctx := op_context.MakeOpContext(opCtx)
 	errManager := &generic_error.ErrorManagerBase{}
 	errManager.Init(http.StatusBadRequest)
 	opCtx.SetErrorManager(errManager)
 
-	resp, err := sender.Send(opCtx, "Confirmation code 9350", phone)
-	opCtx.Close()
+	resp, err := sender.Send(sctx, "Confirmation code 9350", phone)
+	opCtx.Close(sctx)
 	if resp != nil {
 		t.Logf("Response: %+v", resp)
 	}

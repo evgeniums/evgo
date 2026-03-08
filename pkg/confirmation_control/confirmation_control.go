@@ -1,8 +1,9 @@
 package confirmation_control
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/generic_error"
-	"github.com/evgeniums/evgo/pkg/multitenancy"
 )
 
 const PackageName = "confirmation_control"
@@ -12,7 +13,7 @@ const StatusFailed string = "failed"
 const StatusCancelled string = "cancelled"
 
 type ConfirmationSender interface {
-	SendConfirmation(ctx multitenancy.TenancyContext, operationId string, recipient string, failedUrl string, parameters ...map[string]interface{}) (redirectUrl string, err error)
+	SendConfirmation(sctx context.Context, operationId string, recipient string, failedUrl string, parameters ...map[string]interface{}) (redirectUrl string, err error)
 }
 
 type ConfirmationResult struct {
@@ -22,5 +23,5 @@ type ConfirmationResult struct {
 }
 
 type ConfirmationCallbackHandler interface {
-	ConfirmationCallback(ctx multitenancy.TenancyContext, operationId string, result *ConfirmationResult) (redirectUrl string, err error)
+	ConfirmationCallback(sctx context.Context, operationId string, result *ConfirmationResult) (redirectUrl string, err error)
 }

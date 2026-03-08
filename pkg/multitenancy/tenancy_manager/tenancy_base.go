@@ -1,6 +1,8 @@
 package tenancy_manager
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/cache"
 	"github.com/evgeniums/evgo/pkg/customer"
 	"github.com/evgeniums/evgo/pkg/db"
@@ -54,10 +56,11 @@ func (t *TenancyBase) SetCache(c cache.Cache) {
 	t.TenancyBaseData.Cache = c
 }
 
-func (t *TenancyBase) Init(ctx op_context.Context, data *multitenancy.TenancyDb) error {
+func (t *TenancyBase) Init(sctx context.Context, data *multitenancy.TenancyDb) error {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyBase.ConnectDatabase", logger.Fields{"customer": t.CUSTOMER_ID, "role": t.ROLE})
 	onExit := func() {
 		if err != nil {
@@ -70,7 +73,7 @@ func (t *TenancyBase) Init(ctx op_context.Context, data *multitenancy.TenancyDb)
 	t.TenancyDb = *data
 
 	// find customer
-	t.Customer, err = t.TenancyManager.Customers.Find(ctx, data.CUSTOMER_ID)
+	t.Customer, err = t.TenancyManager.Customers.Find(sctx, data.CUSTOMER_ID)
 	if err != nil {
 		c.SetMessage("failed to find customer")
 		return err
@@ -105,13 +108,13 @@ func (t *TenancyBase) Init(ctx op_context.Context, data *multitenancy.TenancyDb)
 	}
 
 	// init database
-	err = t.ConnectDatabase(ctx)
+	err = t.ConnectDatabase(sctx)
 	if err != nil {
 		return err
 	}
 
 	// check tenancy database
-	err = multitenancy.CheckTenancyDatabase(ctx, t.Db(), t.GetID())
+	err = multitenancy.CheckTenancyDatabase(sctx, t.Db(), t.GetID())
 	if err != nil {
 		multitenancy.CloseTenancyDb(t)
 		return err
@@ -121,10 +124,11 @@ func (t *TenancyBase) Init(ctx op_context.Context, data *multitenancy.TenancyDb)
 	return nil
 }
 
-func (t *TenancyBase) ConnectDatabase(ctx op_context.Context, newDb ...bool) error {
+func (t *TenancyBase) ConnectDatabase(sctx context.Context, newDb ...bool) error {
 
 	// setup
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("TenancyBase.ConnectDatabase", logger.Fields{"customer": t.CUSTOMER_ID, "role": t.ROLE})
 	onExit := func() {
 		if err != nil {
@@ -139,7 +143,7 @@ func (t *TenancyBase) ConnectDatabase(ctx op_context.Context, newDb ...bool) err
 	if dbRole == "" {
 		dbRole = multitenancy.TENANCY_DATABASE_ROLE
 	}
-	db, err := pool.ConnectDatabaseService(ctx, t.Pool(), dbRole, t.DbName(), newDb...)
+	db, err := pool.ConnectDatabaseService(sctx, t.Pool(), dbRole, t.DbName(), newDb...)
 	if err != nil {
 		return err
 	}

@@ -1,11 +1,13 @@
 package auth
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/config"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
@@ -17,7 +19,7 @@ type HandlerStore interface {
 }
 
 type AuthManager interface {
-	Handle(ctx AuthContext, schema string) error
+	Handle(sctx context.Context, schema string) error
 	ErrorDescriptions() map[string]string
 	ErrorProtocolCodes() map[string]int
 
@@ -143,9 +145,10 @@ func (a *AuthManagerBase) ErrorProtocolCodes() map[string]int {
 	return m
 }
 
-func (a *AuthManagerBase) Handle(ctx AuthContext, schema string) error {
+func (a *AuthManagerBase) Handle(sctx context.Context, schema string) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("AuthManagerBase.Handle", logger.Fields{"schema": schema})
 	var err error
 	onExit := func() {
@@ -164,7 +167,7 @@ func (a *AuthManagerBase) Handle(ctx AuthContext, schema string) error {
 	}
 
 	// run handler
-	_, err = handler.Handle(ctx)
+	_, err = handler.Handle(sctx)
 	return err
 }
 

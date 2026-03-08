@@ -20,7 +20,7 @@ var _, testBasePath, _, _ = runtime.Caller(0)
 var testDir = filepath.Dir(testBasePath)
 
 func TestInitDb(t *testing.T) {
-	app := test_utils.InitAppContext(t, testDir, nil, "maindb.json")
+	app, _ := test_utils.InitAppContext(t, testDir, nil, "maindb.json")
 	app.Close()
 }
 
@@ -41,28 +41,28 @@ func dbModels() []interface{} {
 }
 
 func TestCreateDatabase(t *testing.T) {
-	app := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
+	app, _ := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
 	defer app.Close()
 }
 
 func TestMainDbOperations(t *testing.T) {
-	app := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
+	app, appCtx := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
 	defer app.Close()
 
 	doc1 := &SampleModel1{}
 	doc1.InitObject()
 	doc1.Field1 = "value1"
 	doc1.Field2 = "value2"
-	require.NoError(t, app.Db().Create(app, doc1), "failed to create doc1 in database")
+	require.NoError(t, app.Db().Create(appCtx, doc1), "failed to create doc1 in database")
 
 	docDb1 := &SampleModel1{}
-	found, err := app.Db().FindByFields(app, db.Fields{"field1": "value1"}, docDb1)
+	found, err := app.Db().FindByFields(appCtx, db.Fields{"field1": "value1"}, docDb1)
 	require.NoError(t, err, "failed to find doc1 in database")
 	assert.Equal(t, found, true)
 	test_utils.ObjectEqual(t, doc1, docDb1)
 
 	docDb1NotFound := &SampleModel1{}
-	found, err = app.Db().FindByFields(app, db.Fields{"field1": "value11"}, docDb1NotFound)
+	found, err = app.Db().FindByFields(appCtx, db.Fields{"field1": "value11"}, docDb1NotFound)
 	require.NoError(t, err, "failed to find docDb1NotFound in database")
 	assert.Equal(t, found, false)
 
@@ -72,7 +72,7 @@ func TestMainDbOperations(t *testing.T) {
 	filter.SortDirection = db.SORT_ASC
 	filter.Count = true
 	docsDb1 := make([]*SampleModel1, 0)
-	count, err := app.Db().FindWithFilter(app, filter, &docsDb1)
+	count, err := app.Db().FindWithFilter(appCtx, filter, &docsDb1)
 	require.NoError(t, err, "failed to find docs with filter in database")
 	assert.Equal(t, int64(1), count)
 	require.Len(t, docsDb1, 1)
@@ -82,10 +82,10 @@ func TestMainDbOperations(t *testing.T) {
 	doc2.InitObject()
 	doc2.Field1 = "value1"
 	doc2.Field2 = "value2"
-	assert.Error(t, app.Db().Create(app, doc1), "doc with field1=valu1e must be unique in database")
+	assert.Error(t, app.Db().Create(appCtx, doc2), "doc with field1=valu1e must be unique in database")
 	docsDb2 := make([]*SampleModel1, 0)
 	filter.Count = false
-	count, err = app.Db().FindWithFilter(app, filter, &docsDb2)
+	count, err = app.Db().FindWithFilter(appCtx, filter, &docsDb2)
 	require.NoError(t, err, "failed to find docs with filter in database")
 	assert.Equal(t, int64(1), count)
 	require.Len(t, docsDb2, 1)
@@ -95,27 +95,27 @@ func TestMainDbOperations(t *testing.T) {
 	doc3.InitObject()
 	doc3.Field1 = "value3"
 	doc3.Field2 = "value2"
-	assert.NoError(t, app.Db().Create(app, doc3), "failed to create doc3 in database")
+	assert.NoError(t, app.Db().Create(appCtx, doc3), "failed to create doc3 in database")
 
 	docsDb3 := make([]*SampleModel1, 0)
-	count, err = app.Db().FindWithFilter(app, filter, &docsDb3)
+	count, err = app.Db().FindWithFilter(appCtx, filter, &docsDb3)
 	require.NoError(t, err, "failed to find docs with filter in database")
 	require.Len(t, docsDb3, 2)
 	require.Equal(t, int64(2), count)
 	test_utils.ObjectEqual(t, doc1, docsDb3[0])
 	test_utils.ObjectEqual(t, doc3, docsDb3[1])
 
-	require.NoError(t, app.Db().Update(app, doc3, db.Fields{"field1": "value3"}, db.Fields{"field2": "value33"}), "failed to update doc3 in database")
+	require.NoError(t, app.Db().Update(appCtx, doc3, db.Fields{"field1": "value3"}, db.Fields{"field2": "value33"}), "failed to update doc3 in database")
 
 	docsDb4 := make([]*SampleModel1, 0)
-	count, err = app.Db().FindWithFilter(app, filter, &docsDb4)
+	count, err = app.Db().FindWithFilter(appCtx, filter, &docsDb4)
 	require.NoError(t, err, "failed to find docsDb4 with filter in database")
 	require.Len(t, docsDb4, 1)
 	require.Equal(t, int64(1), count)
 	test_utils.ObjectEqual(t, doc1, docsDb4[0])
 
 	docDb33 := &SampleModel1{}
-	found, err = app.Db().FindByFields(app, db.Fields{"field2": "value33"}, docDb33)
+	found, err = app.Db().FindByFields(appCtx, db.Fields{"field2": "value33"}, docDb33)
 	require.NoError(t, err, "failed to find docDb33 in database")
 	assert.Equal(t, found, true)
 	assert.Equal(t, docDb33.Field1, doc3.Field1)
@@ -202,11 +202,11 @@ type WithAmountItem struct {
 
 func TestSum(t *testing.T) {
 
-	app := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
+	app, appCtx := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
 	defer app.Close()
 
 	add := func(doc *WithAmount) {
-		require.NoError(t, app.Db().Create(app, doc), "failed to create doc in database")
+		require.NoError(t, app.Db().Create(appCtx, doc), "failed to create doc in database")
 	}
 
 	doc := &WithAmount{}
@@ -231,7 +231,7 @@ func TestSum(t *testing.T) {
 	add(doc)
 
 	var dest1 []WithAmount
-	count, err := app.Db().Sum(app, []string{"field1", "field2"}, []string{"amount1", "amount2", "amount3"}, nil, &dest1)
+	count, err := app.Db().Sum(appCtx, []string{"field1", "field2"}, []string{"amount1", "amount2", "amount3"}, nil, &dest1)
 	b, err1 := json.MarshalIndent(dest1, "", "  ")
 	assert.NoError(t, err1)
 	t.Logf("Result: \n %s", string(b))
@@ -250,7 +250,7 @@ func TestSum(t *testing.T) {
 	assert.InEpsilon(t, 200.00, dest1[1].Amount3, 0.001)
 
 	var dest2 []WithAmount
-	count, err = app.Db().Sum(app, []string{"field1"}, []string{"amount1", "amount2", "amount3"}, nil, &dest2)
+	count, err = app.Db().Sum(appCtx, []string{"field1"}, []string{"amount1", "amount2", "amount3"}, nil, &dest2)
 	b, err1 = json.MarshalIndent(dest2, "", "  ")
 	assert.NoError(t, err1)
 	t.Logf("Result: \n %s", string(b))
@@ -265,7 +265,7 @@ func TestSum(t *testing.T) {
 	var dest3 []WithAmount
 	filter := db.NewFilter()
 	filter.AddFieldNotIn("field3", "value3.2", "value3.4")
-	count, err = app.Db().Sum(app, []string{"field1"}, []string{"amount1", "amount2", "amount3"}, filter, &dest3)
+	count, err = app.Db().Sum(appCtx, []string{"field1"}, []string{"amount1", "amount2", "amount3"}, filter, &dest3)
 	b, err1 = json.MarshalIndent(dest3, "", "  ")
 	assert.NoError(t, err1)
 	t.Logf("Result: \n %s", string(b))
@@ -278,7 +278,7 @@ func TestSum(t *testing.T) {
 	assert.InEpsilon(t, 300.00, dest3[0].Amount3, 0.001)
 
 	var dest4 []WithAmount
-	count, err = app.Db().Sum(app, []string{}, []string{"amount1", "amount2", "amount3"}, nil, &dest4)
+	count, err = app.Db().Sum(appCtx, []string{}, []string{"amount1", "amount2", "amount3"}, nil, &dest4)
 	b, err1 = json.MarshalIndent(dest4, "", "  ")
 	assert.NoError(t, err1)
 	t.Logf("Result: \n %s", string(b))
@@ -295,7 +295,7 @@ func TestSum(t *testing.T) {
 
 func TestJoinSum(t *testing.T) {
 
-	app := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
+	app, appCtx := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
 	defer app.Close()
 	crud := &crud.DbCRUD{}
 
@@ -303,22 +303,22 @@ func TestJoinSum(t *testing.T) {
 	terminal1 := &Terminal{}
 	terminal1.InitObject()
 	terminal1.SetName("terminal1")
-	require.NoError(t, app.Db().Create(app, terminal1))
+	require.NoError(t, app.Db().Create(appCtx, terminal1))
 
 	terminal2 := &Terminal{}
 	terminal2.InitObject()
 	terminal2.SetName("terminal2")
-	require.NoError(t, app.Db().Create(app, terminal2))
+	require.NoError(t, app.Db().Create(appCtx, terminal2))
 
 	terminal3 := &Terminal{}
 	terminal3.InitObject()
 	terminal3.SetName("terminal3")
-	require.NoError(t, app.Db().Create(app, terminal3))
+	require.NoError(t, app.Db().Create(appCtx, terminal3))
 
 	// add docs
 
 	add := func(doc *WithAmount) {
-		require.NoError(t, app.Db().Create(app, doc), "failed to create doc in database")
+		require.NoError(t, app.Db().Create(appCtx, doc), "failed to create doc in database")
 	}
 
 	doc := &WithAmount{}
@@ -348,9 +348,9 @@ func TestJoinSum(t *testing.T) {
 	}
 
 	// invoke join 1
-	opCtx1 := test_utils.SimpleOpContext(app, "query1")
+	_, sctx1 := test_utils.SimpleOpContext(app, "query1")
 	var items1 []WithAmountItem
-	count, err := crud.Join(opCtx1, db.NewJoin(queryBuilder1, "Query1"), nil, &items1)
+	count, err := crud.Join(sctx1, db.NewJoin(queryBuilder1, "Query1"), nil, &items1)
 	b, err1 := json.MarshalIndent(items1, "", "  ")
 	assert.NoError(t, err1)
 	t.Logf("Result:\n%s", string(b))
@@ -377,9 +377,9 @@ func TestJoinSum(t *testing.T) {
 	}
 
 	// invoke join with single terminal
-	opCtx2 := test_utils.SimpleOpContext(app, "query2")
+	_, sctx2 := test_utils.SimpleOpContext(app, "query2")
 	var items2 []WithAmountItem
-	count, err = crud.Join(opCtx2, db.NewJoin(queryBuilder2, "Query2"), nil, &items2)
+	count, err = crud.Join(sctx2, db.NewJoin(queryBuilder2, "Query2"), nil, &items2)
 	b, err1 = json.MarshalIndent(items2, "", "  ")
 	assert.NoError(t, err1)
 	t.Logf("Result:\n%s", string(b))
@@ -406,9 +406,9 @@ func TestJoinSum(t *testing.T) {
 	doc.Field1 = "value1.8"
 	add(doc)
 
-	opCtx3 := test_utils.SimpleOpContext(app, "query3")
+	_, sctx3 := test_utils.SimpleOpContext(app, "query3")
 	var items3 []WithAmountItem
-	count, err = crud.Join(opCtx3, db.NewJoin(queryBuilder2, "Query2"), nil, &items3)
+	count, err = crud.Join(sctx3, db.NewJoin(queryBuilder2, "Query2"), nil, &items3)
 	b, err1 = json.MarshalIndent(items3, "", "  ")
 	assert.NoError(t, err1)
 	t.Logf("Result:\n%s", string(b))
@@ -432,11 +432,11 @@ func TestJoinSum(t *testing.T) {
 	assert.InEpsilon(t, 100.00, items3[2].Amount3, 0.001)
 
 	// run with filter
-	opCtx4 := test_utils.SimpleOpContext(app, "query4")
+	_, sctx4 := test_utils.SimpleOpContext(app, "query4")
 	var items4 []WithAmountItem
 	filter := db.NewFilter()
 	filter.AddFieldIn("terminal_name", "terminal1", "terminal3")
-	count, err = crud.Join(opCtx4, db.NewJoin(queryBuilder2, "Query2"), filter, &items4)
+	count, err = crud.Join(sctx4, db.NewJoin(queryBuilder2, "Query2"), filter, &items4)
 	b, err1 = json.MarshalIndent(items4, "", "  ")
 	assert.NoError(t, err1)
 	t.Logf("Result:\n%s", string(b))
@@ -478,16 +478,16 @@ func TestQueryFilter(t *testing.T) {
 
 func TestInList(t *testing.T) {
 
-	app := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
+	app, _ := test_utils.InitAppContext(t, testDir, dbModels(), "maindb.json")
 	defer app.Close()
 	crud := &crud.DbCRUD{}
-	opCtx := test_utils.SimpleOpContext(app, "query")
+	_, sctx := test_utils.SimpleOpContext(app, "query")
 
 	ids := []string{"a", "b", "c"}
 	var result []*SampleModel1
 	f := db.NewFilter()
 	ifs := utils.ListInterfaces(ids...)
 	f.AddFieldIn("id", ifs...)
-	_, err := crud.List(opCtx, f, &result)
-	test_utils.NoError(t, opCtx, err)
+	_, err := crud.List(sctx, f, &result)
+	test_utils.NoError(t, sctx, err)
 }

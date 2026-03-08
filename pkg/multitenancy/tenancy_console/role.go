@@ -25,12 +25,12 @@ func (a *RoleHandler) Data() interface{} {
 
 func (a *RoleHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := PrepareId(a.Id, a.Role, a.Role)
-	return controller.SetRole(ctx, id, a.NewRole, idIsDisplay)
+	return controller.SetRole(sctx, id, a.NewRole, idIsDisplay)
 }

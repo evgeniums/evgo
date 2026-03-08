@@ -21,6 +21,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
 	"github.com/evgeniums/evgo/pkg/pool"
 	"github.com/evgeniums/evgo/pkg/utils"
@@ -370,6 +371,7 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 		epName := ep.Name()
 		request.SetName(epName)
 		request.SetLoggerField("endpoint", ep.Resource().ServicePathPrototype())
+		sctx := op_context.MakeOpContext(request)
 
 		c := request.TraceInMethod("Server.RequestHandler")
 
@@ -432,13 +434,13 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 		// process CSRF
 		if err == nil {
 			if s.csrf != nil {
-				_, err = s.csrf.Handle(request)
+				_, err = s.csrf.Handle(sctx)
 			}
 		}
 
 		// preprocess request
 		if err == nil {
-			err = ep.PreprocessBeforeAuth(request)
+			sctx, err = ep.PreprocessBeforeAuth(sctx)
 			if err != nil {
 				request.SetGenericErrorCode(generic_error.ErrorCodeBadRequest)
 			}
@@ -446,7 +448,7 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 
 		// process auth
 		if err == nil {
-			err = s.Auth().HandleRequest(request, ep.Resource().ServicePathPrototype(), ep.AccessType())
+			err = s.Auth().HandleRequest(sctx, ep.Resource().ServicePathPrototype(), ep.AccessType())
 			if err != nil {
 				request.SetGenericErrorCode(auth.ErrorCodeUnauthorized)
 			}
@@ -495,7 +497,7 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 
 		// call endpoint's request handler
 		if err == nil {
-			err = ep.HandleRequest(request)
+			err = ep.HandleRequest(sctx)
 			if err != nil {
 				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			}
@@ -506,7 +508,7 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 			c.SetError(err)
 		}
 		request.TraceOutMethod()
-		request.Close()
+		request.Close(sctx)
 	}
 }
 

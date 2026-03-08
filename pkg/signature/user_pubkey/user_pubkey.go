@@ -1,8 +1,11 @@
 package user_pubkey
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/auth"
 	"github.com/evgeniums/evgo/pkg/common"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/signature"
 )
 
@@ -65,9 +68,10 @@ func NewOplog() *signature.OpLogPubKey {
 	return &signature.OpLogPubKey{}
 }
 
-func FindUserPubKey[T UserPubkeyI](ctrl PubkeyController[T], ctx auth.AuthContext) (signature.UserWithPubkey, error) {
+func FindUserPubKey[T UserPubkeyI](ctrl PubkeyController[T], sctx context.Context) (signature.UserWithPubkey, error) {
 
-	pubKey, err := ctrl.FindActivePubKey(ctx, ctx.AuthUser().GetID())
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
+	pubKey, err := ctrl.FindActivePubKey(sctx, ctx.AuthUser().GetID())
 	if err != nil {
 		return nil, err
 	}

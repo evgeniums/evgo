@@ -1,6 +1,7 @@
 package docx_template
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -38,9 +39,10 @@ func (d *DocxTemplate) Init(app app_context.Context, configPath ...string) error
 	return nil
 }
 
-func (d *DocxTemplate) ToDocx(ctx op_context.Context, templateFile string, targetFile string, vars interface{}) error {
+func (d *DocxTemplate) ToDocx(sctx context.Context, templateFile string, targetFile string, vars interface{}) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("DocxTemplate.ToDocx")
 	defer ctx.TraceOutMethod()
 
@@ -76,7 +78,7 @@ func (d *DocxTemplate) ToDocx(ctx op_context.Context, templateFile string, targe
 	return nil
 }
 
-func (d *DocxTemplate) ToPdf(ctx op_context.Context, templateFile string, targetFile string, vars interface{}) error {
+func (d *DocxTemplate) ToPdf(sctx context.Context, templateFile string, targetFile string, vars interface{}) error {
 
 	// setup
 	tempDir := d.TEMP_DIR
@@ -86,6 +88,7 @@ func (d *DocxTemplate) ToPdf(ctx op_context.Context, templateFile string, target
 	tempFileBase := utils.GenerateID()
 	tempFileName := filepath.Join(tempDir, fmt.Sprintf("%s.docx", tempFileBase))
 	var err error
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("DocxTemplate.ToPdf")
 	onExit := func() {
 		if err != nil {
@@ -102,7 +105,7 @@ func (d *DocxTemplate) ToPdf(ctx op_context.Context, templateFile string, target
 	c.SetLoggerField("target_file", targetFile)
 
 	// create temporary docx
-	err = d.ToDocx(ctx, templateFile, tempFileName, vars)
+	err = d.ToDocx(sctx, templateFile, tempFileName, vars)
 	if err != nil {
 		return err
 	}

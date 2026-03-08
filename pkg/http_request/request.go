@@ -57,11 +57,12 @@ func (r *Request) SetSerializer(serializer ...message.Serializer) {
 	}
 }
 
-func NewPostWithContext(systemCtx context.Context, ctx op_context.Context, url string, msg interface{}, serializer ...message.Serializer) (*Request, error) {
+func NewPostWithContext(systemCtx context.Context, sctx context.Context, url string, msg interface{}, serializer ...message.Serializer) (*Request, error) {
 
 	r := &Request{}
 	r.SetSerializer(serializer...)
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("http_request.NewPost", logger.Fields{"url": url})
 	defer ctx.TraceOutMethod()
 
@@ -96,8 +97,8 @@ func NewPostWithContext(systemCtx context.Context, ctx op_context.Context, url s
 	return r, nil
 }
 
-func NewPost(ctx op_context.Context, url string, msg interface{}, serializer ...message.Serializer) (*Request, error) {
-	return NewPostWithContext(context.Background(), ctx, url, msg, serializer...)
+func NewPost(sctx context.Context, url string, msg interface{}, serializer ...message.Serializer) (*Request, error) {
+	return NewPostWithContext(context.Background(), sctx, url, msg, serializer...)
 }
 
 func UrlEncode(msg interface{}) (string, error) {
@@ -116,11 +117,12 @@ func UrlEncode(msg interface{}) (string, error) {
 	return "", nil
 }
 
-func NewGetWithContext(systemCtx context.Context, ctx op_context.Context, uRL string, msg interface{}, serializer ...message.Serializer) (*Request, error) {
+func NewGetWithContext(systemCtx context.Context, sctx context.Context, uRL string, msg interface{}, serializer ...message.Serializer) (*Request, error) {
 
 	r := &Request{}
 	r.SetSerializer(serializer...)
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("http_request.NewGet", logger.Fields{"url": uRL})
 	defer ctx.TraceOutMethod()
 
@@ -148,14 +150,15 @@ func NewGetWithContext(systemCtx context.Context, ctx op_context.Context, uRL st
 	return r, nil
 }
 
-func NewGet(ctx op_context.Context, uRL string, msg interface{}) (*Request, error) {
-	return NewGetWithContext(context.Background(), ctx, uRL, msg)
+func NewGet(sctx context.Context, uRL string, msg interface{}) (*Request, error) {
+	return NewGetWithContext(sctx, sctx, uRL, msg)
 }
 
-func (r *Request) SendRaw(ctx op_context.Context) error {
+func (r *Request) SendRaw(sctx context.Context) error {
 
 	// TODO set user agent
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Request.SendRaw", logger.Fields{"url": r.NativeRequest.URL.String(), "method": r.NativeRequest.Method})
 	defer ctx.TraceOutMethod()
 	var err error
@@ -192,10 +195,11 @@ func (r *Request) SendRaw(ctx op_context.Context) error {
 	return nil
 }
 
-func (r *Request) Send(ctx op_context.Context, relaxedParsing ...bool) error {
+func (r *Request) Send(sctx context.Context, relaxedParsing ...bool) error {
 
 	// TODO set user agent
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Request.Send", logger.Fields{"url": r.NativeRequest.URL.String(), "method": r.NativeRequest.Method})
 
 	var err error
@@ -331,11 +335,12 @@ func HttpHeadersSet(req *http.Request, headers ...map[string]string) {
 	}
 }
 
-func NewMultipart(ctx op_context.Context, url string, files map[string]io.Reader, fields map[string]string, filesField ...string) (*Request, error) {
+func NewMultipart(sctx context.Context, url string, files map[string]io.Reader, fields map[string]string, filesField ...string) (*Request, error) {
 
 	// prepare
 	filesFieldName := utils.OptionalArg("files", filesField...)
 	r := &Request{}
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("http_request.NewMultipart", logger.Fields{"url": url})
 	defer ctx.TraceOutMethod()
 

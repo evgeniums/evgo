@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/access_control"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -16,13 +18,13 @@ type Operation interface {
 	Resource() Resource
 
 	AccessType() access_control.AccessType
-	Exec(ctx op_context.Context,
+	Exec(sctx context.Context,
 		controller interface{},
 		requestMessage interface{},
 		resultMessage interface{},
 		headers OperationHeaders,
 		tenancyArg ...multitenancy.TenancyPath) (interface{}, error)
-	SetRunner(runner func(ctx op_context.Context,
+	SetRunner(runner func(sctx context.Context,
 		controller interface{},
 		requestMessage interface{},
 		resultMessage interface{},
@@ -39,7 +41,7 @@ type OperationBase struct {
 	accessType access_control.AccessType
 	testOnly   bool
 
-	runner func(ctx op_context.Context,
+	runner func(sctx context.Context,
 		controller interface{},
 		requestMessage interface{},
 		resultMessage interface{},
@@ -83,13 +85,14 @@ func (o *OperationBase) AccessType() access_control.AccessType {
 	return o.accessType
 }
 
-func (o *OperationBase) Exec(ctx op_context.Context,
+func (o *OperationBase) Exec(sctx context.Context,
 	controller interface{},
 	requestMessage interface{},
 	resultMessage interface{},
 	headers OperationHeaders,
 	tenancyArg ...multitenancy.TenancyPath) (interface{}, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	ctx.TraceInMethod("Operation.Exec")
 	defer ctx.TraceOutMethod()
 
@@ -97,10 +100,10 @@ func (o *OperationBase) Exec(ctx op_context.Context,
 		return nil, nil
 	}
 
-	return o.runner(ctx, controller, requestMessage, resultMessage, headers, tenancyArg...)
+	return o.runner(sctx, controller, requestMessage, resultMessage, headers, tenancyArg...)
 }
 
-func (o *OperationBase) SetRunner(runner func(ctx op_context.Context,
+func (o *OperationBase) SetRunner(runner func(sctx context.Context,
 	controller interface{},
 	requestMessage interface{},
 	resultMessage interface{},

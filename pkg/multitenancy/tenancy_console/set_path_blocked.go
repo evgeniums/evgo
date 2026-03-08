@@ -27,12 +27,12 @@ func (a *SetPathBlockedHandler) Data() interface{} {
 
 func (a *SetPathBlockedHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := PrepareId(a.Id, a.Customer, a.Role)
-	return controller.SetPathBlocked(ctx, id, a.Block, a.Mode, idIsDisplay)
+	return controller.SetPathBlocked(sctx, id, a.Block, a.Mode, idIsDisplay)
 }

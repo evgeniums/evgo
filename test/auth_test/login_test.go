@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_login_phash"
 	"github.com/evgeniums/evgo/pkg/auth/auth_methods/auth_token"
 	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/test_utils"
 	"github.com/evgeniums/evgo/pkg/user"
@@ -19,12 +21,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func initOpTest(t *testing.T, config ...string) (app_context.Context, *user_session_default.Users, bare_bones_server.Server, op_context.Context) {
+func initOpTest(t *testing.T, config ...string) (app_context.Context, *user_session_default.Users, bare_bones_server.Server, op_context.Context, context.Context) {
 	app, users, server := initServer(t, config...)
 
-	ctx := test_utils.SimpleOpContext(app, t.Name())
+	ctx, sctx := test_utils.SimpleOpContext(app, t.Name())
 
-	return app, users, server, ctx
+	return app, users, server, ctx, sctx
 }
 
 func TestPHash(t *testing.T) {
@@ -34,24 +36,23 @@ func TestPHash(t *testing.T) {
 
 	result := auth_login_phash.Phash(password, salt)
 	t.Logf("Result: %s", result)
-
 }
 
 func TestLogin(t *testing.T) {
-	app, users, server, opCtx := initOpTest(t)
+	app, users, server, _, sctx := initOpTest(t)
 	defer app.Close()
 
 	// create user1
 	login1 := "user1@example.com"
 	password1 := "password1"
-	user1, err := users.Add(opCtx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
+	user1, err := users.Add(sctx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
 	require.NoErrorf(t, err, "failed to add user")
 	require.NotNil(t, user1)
 
 	// create user2
 	login2 := "user2"
 	password2 := "password2"
-	user2, err := users.Add(opCtx, login2, password2, user.Phone("12345679", &User{}), user.Email("user2@example.com", &User{}))
+	user2, err := users.Add(sctx, login2, password2, user.Phone("12345679", &User{}), user.Email("user2@example.com", &User{}))
 	require.NoErrorf(t, err, "failed to add user")
 	require.NotNil(t, user2)
 
@@ -101,20 +102,20 @@ type StrippedSession struct {
 }
 
 func TestSession(t *testing.T) {
-	app, users, server, opCtx := initOpTest(t)
+	app, users, server, _, sctx := initOpTest(t)
 	defer app.Close()
 
 	// create user1
 	login1 := "user1"
 	password1 := "password1"
-	user1, err := users.Add(opCtx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
+	user1, err := users.Add(sctx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
 	require.NoErrorf(t, err, "failed to add user")
 	require.NotNil(t, user1)
 
 	// create user2
 	login2 := "user2"
 	password2 := "password2"
-	user2, err := users.Add(opCtx, login2, password2, user.Phone("12345679", &User{}), user.Email("user2@example.com", &User{}))
+	user2, err := users.Add(sctx, login2, password2, user.Phone("12345679", &User{}), user.Email("user2@example.com", &User{}))
 	require.NoErrorf(t, err, "failed to add user")
 	require.NotNil(t, user2)
 
@@ -136,7 +137,7 @@ func TestSession(t *testing.T) {
 	filter.SortField = "user_login"
 
 	sessions := make([]user_session_default.UserSession, 0)
-	_, err = users.SessionManager().GetSessions(opCtx, filter, &sessions)
+	_, err = users.SessionManager().GetSessions(sctx, filter, &sessions)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(sessions))
 	assert.True(t, sessions[0].IsValid())
@@ -149,7 +150,7 @@ func TestSession(t *testing.T) {
 	assert.Equal(t, user2.Display(), sessions[1].GetUserDisplay())
 
 	sessionClients := make([]user_session_default.UserSessionClient, 0)
-	_, err = users.SessionManager().GetSessions(opCtx, filter, &sessionClients)
+	_, err = users.SessionManager().GetSessions(sctx, filter, &sessionClients)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(sessionClients))
 	assert.Equal(t, user1.GetID(), sessionClients[0].GetUserId())
@@ -175,18 +176,18 @@ func TestSession(t *testing.T) {
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{Message: `{"status":"success"}`})
 
 	sessions = make([]user_session_default.UserSession, 0)
-	_, err = users.SessionManager().GetSessions(opCtx, filter, &sessions)
+	_, err = users.SessionManager().GetSessions(sctx, filter, &sessions)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(sessions))
 	assert.False(t, sessions[0].IsValid())
 	assert.True(t, sessions[1].IsValid())
 
 	// invalidate session
-	users.SessionManager().InvalidateSession(opCtx, user2.GetID(), sessions[1].GetID())
+	users.SessionManager().InvalidateSession(sctx, user2.GetID(), sessions[1].GetID())
 	resp = client2.Get("/status/logged", nil)
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{Error: auth_token.ErrorCodeSessionExpired, HttpCode: http.StatusUnauthorized})
 	sessions = make([]user_session_default.UserSession, 0)
-	_, err = users.SessionManager().GetSessions(opCtx, filter, &sessions)
+	_, err = users.SessionManager().GetSessions(sctx, filter, &sessions)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(sessions))
 	assert.False(t, sessions[1].IsValid())
@@ -198,17 +199,17 @@ func TestSession(t *testing.T) {
 	filter.SortDirection = db.SORT_DESC
 	filter.SortField = "created_at"
 	sessions = make([]user_session_default.UserSession, 0)
-	_, err = users.SessionManager().GetSessions(opCtx, filter, &sessions)
+	_, err = users.SessionManager().GetSessions(sctx, filter, &sessions)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(sessions))
 	assert.True(t, sessions[0].IsValid())
 	assert.False(t, sessions[1].IsValid())
 	assert.False(t, sessions[2].IsValid())
-	users.SessionManager().InvalidateUserSessions(opCtx, user1.GetID())
+	users.SessionManager().InvalidateUserSessions(sctx, user1.GetID())
 	resp = client1.Get("/status/logged", nil)
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{Error: auth_token.ErrorCodeSessionExpired, HttpCode: http.StatusUnauthorized})
 	sessions = make([]user_session_default.UserSession, 0)
-	_, err = users.SessionManager().GetSessions(opCtx, filter, &sessions)
+	_, err = users.SessionManager().GetSessions(sctx, filter, &sessions)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(sessions))
 	assert.False(t, sessions[0].IsValid())
@@ -225,7 +226,7 @@ func TestSession(t *testing.T) {
 	filter.SortDirection = db.SORT_DESC
 	filter.SortField = "created_at"
 	sessions = make([]user_session_default.UserSession, 0)
-	_, err = users.SessionManager().GetSessions(opCtx, filter, &sessions)
+	_, err = users.SessionManager().GetSessions(sctx, filter, &sessions)
 	require.NoError(t, err)
 	require.Equal(t, 5, len(sessions))
 	assert.True(t, sessions[0].IsValid())
@@ -235,7 +236,7 @@ func TestSession(t *testing.T) {
 	assert.False(t, sessions[4].IsValid())
 
 	strippedSessions := []StrippedSession{}
-	_, err = app.Db().FindWithFilter(app, filter, sessions, &strippedSessions)
+	_, err = app.Db().FindWithFilter(logger.MakeLoggetContext(app), filter, sessions, &strippedSessions)
 	require.NoError(t, err)
 	require.Equal(t, 5, len(strippedSessions))
 	assert.True(t, strippedSessions[0].Valid)
@@ -244,13 +245,13 @@ func TestSession(t *testing.T) {
 	assert.False(t, strippedSessions[3].Valid)
 	assert.False(t, strippedSessions[4].Valid)
 
-	users.SessionManager().InvalidateAllSessions(opCtx)
+	users.SessionManager().InvalidateAllSessions(sctx)
 	resp = client1.Get("/status/logged", nil)
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{Error: auth_token.ErrorCodeSessionExpired, HttpCode: http.StatusUnauthorized})
 	resp = client2.Get("/status/logged", nil)
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{Error: auth_token.ErrorCodeSessionExpired, HttpCode: http.StatusUnauthorized})
 	sessions = make([]user_session_default.UserSession, 0)
-	_, err = users.SessionManager().GetSessions(opCtx, filter, &sessions)
+	_, err = users.SessionManager().GetSessions(sctx, filter, &sessions)
 	require.NoError(t, err)
 	require.Equal(t, 5, len(sessions))
 	assert.False(t, sessions[0].IsValid())
@@ -261,20 +262,20 @@ func TestSession(t *testing.T) {
 }
 
 func TestTokens(t *testing.T) {
-	app, users, server, opCtx := initOpTest(t)
+	app, users, server, _, sctx := initOpTest(t)
 	defer app.Close()
 
 	// create user1
 	login1 := "user1"
 	password1 := "password1"
-	user1, err := users.Add(opCtx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
+	user1, err := users.Add(sctx, login1, password1, user.Phone("12345678", &User{}), user.Email("user1@example.com", &User{}))
 	require.NoErrorf(t, err, "failed to add user")
 	require.NotNil(t, user1)
 
 	// create user2
 	login2 := "user2"
 	password2 := "password2"
-	user2, err := users.Add(opCtx, login2, password2, user.Phone("12345679", &User{}), user.Email("user2@example.com", &User{}))
+	user2, err := users.Add(sctx, login2, password2, user.Phone("12345679", &User{}), user.Email("user2@example.com", &User{}))
 	require.NoErrorf(t, err, "failed to add user")
 	require.NotNil(t, user2)
 

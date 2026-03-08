@@ -1,11 +1,11 @@
 package db
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/evgeniums/evgo/pkg/common"
-	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
@@ -34,35 +34,35 @@ type DBConfig struct {
 }
 
 type DBHandlers interface {
-	FindByField(ctx logger.WithLogger, field string, value interface{}, obj interface{}, dest ...interface{}) (found bool, err error)
-	FindByFields(ctx logger.WithLogger, fields Fields, obj interface{}, dest ...interface{}) (found bool, err error)
-	FindWithFilter(ctx logger.WithLogger, filter *Filter, docs interface{}, dest ...interface{}) (int64, error)
-	FindForUpdate(ctx logger.WithLogger, fields Fields, obj interface{}) (bool, error)
-	FindForShare(ctx logger.WithLogger, fields Fields, obj interface{}) (bool, error)
-	Exists(ctx logger.WithLogger, filter *Filter, doc interface{}) (bool, error)
+	FindByField(sctx context.Context, field string, value interface{}, obj interface{}, dest ...interface{}) (found bool, err error)
+	FindByFields(sctx context.Context, fields Fields, obj interface{}, dest ...interface{}) (found bool, err error)
+	FindWithFilter(sctx context.Context, filter *Filter, docs interface{}, dest ...interface{}) (int64, error)
+	FindForUpdate(sctx context.Context, fields Fields, obj interface{}) (bool, error)
+	FindForShare(sctx context.Context, fields Fields, obj interface{}) (bool, error)
+	Exists(sctx context.Context, filter *Filter, doc interface{}) (bool, error)
 
-	Create(ctx logger.WithLogger, obj interface{}) error
-	CreateDup(ctx logger.WithLogger, obj interface{}, ignoreConflict ...bool) (bool, error)
+	Create(sctx context.Context, obj interface{}) error
+	CreateDup(sctx context.Context, obj interface{}, ignoreConflict ...bool) (bool, error)
 
-	Delete(ctx logger.WithLogger, obj common.Object) error
-	DeleteByField(ctx logger.WithLogger, field string, value interface{}, model interface{}) error
-	DeleteByFields(ctx logger.WithLogger, fields Fields, obj interface{}) error
+	Delete(sctx context.Context, obj common.Object) error
+	DeleteByField(sctx context.Context, field string, value interface{}, model interface{}) error
+	DeleteByFields(sctx context.Context, fields Fields, obj interface{}) error
 
-	RowsWithFilter(ctx logger.WithLogger, filter *Filter, obj interface{}) (Cursor, error)
-	AllRows(ctx logger.WithLogger, obj interface{}) (Cursor, error)
+	RowsWithFilter(sctx context.Context, filter *Filter, obj interface{}) (Cursor, error)
+	AllRows(sctx context.Context, obj interface{}) (Cursor, error)
 
-	Update(ctx logger.WithLogger, obj interface{}, filter Fields, fields Fields) error
-	UpdateAll(ctx logger.WithLogger, obj interface{}, newFields Fields) error
-	UpdateWithFilter(ctx logger.WithLogger, obj interface{}, filter *Filter, newFields Fields) error
+	Update(sctx context.Context, obj interface{}, filter Fields, fields Fields) error
+	UpdateAll(sctx context.Context, obj interface{}, newFields Fields) error
+	UpdateWithFilter(sctx context.Context, obj interface{}, filter *Filter, newFields Fields) error
 
-	Join(ctx logger.WithLogger, joinConfig *JoinQueryConfig, filter *Filter, dest interface{}) (int64, error)
+	Join(sctx context.Context, joinConfig *JoinQueryConfig, filter *Filter, dest interface{}) (int64, error)
 
 	Joiner() Joiner
 
-	CreateDatabase(ctx logger.WithLogger, dbName string) error
+	CreateDatabase(sctx context.Context, dbName string) error
 	MakeExpression(expr string, args ...interface{}) interface{}
 
-	Sum(ctx logger.WithLogger, groupFields []string, sumFields []string, filter *Filter, model interface{}, dest ...interface{}) (int64, error)
+	Sum(sctx context.Context, groupFields []string, sumFields []string, filter *Filter, model interface{}, dest ...interface{}) (int64, error)
 
 	Transaction(handler TransactionHandler) error
 	EnableDebug(bool)
@@ -75,9 +75,9 @@ type Transaction interface {
 type TransactionHandler = func(tx Transaction) error
 
 type Cursor interface {
-	Next(ctx logger.WithLogger) (bool, error)
-	Close(ctx logger.WithLogger) error
-	Scan(ctx logger.WithLogger, obj interface{}) error
+	Next(sctx context.Context) (bool, error)
+	Close(sctx context.Context) error
+	Scan(sctx context.Context, obj interface{}) error
 }
 
 type DB interface {
@@ -86,18 +86,18 @@ type DB interface {
 	ID() string
 	Clone() DB
 
-	InitWithConfig(ctx logger.WithLogger, vld validator.Validator, cfg *DBConfig) error
+	InitWithConfig(sctx context.Context, vld validator.Validator, cfg *DBConfig) error
 
 	DBHandlers
 
 	EnableVerboseErrors(bool)
 
-	AutoMigrate(ctx logger.WithLogger, models []interface{}) error
-	MigrateDropIndex(ctx logger.WithLogger, model interface{}, indexName string) error
+	AutoMigrate(sctx context.Context, models []interface{}) error
+	MigrateDropIndex(sctx context.Context, model interface{}, indexName string) error
 
-	PartitionedMonthAutoMigrate(ctx logger.WithLogger, models []interface{}) error
-	PartitionedMonthsDetach(ctx logger.WithLogger, table string, months []utils.Month) error
-	PartitionedMonthsDelete(ctx logger.WithLogger, table string, months []utils.Month) error
+	PartitionedMonthAutoMigrate(sctx context.Context, models []interface{}) error
+	PartitionedMonthsDetach(sctx context.Context, table string, months []utils.Month) error
+	PartitionedMonthsDelete(sctx context.Context, table string, months []utils.Month) error
 
 	NativeHandler() interface{}
 
@@ -120,28 +120,28 @@ func (w *WithDBBase) Init(db DB) {
 	w.db = db
 }
 
-func Update(db DBHandlers, ctx logger.WithLogger, obj common.Object, fields Fields) error {
+func Update(db DBHandlers, sctx context.Context, obj common.Object, fields Fields) error {
 	f := utils.CopyMap(fields)
 	f["updated_at"] = time.Now()
-	return db.Update(ctx, obj, nil, f)
+	return db.Update(sctx, obj, nil, f)
 }
 
-func UpdateMulti(db DBHandlers, ctx logger.WithLogger, obj interface{}, filter Fields, fields Fields) error {
+func UpdateMulti(db DBHandlers, sctx context.Context, obj interface{}, filter Fields, fields Fields) error {
 	f := utils.CopyMap(fields)
 	f["updated_at"] = time.Now()
-	return db.Update(ctx, obj, filter, f)
+	return db.Update(sctx, obj, filter, f)
 }
 
-func UpdateAll(db DBHandlers, ctx logger.WithLogger, obj interface{}, fields Fields) error {
+func UpdateAll(db DBHandlers, sctx context.Context, obj interface{}, fields Fields) error {
 	f := utils.CopyMap(fields)
 	f["updated_at"] = time.Now()
-	return db.UpdateAll(ctx, obj, f)
+	return db.UpdateAll(sctx, obj, f)
 }
 
-func UpdateWithFilter(db DBHandlers, ctx logger.WithLogger, obj interface{}, filter *Filter, fields Fields) error {
+func UpdateWithFilter(db DBHandlers, sctx context.Context, obj interface{}, filter *Filter, fields Fields) error {
 	f := utils.CopyMap(fields)
 	f["updated_at"] = time.Now()
-	return db.UpdateWithFilter(ctx, obj, filter, f)
+	return db.UpdateWithFilter(sctx, obj, filter, f)
 }
 
 type AllDatabases struct {

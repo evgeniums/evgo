@@ -18,14 +18,14 @@ type ActivateHandler struct {
 
 func (a *ActivateHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := a.PrepareId()
-	return controller.Activate(ctx, id, idIsDisplay)
+	return controller.Activate(sctx, id, idIsDisplay)
 }
 
 func Deactivate() Handler {
@@ -40,12 +40,12 @@ type DeactivateHandler struct {
 
 func (a *DeactivateHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := a.PrepareId()
-	return controller.Deactivate(ctx, id, idIsDisplay)
+	return controller.Deactivate(sctx, id, idIsDisplay)
 }

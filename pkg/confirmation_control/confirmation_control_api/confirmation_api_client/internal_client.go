@@ -1,10 +1,13 @@
 package confirmation_api_client
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/api/api_client"
 	"github.com/evgeniums/evgo/pkg/confirmation_control/confirmation_control_api"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
 type ConfirmationInternalClient struct {
@@ -31,9 +34,10 @@ func NewConfirmationInternalClient(client api_client.Client) *ConfirmationIntern
 	return c
 }
 
-func (cl *ConfirmationInternalClient) SendConfirmation(ctx multitenancy.TenancyContext, operationId string, recipient string, failedUrl string, parameters ...map[string]interface{}) (string, error) {
+func (cl *ConfirmationInternalClient) SendConfirmation(sctx context.Context, operationId string, recipient string, failedUrl string, parameters ...map[string]interface{}) (string, error) {
 
 	// setup
+	ctx := op_context.OpContext[multitenancy.TenancyContext](sctx)
 	c := ctx.TraceInMethod("ConfirmationInternalClient.SendConfirmation")
 	var err error
 	onExit := func() {
@@ -61,7 +65,7 @@ func (cl *ConfirmationInternalClient) SendConfirmation(ctx multitenancy.TenancyC
 		}
 	}
 	handler := api_client.NewHandlerInTenancy(cmd, &confirmation_control_api.PrepareOperationResponse{})
-	err = handler.Exec(cl.ApiClient(), ctx, cl.prepare_operation)
+	err = handler.Exec(cl.ApiClient(), sctx, cl.prepare_operation)
 	if err != nil {
 		c.SetMessage("failed to exec operation")
 		return "", err

@@ -21,10 +21,10 @@ type PoolPubsub interface {
 	PublishSelfPool(topicName string, msg interface{}) error
 	PublishPools(topicName string, msg interface{}, poolIds ...string) error
 
-	SubscribeSelfPool(ctx op_context.Context, topic pubsub_subscriber.Topic) (string, error)
+	SubscribeSelfPool(sctx context.Context, topic pubsub_subscriber.Topic) (string, error)
 	UnsubscribeSelfPool(topicName string)
 
-	SubscribePools(ctx op_context.Context, topic pubsub_subscriber.Topic, poolIds ...string) (map[string]string, error)
+	SubscribePools(sctx context.Context, topic pubsub_subscriber.Topic, poolIds ...string) (map[string]string, error)
 	UnsubscribePools(topicName string, poolIds ...string)
 }
 
@@ -179,8 +179,9 @@ func (p *PoolPubsubBase) PublishPools(topicName string, msg interface{}, poolIds
 	return nil
 }
 
-func (p *PoolPubsubBase) SubscribeSelfPool(ctx op_context.Context, topic pubsub_subscriber.Topic) (string, error) {
+func (p *PoolPubsubBase) SubscribeSelfPool(sctx context.Context, topic pubsub_subscriber.Topic) (string, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolPubsub.SubscribeSelfPool", logger.Fields{"topic": topic.Name(), "app": ctx.App().Application(), "app_instance": ctx.App().AppInstance()})
 	defer ctx.TraceOutMethod()
 
@@ -202,8 +203,9 @@ func (p *PoolPubsubBase) UnsubscribeSelfPool(topicName string) {
 	}
 }
 
-func (p *PoolPubsubBase) SubscribePools(ctx op_context.Context, topic pubsub_subscriber.Topic, poolIds ...string) (map[string]string, error) {
+func (p *PoolPubsubBase) SubscribePools(sctx context.Context, topic pubsub_subscriber.Topic, poolIds ...string) (map[string]string, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolPubsub.SubscribePools", logger.Fields{"topic": topic.Name(), "app": ctx.App().Application(), "app_instance": ctx.App().AppInstance()})
 	defer ctx.TraceOutMethod()
 

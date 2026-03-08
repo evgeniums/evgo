@@ -27,12 +27,12 @@ func (a *ChangePoolOrDbHandler) Data() interface{} {
 
 func (a *ChangePoolOrDbHandler) Execute(args []string) error {
 
-	ctx, controller, err := a.Context(a.Data())
+	ctx, sctx, controller, err := a.Context(a.Data())
 	if err != nil {
 		return err
 	}
-	defer ctx.Close()
+	defer ctx.Close(sctx)
 
 	id, idIsDisplay := PrepareId(a.Id, a.Customer, a.Role)
-	return controller.ChangePoolOrDb(ctx, id, a.POOL_ID, a.DBNAME, idIsDisplay)
+	return controller.ChangePoolOrDb(sctx, id, a.POOL_ID, a.DBNAME, idIsDisplay)
 }

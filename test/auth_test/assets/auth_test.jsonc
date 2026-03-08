@@ -19,8 +19,8 @@
         "auth": {
             "manager" : {
                 "methods": {
-                    "login_phash_token": {},
-                    "token": {
+                    "evgo_login_phash_token": {},
+                    "evgo_token": {
                         "secret": "hdidyuvp98-32kj4p98y",
                         "access_token_ttl_seconds" : 3,
                         "refresh_token_ttl_seconds" : 5
@@ -39,14 +39,14 @@
                     {
                         "name" : "token_sms",
                         "handlers" : [
-                            {"name":"check_token"},
+                            {"name":"evgo_token"},
                             {"name":"sms"}
                         ]
                     },
                     {
                         "name" : "token_signature",
                         "handlers" : [
-                            {"name":"check_token"},
+                            {"name":"evgo_token"},
                             {"name":"signature"}
                         ]
                     }
@@ -57,7 +57,7 @@
                 "/auth/login": [
                     {
                         "http_method": "POST",
-                        "schema":"login_phash_token"
+                        "schema":"evgo_login_phash_token"
                     }
                 ],
                 "/status/echo": [
@@ -101,7 +101,7 @@
             "trusted_proxies": ["127.0.0.1"],
             "csrf": {
                 "secret": "0000000000000",
-                "token_ttl_seconds": 2,
+                "token_ttl_seconds": 20000,
                 "ignore_paths": ["/status/check", "/status/echo"]
             }
         }

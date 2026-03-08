@@ -1,6 +1,7 @@
 package auth_token
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
@@ -122,9 +124,10 @@ func (a *AuthTokenHandler) ErrorProtocolCodes() map[string]int {
 	return ErrorProtocolCodes
 }
 
-func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
+func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthTokenHandler.Handle")
 	var err error
 	onExit := func() {
@@ -155,12 +158,12 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	var exists bool
 	prev := &Token{}
 	if a.AUTH_BEARER_HEADER {
-		exists, err = auth.GetAndDecodeBearer(ctx, a.encryption, prev)
+		exists, err = auth.GetAndDecodeBearer(sctx, a.encryption, prev)
 		if !exists {
 			return false, err
 		}
 	} else {
-		exists, err = a.encryption.GetAuthParameter(ctx, a.Protocol(), tokenName, prev, ctx.GetAuthParameter(a.Protocol(), TagName), a.DIRECT_TOKEN_NAME)
+		exists, err = a.encryption.GetAuthParameter(sctx, a.Protocol(), tokenName, prev, ctx.GetAuthParameter(a.Protocol(), TagName), a.DIRECT_TOKEN_NAME)
 		if !exists {
 			return false, err
 		}
@@ -200,7 +203,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	}
 
 	// find session
-	session, err := a.users.SessionManager().FindSession(ctx, prev.SessionId)
+	session, err := a.users.SessionManager().FindSession(sctx, prev.SessionId)
 	if err != nil {
 		ctx.SetGenericErrorCode(ErrorCodeSessionExpired)
 		return true, err
@@ -220,7 +223,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	}
 
 	// find user
-	user, err := a.users.AuthUserManager().FindAuthUser(ctx, session.GetUserLogin())
+	user, err := a.users.AuthUserManager().FindAuthUser(sctx, session.GetUserLogin())
 	if err != nil {
 		c.SetMessage("failed to load user")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -244,7 +247,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	ctx.SetAuthUser(user)
 
 	// fill auth user
-	err = a.users.AuthUserManager().FillAuthUser(ctx, true)
+	err = a.users.AuthUserManager().FillAuthUser(sctx, true)
 	if err != nil {
 		c.SetMessage("failed to fill auth user")
 		return true, err
@@ -255,7 +258,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	ctx.LoadSessionParameters(prev.Parameters)
 
 	// update session client
-	err = a.users.SessionManager().UpdateSessionClient(ctx)
+	err = a.users.SessionManager().UpdateSessionClient(sctx)
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return true, err
@@ -275,7 +278,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 
 			if regenerateAccessToken {
 				// generate access token
-				_, err = a.GenAccessToken(ctx)
+				_, err = a.GenAccessToken(sctx)
 				if err != nil {
 					ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 					return true, err
@@ -287,7 +290,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 		regenerateRefreshToken := a.AUTO_PROLONGATE_REFRESH && (refresh || tokenExpirationTime.After(session.GetExpiration()))
 		if regenerateRefreshToken {
 			// generate refresh token
-			_, err = a.GenRefreshToken(ctx, session)
+			_, err = a.GenRefreshToken(sctx, session)
 			if err != nil {
 				ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 				return true, err
@@ -299,7 +302,7 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 		ctx.SetAuthUser(nil)
 
 		// invalidate session on logout path
-		err = a.users.SessionManager().InvalidateSession(ctx, session.GetUserId(), session.GetID())
+		err = a.users.SessionManager().InvalidateSession(sctx, session.GetUserId(), session.GetID())
 		if err != nil {
 			ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			return true, err
@@ -310,22 +313,24 @@ func (a *AuthTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
 	return true, nil
 }
 
-func (a *AuthTokenHandler) GenAccessToken(ctx auth.AuthContext) (*Token, error) {
+func (a *AuthTokenHandler) GenAccessToken(sctx context.Context) (*Token, error) {
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("AuthTokenHandler.GenAccessToken")
 	defer ctx.TraceOutMethod()
-	token, err := a.GenToken(ctx, a.ACCESS_TOKEN_NAME, a.ACCESS_TOKEN_TTL_SECONDS, AccessTokenExpireName)
+	token, err := a.GenToken(sctx, a.ACCESS_TOKEN_NAME, a.ACCESS_TOKEN_TTL_SECONDS, AccessTokenExpireName)
 	if err != nil {
 		return nil, c.SetError(err)
 	}
 	return token, nil
 }
 
-func (a *AuthTokenHandler) GenRefreshToken(ctx auth.AuthContext, session auth_session.Session) (*Token, error) {
+func (a *AuthTokenHandler) GenRefreshToken(sctx context.Context, session auth_session.Session) (*Token, error) {
 
 	if a.DISABLE_REFRESH {
 		return nil, nil
 	}
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("AuthTokenHandler.GenRefreshToken")
 	var err error
 	onExit := func() {
@@ -338,20 +343,21 @@ func (a *AuthTokenHandler) GenRefreshToken(ctx auth.AuthContext, session auth_se
 
 	expirationSeconds := a.REFRESH_TOKEN_TTL_SECONDS
 	session.SetExpiration(a.SessionExpiration())
-	err = a.users.SessionManager().UpdateSessionExpiration(ctx, session)
+	err = a.users.SessionManager().UpdateSessionExpiration(sctx, session)
 	if err != nil {
 		c.SetMessage("failed to update session expiration")
 		return nil, err
 	}
-	token, err := a.GenToken(ctx, RefreshTokenName, expirationSeconds, RefreshTokenExpireName)
+	token, err := a.GenToken(sctx, RefreshTokenName, expirationSeconds, RefreshTokenExpireName)
 	if err != nil {
 		return nil, err
 	}
 	return token, nil
 }
 
-func (a *AuthTokenHandler) GenToken(ctx auth.AuthContext, paramName string, expirationSeconds int, expireParamName string) (*Token, error) {
+func (a *AuthTokenHandler) GenToken(sctx context.Context, paramName string, expirationSeconds int, expireParamName string) (*Token, error) {
 
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthTokenHandler.GenToken")
 	defer ctx.TraceOutMethod()
 
@@ -369,7 +375,7 @@ func (a *AuthTokenHandler) GenToken(ctx auth.AuthContext, paramName string, expi
 
 	ctx.SetAuthParameter(a.Protocol(), TagName, a.encryption.CurrentTag())
 	ctx.SetAuthParameter(a.Protocol(), expireParamName, utils.SerializeTime(token.Exp))
-	err := a.encryption.SetAuthParameter(ctx, a.Protocol(), paramName, token, a.DIRECT_TOKEN_NAME)
+	err := a.encryption.SetAuthParameter(sctx, a.Protocol(), paramName, token, a.DIRECT_TOKEN_NAME)
 	if err != nil {
 		return nil, c.SetError(err)
 	}

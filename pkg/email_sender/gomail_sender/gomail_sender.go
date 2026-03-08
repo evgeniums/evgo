@@ -1,6 +1,8 @@
 package gomail_sender
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/app_context"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/email_sender"
@@ -56,9 +58,10 @@ func (g *GomailSender) prepareMessage(to string, subject string) *gomail.Message
 	return m
 }
 
-func (g *GomailSender) Send(ctx op_context.Context, to string, subject string, contents ...email_sender.EmailContent) error {
+func (g *GomailSender) Send(sctx context.Context, to string, subject string, contents ...email_sender.EmailContent) error {
 
 	// setup
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("GomailSender.Send", logger.Fields{"to": to})
 	defer ctx.TraceOutMethod()
 

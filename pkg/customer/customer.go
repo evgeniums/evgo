@@ -1,9 +1,10 @@
 package customer
 
 import (
+	"context"
+
 	"github.com/evgeniums/evgo/pkg/auth/auth_session"
 	"github.com/evgeniums/evgo/pkg/common"
-	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/user"
 	"github.com/evgeniums/evgo/pkg/user/user_session_default"
 )
@@ -48,21 +49,21 @@ func NewCustomerSessionClient() *CustomerSessionClient {
 }
 
 func Name(name string, sample ...User) user.SetUserFields[User] {
-	return func(ctx op_context.Context, user User) ([]user.CheckDuplicateField, error) {
+	return func(sctx context.Context, user User) ([]user.CheckDuplicateField, error) {
 		user.SetName(name)
 		return nil, nil
 	}
 }
 
 func Description(description string, sample ...User) user.SetUserFields[User] {
-	return func(ctx op_context.Context, user User) ([]user.CheckDuplicateField, error) {
+	return func(sctx context.Context, user User) ([]user.CheckDuplicateField, error) {
 		user.SetDescription(description)
 		return nil, nil
 	}
 }
 
 func Title(title string, sample ...User) user.SetUserFields[User] {
-	return func(ctx op_context.Context, user User) ([]user.CheckDuplicateField, error) {
+	return func(sctx context.Context, user User) ([]user.CheckDuplicateField, error) {
 		user.SetTitle(title)
 		return nil, nil
 	}

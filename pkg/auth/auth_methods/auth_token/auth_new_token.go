@@ -1,6 +1,7 @@
 package auth_token
 
 import (
+	"context"
 	"time"
 
 	"github.com/evgeniums/evgo/pkg/auth"
@@ -37,9 +38,10 @@ func (a *AuthNewTokenHandler) Init(cfg config.Config, log logger.Logger, vld val
 	return nil
 }
 
-func (a *AuthNewTokenHandler) Process(ctx auth.AuthContext) (bool, *Token, error) {
+func (a *AuthNewTokenHandler) Process(sctx context.Context) (bool, *Token, error) {
 
 	// setup
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthNewTokenHandler.Process")
 	var err error
 	onExit := func() {
@@ -61,7 +63,7 @@ func (a *AuthNewTokenHandler) Process(ctx auth.AuthContext) (bool, *Token, error
 	var session auth_session.Session
 	if sessionId == "" {
 		// create session
-		session, err = a.users.SessionManager().CreateSession(ctx, a.SessionExpiration())
+		session, err = a.users.SessionManager().CreateSession(sctx, a.SessionExpiration())
 		if err != nil {
 			ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			return true, nil, err
@@ -69,7 +71,7 @@ func (a *AuthNewTokenHandler) Process(ctx auth.AuthContext) (bool, *Token, error
 		ctx.SetSessionId(session.GetID())
 	} else {
 		// find session
-		session, err = a.users.SessionManager().FindSession(ctx, sessionId)
+		session, err = a.users.SessionManager().FindSession(sctx, sessionId)
 		if err != nil {
 			ctx.SetGenericErrorCode(ErrorCodeSessionExpired)
 			return true, nil, err
@@ -77,21 +79,21 @@ func (a *AuthNewTokenHandler) Process(ctx auth.AuthContext) (bool, *Token, error
 	}
 
 	// update session client
-	err = a.users.SessionManager().UpdateSessionClient(ctx)
+	err = a.users.SessionManager().UpdateSessionClient(sctx)
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return true, nil, err
 	}
 
 	// generate refresh token
-	_, err = a.GenRefreshToken(ctx, session)
+	_, err = a.GenRefreshToken(sctx, session)
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return true, nil, err
 	}
 
 	// generate access token
-	token, err := a.GenAccessToken(ctx)
+	token, err := a.GenAccessToken(sctx)
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return true, nil, err
@@ -101,14 +103,15 @@ func (a *AuthNewTokenHandler) Process(ctx auth.AuthContext) (bool, *Token, error
 	return true, token, nil
 }
 
-func (a *AuthNewTokenHandler) Handle(ctx auth.AuthContext) (bool, error) {
+func (a *AuthNewTokenHandler) Handle(sctx context.Context) (bool, error) {
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthNewTokenHandler.Handle")
 	defer ctx.TraceOutMethod()
-	found, _, err := a.Process(ctx)
+	found, _, err := a.Process(sctx)
 	return found, c.SetError(err)
 }
 
-func GenManualToken(ctx op_context.Context, cipher auth.AuthParameterEncryption,
+func GenManualToken(sctx context.Context, cipher auth.AuthParameterEncryption,
 	tenancyID string,
 	user auth.User,
 	sesisonID string,
@@ -116,6 +119,7 @@ func GenManualToken(ctx op_context.Context, cipher auth.AuthParameterEncryption,
 	tokenType string,
 	parameters ...map[string]string) (string, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("GenManualToken")
 	defer ctx.TraceOutMethod()
 
@@ -131,7 +135,7 @@ func GenManualToken(ctx op_context.Context, cipher auth.AuthParameterEncryption,
 		token.Parameters = parameters[0]
 	}
 
-	tookenStr, err := cipher.Encrypt(ctx, token)
+	tookenStr, err := cipher.Encrypt(sctx, token)
 	if err != nil {
 		c.SetMessage("failed to encrypt token")
 		return "", c.SetError(err)
@@ -141,11 +145,12 @@ func GenManualToken(ctx op_context.Context, cipher auth.AuthParameterEncryption,
 	return tookenStr, nil
 }
 
-func AddManualSession(ctx op_context.Context, cipher auth.AuthParameterEncryption, tenancyID string, users auth_session.WithUserSessionManager, login string, ttlSeconds int, tokenName ...string) (auth_session.Session, string, error) {
+func AddManualSession(sctx context.Context, cipher auth.AuthParameterEncryption, tenancyID string, users auth_session.WithUserSessionManager, login string, ttlSeconds int, tokenName ...string) (auth_session.Session, string, error) {
 
 	// setup
 	tokenType := utils.OptionalArg(AccessTokenName, tokenName...)
 	loggerFields := logger.Fields{"tenancy": tenancyID, "login": login, "token-type": tokenType}
+	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("auth_token.AddManualSession", loggerFields)
 	var err error
 	onExit := func() {
@@ -157,7 +162,7 @@ func AddManualSession(ctx op_context.Context, cipher auth.AuthParameterEncryptio
 	defer onExit()
 
 	// find user
-	user, err := users.AuthUserManager().FindAuthUser(ctx, login)
+	user, err := users.AuthUserManager().FindAuthUser(sctx, login)
 	if err != nil {
 		c.SetMessage("failed to find user")
 		return nil, "", err
@@ -166,16 +171,16 @@ func AddManualSession(ctx op_context.Context, cipher auth.AuthParameterEncryptio
 	// create session
 	now := time.Now()
 	expiration := now.Add(time.Second * time.Duration(ttlSeconds))
-	userCtx := auth.NewUserContext(ctx)
+	userCtx, nextSctx := auth.NewUserContext(sctx)
 	userCtx.User = user
-	session, err := users.SessionManager().CreateSession(userCtx, expiration)
+	session, err := users.SessionManager().CreateSession(nextSctx, expiration)
 	if err != nil {
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 		return nil, "", err
 	}
 
 	// generate token
-	token, err := GenManualToken(ctx, cipher, tenancyID, user, session.GetID(), ttlSeconds, tokenType)
+	token, err := GenManualToken(nextSctx, cipher, tenancyID, user, session.GetID(), ttlSeconds, tokenType)
 	if err != nil {
 		return nil, "", err
 	}

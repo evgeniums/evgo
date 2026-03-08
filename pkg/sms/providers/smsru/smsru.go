@@ -1,6 +1,7 @@
 package smsru
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/config"
@@ -86,8 +87,9 @@ func (s *Smsru) Init(cfg config.Config, log logger.Logger, vld validator.Validat
 	return nil
 }
 
-func (s *Smsru) Send(ctx op_context.Context, message string, recipient string, smsID ...string) (*sms.ProviderResponse, error) {
+func (s *Smsru) Send(sctx context.Context, message string, recipient string, smsID ...string) (*sms.ProviderResponse, error) {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("Smsru.Send", logger.Fields{"recipient": recipient})
 	var err error
 	onExit := func() {
@@ -102,7 +104,7 @@ func (s *Smsru) Send(ctx op_context.Context, message string, recipient string, s
 	// prepare request
 	smsReq := &request{ApiId: s.API_ID, To: recipient, Message: message, Json: 1, Test: s.TEST}
 	url := s.URL + "/send"
-	req, err := s.HttpClient().NewGet(ctx, url, smsReq)
+	req, err := s.HttpClient().NewGet(sctx, url, smsReq)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +113,7 @@ func (s *Smsru) Send(ctx op_context.Context, message string, recipient string, s
 	req.BadResponse = resp
 
 	// send request
-	err = req.Send(ctx)
+	err = req.Send(sctx)
 	c.LoggerFields()["response_content"] = req.ResponseContent
 	c.LoggerFields()["response_status"] = req.ResponseStatus
 	c.LoggerFields()["status_code"] = resp.StatusCode

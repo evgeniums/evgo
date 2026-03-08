@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"context"
 	"errors"
 
 	"github.com/evgeniums/evgo/pkg/config/object_config"
@@ -63,8 +64,9 @@ func NewPoolStore(config ...PoolStoreConfigI) *PoolStoreBase {
 	return p
 }
 
-func (p *PoolStoreBase) Init(ctx op_context.Context, configPath ...string) error {
+func (p *PoolStoreBase) Init(sctx context.Context, configPath ...string) error {
 
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("PoolStore.Init")
 	defer ctx.TraceOutMethod()
 
@@ -81,7 +83,7 @@ func (p *PoolStoreBase) Init(ctx op_context.Context, configPath ...string) error
 	}
 
 	loadServices := func(pool Pool) error {
-		services, err := p.poolController.GetPoolBindings(ctx, pool.GetID())
+		services, err := p.poolController.GetPoolBindings(sctx, pool.GetID())
 		if err != nil {
 			msg := "failed to load pool services"
 			c.SetLoggerField("pool_name", pool.Name())
@@ -94,7 +96,7 @@ func (p *PoolStoreBase) Init(ctx op_context.Context, configPath ...string) error
 	}
 
 	if p.POOL_NAME == "" {
-		pools, _, err := p.poolController.GetPools(ctx, nil)
+		pools, _, err := p.poolController.GetPools(sctx, nil)
 		if err != nil {
 			msg := "failed to load pools"
 			c.SetMessage(msg)
@@ -112,7 +114,7 @@ func (p *PoolStoreBase) Init(ctx op_context.Context, configPath ...string) error
 		}
 	} else {
 		c.SetLoggerField("pool_name", p.POOL_NAME)
-		pool, err := p.poolController.FindPool(ctx, p.POOL_NAME, true)
+		pool, err := p.poolController.FindPool(sctx, p.POOL_NAME, true)
 		if err != nil {
 			msg := "failed to load self pool"
 			c.SetMessage(msg)
