@@ -20,7 +20,7 @@ import (
 )
 
 const LoginProtocol = "evgo-login"
-const LoginName = "login"
+const LoginName = "x-evgo-login"
 const SaltName = "salt"
 const PasswordHashName = "phash"
 
@@ -144,7 +144,7 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 	phash := ctx.GetAuthParameter(l.Protocol(), PasswordHashName)
 
 	// get login from request
-	login := ctx.GetAuthParameter(l.Protocol(), LoginName)
+	login := ctx.GetAuthParameter(l.Protocol(), LoginName, true)
 	if login == "" {
 		return false, nil
 	}

@@ -54,7 +54,7 @@ func (a *AuthSignature) MakeHeaders(sctx context.Context, operation api.Operatio
 	}
 
 	// put signature to header
-	h := map[string]string{"x-evgo-signature-signature": sig}
+	h := map[string]string{"x-evgo-signature": sig}
 
 	// done
 	return h, nil

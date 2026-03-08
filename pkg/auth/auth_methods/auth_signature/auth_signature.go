@@ -15,7 +15,7 @@ import (
 )
 
 const SignatureProtocol = "evgo-signature"
-const SignatureParameter = "signature"
+const SignatureParameter = "x-evgo-signature"
 
 type AuthSignatureConfig struct {
 }
@@ -78,7 +78,7 @@ func (a *AuthSignature) Handle(sctx context.Context) (bool, error) {
 	defer onExit()
 
 	// get token from request
-	requestSignature := ctx.GetAuthParameter(a.Protocol(), SignatureParameter)
+	requestSignature := ctx.GetAuthParameter(a.Protocol(), SignatureParameter, true)
 	if requestSignature == "" {
 		c.Logger().Info("skip signature auth")
 		return false, nil

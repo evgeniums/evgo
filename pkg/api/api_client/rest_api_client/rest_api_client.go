@@ -108,7 +108,7 @@ func (r *RestApiClientBase) Login(sctx context.Context, user string, password st
 	defer onExit()
 
 	// first step
-	headers := map[string]string{"x-evgo-login-login": user}
+	headers := map[string]string{"x-evgo-login": user}
 	resp, err := r.Post(sctx, path, nil, nil, headers)
 	if err != nil {
 		if resp.Error().Code() != auth_login_phash.ErrorCodeCredentialsRequired {

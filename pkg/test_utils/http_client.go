@@ -117,7 +117,7 @@ func (c *HttpClient) Login(user string, password string, expectedErrorCode ...st
 	}
 
 	// first step
-	headers := map[string]string{"x-evgo-login-login": user}
+	headers := map[string]string{"x-evgo-login": user}
 	resp := c.Post(path, nil, headers)
 	if errorCode == auth_login_phash.ErrorCodeWaitRetry {
 		CheckResponse(c.T, resp, &Expected{HttpCode: http.StatusTooManyRequests, Error: auth_login_phash.ErrorCodeWaitRetry})
@@ -229,7 +229,7 @@ func (c *HttpClient) PostSigned(t *testing.T, signer *crypt_utils.RsaSigner, pat
 	content, err := json.Marshal(cmd)
 	require.NoError(t, err)
 	sig, err := signer.SignB64(content, http.MethodPost, path)
-	h := map[string]string{"x-evgo-signature-signature": sig}
+	h := map[string]string{"x-evgo-signature": sig}
 	require.NoError(t, err)
 	if len(headers) > 0 {
 		utils.AppendMap(h, headers[0])
