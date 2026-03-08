@@ -19,8 +19,8 @@
         "auth": {
             "manager" : {
                 "methods": {
-                    "evgo_login_phash_token": {},
-                    "evgo_token": {
+                    "evgo_login_phash_token_new": {},
+                    "evgo-token": {
                         "secret": "hdidyuvp98-32kj4p98y"
                     },
                     "sms": {
@@ -34,18 +34,18 @@
                     {
                         "name" : "token_sms",
                         "handlers" : [
-                            {"name":"evgo_token"},
+                            {"name":"evgo-token"},
                             {"name":"sms"}
                         ]
                     }
                 ]
             },
-            "default_schema": "evgo_token",
+            "default_schema": "evgo-token",
             "endpoints": {
                 "/auth/login": [
                     {
                         "http_method": "POST",
-                        "schema":"evgo_login_phash_token"
+                        "schema":"evgo_login_phash_token_new"
                     }
                 ],
                 "/status/check": [

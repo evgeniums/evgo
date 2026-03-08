@@ -17,10 +17,10 @@ import (
 	"github.com/evgeniums/evgo/pkg/validator"
 )
 
-const TokenProtocol = "evgo_token"
-const GenTokenProtocol = "evgo_token_gen"
-const AccessTokenName = "access-token"
-const RefreshTokenName = "refresh-token"
+const TokenProtocol = "evgo-token"
+const GenTokenProtocol = "evgo-token-new"
+const AccessTokenName = "access"
+const RefreshTokenName = "refresh"
 const TagName = "tag"
 const AccessTokenExpireName = "access-expire"
 const RefreshTokenExpireName = "refresh-expire"
@@ -38,7 +38,7 @@ type AuthTokenHandlerConfig struct {
 
 	AUTH_BEARER_HEADER bool `default:"false"`
 
-	ACCESS_TOKEN_NAME string `default:"access-token"`
+	ACCESS_TOKEN_NAME string `default:"access"`
 	DIRECT_TOKEN_NAME bool
 
 	DISABLE_REFRESH bool
@@ -49,6 +49,8 @@ type AuthTokenHandler struct {
 	AuthTokenHandlerConfig
 	users      auth_session.WithUserSessionManager
 	encryption auth.AuthParameterEncryption
+
+	baseProtocolName string
 }
 
 type Token struct {
@@ -75,6 +77,7 @@ func New(users auth_session.WithUserSessionManager) *AuthTokenHandler {
 func (a *AuthTokenHandler) Init(cfg config.Config, log logger.Logger, vld validator.Validator, configPath ...string) error {
 
 	a.AuthHandlerBase.Init(TokenProtocol)
+	a.baseProtocolName = TokenProtocol
 
 	path := utils.OptionalArg("auth.methods.token", configPath...)
 
@@ -160,7 +163,7 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 	if a.AUTH_BEARER_HEADER {
 		exists, err = auth.GetAndDecodeBearer(sctx, a.encryption, prev)
 	} else {
-		exists, err = a.encryption.GetAuthParameter(sctx, a.Protocol(), tokenName, prev, ctx.GetAuthParameter(a.Protocol(), TagName), a.DIRECT_TOKEN_NAME)
+		exists, err = a.encryption.GetAuthParameter(sctx, a.baseProtocolName, tokenName, prev, ctx.GetAuthParameter(a.baseProtocolName, TagName), a.DIRECT_TOKEN_NAME)
 	}
 	if err != nil {
 		c.SetMessage("failed to get encrypted auth parameter")
@@ -372,9 +375,9 @@ func (a *AuthTokenHandler) GenToken(sctx context.Context, paramName string, expi
 	token.SetTTL(expirationSeconds)
 	token.Parameters = ctx.StoreSessionParameters()
 
-	ctx.SetAuthParameter(a.Protocol(), TagName, a.encryption.CurrentTag())
-	ctx.SetAuthParameter(a.Protocol(), expireParamName, utils.SerializeTime(token.Exp))
-	err := a.encryption.SetAuthParameter(sctx, a.Protocol(), paramName, token, a.DIRECT_TOKEN_NAME)
+	ctx.SetAuthParameter(a.baseProtocolName, TagName, a.encryption.CurrentTag())
+	ctx.SetAuthParameter(a.baseProtocolName, expireParamName, utils.SerializeTime(token.Exp))
+	err := a.encryption.SetAuthParameter(sctx, a.baseProtocolName, paramName, token, a.DIRECT_TOKEN_NAME)
 	if err != nil {
 		return nil, c.SetError(err)
 	}

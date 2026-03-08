@@ -158,28 +158,12 @@ func (r *Request) GetRequestContent() []byte {
 	return nil
 }
 
-func AuthKey(key string, directKeyName ...bool) string {
-	if utils.OptionalArg(false, directKeyName...) {
-		return key
-	}
-	return utils.ConcatStrings("x-auth-", key)
-}
-
 func (r *Request) SetAuthParameter(authMethodProtocol string, key string, value string, directKeyName ...bool) {
-	handler := r.server.AuthParameterSetter(authMethodProtocol)
-	if handler != nil {
-		handler(r, key, value)
-		return
-	}
-	r.ginCtx.Header(AuthKey(key, directKeyName...), value)
+	r.AppendResponseHeader(api_server.AuthKey(authMethodProtocol, key, directKeyName...), value)
 }
 
 func (r *Request) GetAuthParameter(authMethodProtocol string, key string, directKeyName ...bool) string {
-	handler := r.server.AuthParameterGetter(authMethodProtocol)
-	if handler != nil {
-		return handler(r, key)
-	}
-	return getHttpHeader(r.ginCtx, AuthKey(key, directKeyName...))
+	return r.GetRequestHeader(api_server.AuthKey(authMethodProtocol, key, directKeyName...))
 }
 
 func (r *Request) CheckRequestContent(sctx context.Context, smsMessage *string, skipSms *bool) error {
@@ -300,4 +284,41 @@ func (r *Request) FormFile() (*multipart.FileHeader, error) {
 
 func (r *Request) MessageFromRequest(builder func() interface{}) (interface{}, error) {
 	return builder(), nil
+}
+
+func (r *Request) InjectRequestHeaders(headers map[string]string, append ...bool) {
+
+	for k, v := range headers {
+		if utils.OptionalArg(false, append...) {
+			r.ginCtx.Request.Header.Add(k, v)
+		} else {
+			r.ginCtx.Request.Header.Set(k, v)
+		}
+	}
+}
+
+func (r *Request) GetRequestHeaders(name string) []string {
+	return r.ginCtx.Request.Header.Values(name)
+}
+
+func (r *Request) GetRequestHeader(name string) string {
+	fmt.Printf("GetRequestHeader: \n")
+	for name, values := range r.ginCtx.Request.Header {
+		for _, value := range values {
+			fmt.Printf("%s: %s\n", name, value)
+		}
+	}
+	return r.ginCtx.GetHeader(name)
+}
+
+func (r *Request) AppendResponseHeader(name string, value string) {
+	r.ginCtx.Writer.Header().Add(name, value)
+}
+
+func (r *Request) GetResponseHeaders(name string) []string {
+	return r.ginCtx.Writer.Header().Values(name)
+}
+
+func (r *Request) GetResponseHeader(name string) string {
+	return r.ginCtx.Writer.Header().Get(name)
 }

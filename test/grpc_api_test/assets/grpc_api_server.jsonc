@@ -19,8 +19,8 @@
         "auth": {
             "manager" : {
                 "methods": {
-                    "evgo_login_phash_token": {},
-                    "evgo_token": {
+                    "evgo_login_phash_token_new": {},
+                    "evgo-token": {
                         "secret": "hdidyuvp98-32kj4p98y"
                     },
                     "noauth":{}
@@ -31,7 +31,7 @@
                 "/grpc-test/echo-token": [
                     {
                         "http_method": "POST",
-                        "schema":"evgo_token"
+                        "schema":"evgo-token"
                     }
                 ]
             }

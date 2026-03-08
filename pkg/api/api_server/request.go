@@ -13,6 +13,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 )
 
@@ -79,6 +80,36 @@ type Request interface {
 
 	SetMessage(msg RequestMessage)
 	Message() RequestMessage
+
+	InjectRequestHeaders(headers map[string]string, append ...bool)
+	GetRequestHeaders(name string) []string
+	GetRequestHeader(name string) string
+
+	AppendResponseHeader(name string, value string)
+	GetResponseHeaders(name string) []string
+	GetResponseHeader(name string) string
+}
+
+func AuthKey(authProtocol string, key string, directKeyName ...bool) string {
+	if utils.OptionalArg(false, directKeyName...) {
+		return key
+	}
+	if authProtocol != "" {
+		return utils.ConcatStrings("x-", authProtocol, "-", key)
+	}
+	return utils.ConcatStrings("x-auth-", key)
+}
+
+func InjectRequestAuthParameters(r Request, authMethodProtocol string, params map[string]string, directKeyNames ...bool) {
+	authParams := make(map[string]string)
+	for k, v := range params {
+		authParams[AuthKey(authMethodProtocol, k, directKeyNames...)] = v
+	}
+	r.InjectRequestHeaders(authParams)
+}
+
+func GetResponseAuthParameter(r Request, authMethodProtocol string, key string, directKeyName ...bool) {
+	r.GetResponseHeader(AuthKey(authMethodProtocol, key, directKeyName...))
 }
 
 type RequestBase struct {

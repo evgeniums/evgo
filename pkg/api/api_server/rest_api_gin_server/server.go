@@ -99,21 +99,6 @@ func NewServer() *Server {
 
 	s.dynamicTables = dynamic_table_gorm.New()
 
-	csrfKey := func(key string) string {
-		return utils.ConcatStrings("x-", key)
-	}
-
-	s.authParamsSetters = make(map[string]AuthParameterSetter, 0)
-	s.authParamsSetters[auth_csrf.AntiCsrfProtocol] = func(r *Request, key string, value string) {
-		r.ginCtx.Header(csrfKey(key), value)
-	}
-
-	s.authParamsGetters = make(map[string]AuthParameterGetter, 0)
-	s.authParamsGetters[auth_csrf.AntiCsrfProtocol] = func(r *Request, key string) string {
-		name := csrfKey(key)
-		return getHttpHeader(r.ginCtx, name)
-	}
-
 	s.TENANCY_PARAMETER = TenancyParameter
 
 	return s
@@ -536,22 +521,6 @@ func (s *Server) AddEndpoint(ep api_server.Endpoint, withMultitenancy ...bool) {
 func (s *Server) MakeResponseError(gerr generic_error.Error) (int, generic_error.Error) {
 	code := s.ErrorProtocolCode(gerr.Code())
 	return code, gerr
-}
-
-func (s *Server) AuthParameterGetter(authMethodProtocol string) AuthParameterGetter {
-	handler, ok := s.authParamsGetters[authMethodProtocol]
-	if !ok {
-		return nil
-	}
-	return handler
-}
-
-func (s *Server) AuthParameterSetter(authMethodProtocol string) AuthParameterSetter {
-	handler, ok := s.authParamsSetters[authMethodProtocol]
-	if !ok {
-		return nil
-	}
-	return handler
 }
 
 func (s *Server) GinEngine() *gin.Engine {

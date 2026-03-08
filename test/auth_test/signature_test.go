@@ -89,7 +89,7 @@ func TestSignature(t *testing.T) {
 	content, err := json.Marshal(cmd2)
 	require.NoError(t, err)
 	sig, err := signer1.SignB64(content, http.MethodPost, path)
-	h := map[string]string{"x-auth-signature": sig}
+	h := map[string]string{"x-evgo-signature-signature": sig}
 	require.NoError(t, err)
 	resp = client.Post(path, cmd1, h)
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{HttpCode: http.StatusUnauthorized, Error: signature.ErrorCodeInvalidSignature})
@@ -99,7 +99,7 @@ func TestSignature(t *testing.T) {
 	content, err = json.Marshal(cmd1)
 	require.NoError(t, err)
 	sig, err = signer1.SignB64(content, http.MethodPost, "/status/csrf")
-	h = map[string]string{"x-auth-signature": sig}
+	h = map[string]string{"x-evgo-signature-signature": sig}
 	require.NoError(t, err)
 	resp = client.Post(path, cmd1, h)
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{HttpCode: http.StatusUnauthorized, Error: signature.ErrorCodeInvalidSignature})
@@ -107,7 +107,7 @@ func TestSignature(t *testing.T) {
 	// mismatched method
 	t.Logf("Mismatched method")
 	sig, err = signer1.SignB64(content, http.MethodPut, path)
-	h = map[string]string{"x-auth-signature": sig}
+	h = map[string]string{"x-evgo-signature-signature": sig}
 	require.NoError(t, err)
 	resp = client.Post(path, cmd1, h)
 	test_utils.CheckResponse(t, resp, &test_utils.Expected{HttpCode: http.StatusUnauthorized, Error: signature.ErrorCodeInvalidSignature})

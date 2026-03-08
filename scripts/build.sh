@@ -13,9 +13,9 @@ echo "Building all executables from $CMD_DIR for label \"$LABEL\" to output $OUT
 # Create output directory
 mkdir -p $OUT_DIR
 
-export GOPATH=$HOME/go
-export PATH=$PATH:$GOPATH/bin
-protoc --proto_path=proto --go_out=. proto/*.proto
+# export GOPATH=$HOME/go
+# export PATH=$PATH:$GOPATH/bin
+# protoc --proto_path=proto --go_out=. proto/*.proto
 
 export app_label=$LABEL
 export app_version=$VERSION

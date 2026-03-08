@@ -14,7 +14,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/validator"
 )
 
-const LoginPhashTokenProtocol = "evgo_login_phash_token"
+const LoginPhashTokenProtocol = "evgo_login_phash_token_new"
 
 type LoginphashToken struct {
 	auth.AuthSchema

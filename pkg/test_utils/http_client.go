@@ -117,7 +117,7 @@ func (c *HttpClient) Login(user string, password string, expectedErrorCode ...st
 	}
 
 	// first step
-	headers := map[string]string{"x-auth-login": user}
+	headers := map[string]string{"x-evgo-login-login": user}
 	resp := c.Post(path, nil, headers)
 	if errorCode == auth_login_phash.ErrorCodeWaitRetry {
 		CheckResponse(c.T, resp, &Expected{HttpCode: http.StatusTooManyRequests, Error: auth_login_phash.ErrorCodeWaitRetry})
@@ -125,12 +125,12 @@ func (c *HttpClient) Login(user string, password string, expectedErrorCode ...st
 	}
 	CheckResponse(c.T, resp, &Expected{HttpCode: http.StatusUnauthorized, Error: auth_login_phash.ErrorCodeCredentialsRequired})
 
-	salt := resp.Object.Header().Get("x-auth-login-salt")
+	salt := resp.Object.Header().Get("x-evgo-login-salt")
 	require.NotEmpty(c.T, salt)
 
 	// second
 	phash := auth_login_phash.Phash(password, salt)
-	headers["x-auth-login-phash"] = phash
+	headers["x-evgo-login-phash"] = phash
 	resp = c.Post(path, nil, headers)
 
 	if errorCode != "" {
@@ -138,9 +138,9 @@ func (c *HttpClient) Login(user string, password string, expectedErrorCode ...st
 	} else {
 		CheckResponse(c.T, resp, &Expected{HttpCode: http.StatusOK})
 		assert.Empty(c.T, resp.Message)
-		c.AccessToken = resp.Object.Header().Get("x-auth-access-token")
+		c.AccessToken = resp.Object.Header().Get("x-evgo-token-access")
 		require.NotEmpty(c.T, c.AccessToken)
-		c.RefreshToken = resp.Object.Header().Get("x-auth-refresh-token")
+		c.RefreshToken = resp.Object.Header().Get("x-evgo-token-refresh")
 		require.NotEmpty(c.T, c.RefreshToken)
 		assert.NotEqual(c.T, c.AccessToken, c.RefreshToken)
 	}
@@ -150,10 +150,10 @@ func (c *HttpClient) addTokens(headers ...map[string]string) map[string]string {
 
 	h := map[string]string{}
 	if c.AccessToken != "" {
-		h["x-auth-access-token"] = c.AccessToken
+		h["x-evgo-token-access"] = c.AccessToken
 	}
 	if c.CsrfToken != "" {
-		h["x-csrf"] = c.CsrfToken
+		h["x-csrf-token"] = c.CsrfToken
 	}
 	if len(headers) > 0 {
 		utils.AppendMap(h, headers[0])
@@ -162,15 +162,15 @@ func (c *HttpClient) addTokens(headers ...map[string]string) map[string]string {
 }
 
 func (c *HttpClient) updateToken(resp *httptest.ResponseRecorder, code int) {
-	accessToken := resp.Header().Get("x-auth-access-token")
+	accessToken := resp.Header().Get("x-evgo-token-access")
 	if accessToken != "" {
 		c.AccessToken = accessToken
 	}
-	refreshToken := resp.Header().Get("x-auth-refresh-token")
+	refreshToken := resp.Header().Get("x-evgo-token-refresh")
 	if refreshToken != "" {
 		c.RefreshToken = refreshToken
 	}
-	csrfToken := resp.Header().Get("x-csrf")
+	csrfToken := resp.Header().Get("x-csrf-token")
 	if csrfToken != "" {
 		c.CsrfToken = csrfToken
 	}
@@ -229,7 +229,7 @@ func (c *HttpClient) PostSigned(t *testing.T, signer *crypt_utils.RsaSigner, pat
 	content, err := json.Marshal(cmd)
 	require.NoError(t, err)
 	sig, err := signer.SignB64(content, http.MethodPost, path)
-	h := map[string]string{"x-auth-signature": sig}
+	h := map[string]string{"x-evgo-signature-signature": sig}
 	require.NoError(t, err)
 	if len(headers) > 0 {
 		utils.AppendMap(h, headers[0])
@@ -281,7 +281,7 @@ func (c *HttpClient) RequestRefreshToken(expectedErrorCode ...string) {
 
 	errorCode := utils.OptionalArg("", expectedErrorCode...)
 
-	h := map[string]string{"x-auth-refresh-token": c.RefreshToken}
+	h := map[string]string{"x-evgo-token-refresh": c.RefreshToken}
 	resp := c.Post("/auth/refresh", nil, h)
 
 	if errorCode != "" {
@@ -289,7 +289,7 @@ func (c *HttpClient) RequestRefreshToken(expectedErrorCode ...string) {
 	} else {
 		CheckResponse(c.T, resp, &Expected{HttpCode: http.StatusOK})
 		assert.Empty(c.T, resp.Message)
-		c.AccessToken = resp.Object.Header().Get("x-auth-access-token")
+		c.AccessToken = resp.Object.Header().Get("x-evgo-token-access")
 		require.NotEmpty(c.T, c.AccessToken)
 	}
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/validator"
 )
 
-const SignatureProtocol = "signature"
+const SignatureProtocol = "evgo-signature"
 const SignatureParameter = "signature"
 
 type AuthSignatureConfig struct {

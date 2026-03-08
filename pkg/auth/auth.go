@@ -25,7 +25,7 @@ type EndpointsAuth interface {
 }
 
 type AuthBaseConfig struct {
-	DEFAULT_SCHEMA string `default:"evgo_token"`
+	DEFAULT_SCHEMA string `default:"evgo-token"`
 }
 
 type AuthBase struct {

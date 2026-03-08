@@ -19,10 +19,10 @@ import (
 	"github.com/evgeniums/evgo/pkg/validator"
 )
 
-const LoginProtocol = "login_phash"
+const LoginProtocol = "evgo-login"
 const LoginName = "login"
-const SaltName = "login-salt"
-const PasswordHashName = "login-phash"
+const SaltName = "salt"
+const PasswordHashName = "phash"
 
 // TODO use token for second phase
 

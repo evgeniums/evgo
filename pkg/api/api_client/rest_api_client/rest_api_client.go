@@ -108,7 +108,7 @@ func (r *RestApiClientBase) Login(sctx context.Context, user string, password st
 	defer onExit()
 
 	// first step
-	headers := map[string]string{"x-auth-login": user}
+	headers := map[string]string{"x-evgo-login-login": user}
 	resp, err := r.Post(sctx, path, nil, nil, headers)
 	if err != nil {
 		if resp.Error().Code() != auth_login_phash.ErrorCodeCredentialsRequired {
@@ -119,9 +119,9 @@ func (r *RestApiClientBase) Login(sctx context.Context, user string, password st
 	ctx.ClearError()
 
 	// second
-	salt := resp.Header().Get("x-auth-login-salt")
+	salt := resp.Header().Get("x-evgo-login-salt")
 	phash := auth_login_phash.Phash(password, salt)
-	headers["x-auth-login-phash"] = phash
+	headers["x-evgo-login-phash"] = phash
 	resp, err = r.Post(sctx, path, nil, nil, headers)
 	if err != nil {
 		c.SetMessage("failed to send second request")
@@ -141,10 +141,10 @@ func (r *RestApiClientBase) addTokens(headers ...map[string]string) map[string]s
 
 	h := map[string]string{}
 	if r.AccessToken != "" {
-		h["x-auth-access-token"] = r.AccessToken
+		h["x-evgo-token-access"] = r.AccessToken
 	}
 	if r.CsrfToken != "" {
-		h["x-csrf"] = r.CsrfToken
+		h["x-csrf-token"] = r.CsrfToken
 	}
 	if len(headers) > 0 {
 		utils.AppendMap(h, headers[0])
@@ -153,15 +153,15 @@ func (r *RestApiClientBase) addTokens(headers ...map[string]string) map[string]s
 }
 
 func (r *RestApiClientBase) updateTokens(resp Response) {
-	accessToken := resp.Header().Get("x-auth-access-token")
+	accessToken := resp.Header().Get("x-evgo-token-access")
 	if accessToken != "" {
 		r.AccessToken = accessToken
 	}
-	refreshToken := resp.Header().Get("x-auth-refresh-token")
+	refreshToken := resp.Header().Get("x-evgo-token-refresh")
 	if refreshToken != "" {
 		r.RefreshToken = refreshToken
 	}
-	csrfToken := resp.Header().Get("x-csrf")
+	csrfToken := resp.Header().Get("x-csrf-token")
 	if csrfToken != "" {
 		r.CsrfToken = csrfToken
 	}
@@ -315,7 +315,7 @@ func (r *RestApiClientBase) RequestRefreshToken(sctx context.Context) (Response,
 	defer ctx.TraceOutMethod()
 
 	r.AccessToken = ""
-	headers := map[string]string{"x-auth-refresh-token": r.RefreshToken}
+	headers := map[string]string{"x-evgo-token-refresh": r.RefreshToken}
 	resp, err := r.Post(sctx, path, nil, nil, headers)
 	if err != nil {
 		return nil, c.SetError(err)

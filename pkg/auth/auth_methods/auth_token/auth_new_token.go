@@ -14,7 +14,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/validator"
 )
 
-const NewTokenProtocol = "new_token"
+const NewTokenProtocol = "evgo-token-new"
 
 type AuthNewTokenHandler struct {
 	AuthTokenHandler

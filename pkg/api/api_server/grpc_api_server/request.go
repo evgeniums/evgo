@@ -55,19 +55,27 @@ type Request struct {
 	responseMetadata metadata.MD
 
 	resourceIds api.ResourceIds
+
+	responseHeaders metadata.MD
 }
 
-func (r *Request) SetRequestHeader(name string, value string) {
-	md, _ := metadata.FromIncomingContext(r.ctx)
-	md = md.Copy()
-	md.Set(name, value)
-	r.ctx = metadata.NewIncomingContext(r.ctx, md)
-}
+func (r *Request) InjectRequestHeaders(headers map[string]string, append ...bool) {
 
-func (r *Request) AppendRequestHeader(name string, value string) {
-	md, _ := metadata.FromIncomingContext(r.ctx)
-	md = md.Copy()
-	md.Append(name, value)
+	md, ok := metadata.FromIncomingContext(r.ctx)
+	if !ok {
+		md = metadata.New(nil)
+	} else {
+		md = md.Copy()
+	}
+
+	for k, v := range headers {
+		if utils.OptionalArg(false, append...) {
+			md.Append(k, v)
+		} else {
+			md.Set(k, v)
+		}
+	}
+
 	r.ctx = metadata.NewIncomingContext(r.ctx, md)
 }
 
@@ -83,7 +91,8 @@ func (r *Request) GetRequestHeader(name string) string {
 	return ""
 }
 
-func (r *Request) AppendResponsetHeader(name string, value string) {
+func (r *Request) AppendResponseHeader(name string, value string) {
+	r.responseHeaders.Append(name, value)
 	header := metadata.Pairs(name, value)
 	grpc.SetHeader(r.ctx, header)
 }
@@ -200,19 +209,12 @@ func (r *Request) GetRequestContent() []byte {
 	return r.Message().BinaryContent()
 }
 
-func AuthKey(key string, directKeyName ...bool) string {
-	if utils.OptionalArg(false, directKeyName...) {
-		return key
-	}
-	return utils.ConcatStrings("x-auth-", key)
-}
-
 func (r *Request) SetAuthParameter(authMethodProtocol string, key string, value string, directKeyName ...bool) {
-	r.AppendResponsetHeader(AuthKey(key, directKeyName...), value)
+	r.AppendResponseHeader(api_server.AuthKey(authMethodProtocol, key, directKeyName...), value)
 }
 
 func (r *Request) GetAuthParameter(authMethodProtocol string, key string, directKeyName ...bool) string {
-	return r.GetRequestHeader(AuthKey(key, directKeyName...))
+	return r.GetRequestHeader(api_server.AuthKey(authMethodProtocol, key, directKeyName...))
 }
 
 func (r *Request) CheckRequestContent(sctx context.Context, smsMessage *string, skipSms *bool) error {
@@ -440,4 +442,16 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 
 	// done
 	return request, c, sctx, err
+}
+
+func (r *Request) GetResponseHeaders(name string) []string {
+	return r.responseHeaders.Get(name)
+}
+
+func (r *Request) GetResponseHeader(name string) string {
+	v := r.GetResponseHeaders(name)
+	if len(v) == 0 {
+		return ""
+	}
+	return v[0]
 }

@@ -19,8 +19,8 @@
         "auth": {
             "manager" : {
                 "methods": {
-                    "evgo_login_phash_token": {},
-                    "evgo_token": {
+                    "evgo_login_phash_token_new": {},
+                    "evgo-token": {
                         "secret": "hdidyuvp98-32kj4p98y",
                         "access_token_ttl_seconds" : 3,
                         "refresh_token_ttl_seconds" : 5
@@ -33,31 +33,31 @@
                         "max_tries":3
                     },
                     "noauth":{},
-                    "signature":{}
+                    "evgo-signature":{}
                 },
                 "schemas":[
                     {
                         "name" : "token_sms",
                         "handlers" : [
-                            {"name":"evgo_token"},
+                            {"name":"evgo-token"},
                             {"name":"sms"}
                         ]
                     },
                     {
                         "name" : "token_signature",
                         "handlers" : [
-                            {"name":"evgo_token"},
-                            {"name":"signature"}
+                            {"name":"evgo-token"},
+                            {"name":"evgo-signature"}
                         ]
                     }
                 ]
             },
-            "default_schema": "evgo_token",
+            "default_schema": "evgo-token",
             "endpoints": {
                 "/auth/login": [
                     {
                         "http_method": "POST",
-                        "schema":"evgo_login_phash_token"
+                        "schema":"evgo_login_phash_token_new"
                     }
                 ],
                 "/status/echo": [
