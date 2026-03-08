@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"runtime"
 
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/auth"
@@ -37,7 +38,12 @@ func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 		var err error
 		defer func() {
 			if r := recover(); r != nil {
-				c.server.App().Logger().Fatal("application crashed", fmt.Errorf("panic triggered in RequestCodec.Unmarshal"))
+
+				const size = 64 << 10 // 64KB
+				buf := make([]byte, size)
+				buf = buf[:runtime.Stack(buf, false)]
+				c.server.App().Logger().Fatal("application crashed in RequestCodec.Unmarshal", fmt.Errorf("Stack Trace:\n%s\n", buf))
+
 				if w, ok := v.(*RequestWrapper); ok {
 					request := w.request
 					request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -224,7 +230,7 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 		}
 
 		md.Append(u.server.STATUS_HEADER, appStatus)
-		if response != nil && response.TransportMessage() != nil {
+		if response.TransportMessage() != nil {
 			md.Append(u.server.MESSAGE_TYPE_HEADER, getProtoName(response.TransportMessage()))
 		}
 		if err := grpc.SetHeader(ctx, md); err != nil {
