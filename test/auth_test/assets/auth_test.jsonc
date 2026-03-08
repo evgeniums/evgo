@@ -52,7 +52,7 @@
                     }
                 ]
             },
-            "default_schema": "token",
+            "default_schema": "evgo_token",
             "endpoints": {
                 "/auth/login": [
                     {
@@ -93,7 +93,7 @@
             }
         },
         "rest_api_server": {
-            "verbose":true,
+            "verbose":false,
             "name": "Auth server",
             "api_version" : "1.0.0",
             "host": "127.0.0.1",
@@ -101,7 +101,7 @@
             "trusted_proxies": ["127.0.0.1"],
             "csrf": {
                 "secret": "0000000000000",
-                "token_ttl_seconds": 20000,
+                "token_ttl_seconds": 2,
                 "ignore_paths": ["/status/check", "/status/echo"]
             }
         }

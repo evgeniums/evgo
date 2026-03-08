@@ -2,6 +2,7 @@
     "include" : ["../../api_test/assets/api_server.jsonc"],
     "app_instance" : "tenancy_single_api_test",
     "pools" : {
+        "enable_pools": true,
         "pool_name" : "pool2"
     },
     "multitenancy" : {

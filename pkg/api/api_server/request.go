@@ -191,10 +191,16 @@ func MessageFromRequest[T any](request Request, init ...func(*T)) (*T, error) {
 		request.SetGenericErrorCode(generic_error.ErrorCodeFormat)
 		return nil, err
 	}
-	msg, ok := request.Message().LogicMessage().(*T)
-	if !ok {
-		request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-		return nil, err
+	var msg *T
+	var ok bool
+	if request.Message().LogicMessage() == nil {
+		msg = new(T)
+	} else {
+		msg, ok = request.Message().LogicMessage().(*T)
+		if !ok {
+			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+			return nil, err
+		}
 	}
 	return msg, nil
 }

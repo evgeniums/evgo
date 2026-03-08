@@ -102,7 +102,7 @@ func NewStatusService(multitenancy ...bool) *StatusService {
 
 	sms := api.NewResource("sms")
 	sms.AddOperation(NewEchoEndpoint("PutSms"))
-	// TODO findout why this breaks Echo endpoint
+	// TODO figure out why this breaks Echo endpoint
 	// altSmsMethod := NewCheckAccessEndpoint("CheckSmsPut", access_control.Put)
 	// altSmsMethod.SetTestOnly(true)
 	// sms.AddOperation(altSmsMethod)

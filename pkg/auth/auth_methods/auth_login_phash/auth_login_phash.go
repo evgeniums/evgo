@@ -217,15 +217,16 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 	}
 
 	// extract user salt
-	// TODO generate salt on first step, use token for second step
+	// TODO generate nonce on first step, use token for second step
 	salt := phashUser.PasswordSalt()
 
 	// check password hash
 	if phash != "" {
 
 		// check password hash
-		if CheckPasswordHash(phashUser.PasswordHash(), phashUser.PasswordSalt(), phash) != nil {
-			err = errors.New("invalid password hash")
+		err = CheckPasswordHash(phashUser.PasswordHash(), phash)
+		if err != nil {
+			err = errors.New("invalid password")
 			ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
 			l.setDelay(sctx, c, delayCacheKey, delayItem)
 			return true, err
@@ -274,9 +275,16 @@ func Phash(password string, salt string) string {
 	return h.CalcStrStr(salt)
 }
 
-func CheckPasswordHash(password string, salt string, phash string) error {
+func CheckHmac(password string, nonce string, phash string) error {
 	m := crypt_utils.NewHmac(password)
-	m.CalcStr([]byte(salt))
+	m.CalcStr([]byte(nonce))
 	err := m.CheckStr(phash)
 	return err
+}
+
+func CheckPasswordHash(passwordHash string, phash string) error {
+	if !crypt_utils.HashEqual(passwordHash, phash) {
+		return errors.New("invalid password")
+	}
+	return nil
 }

@@ -147,12 +147,13 @@ type OpContextKey struct{}
 
 func WrapOpContext(ctx context.Context, opContext Context) context.Context {
 	newCtx := context.WithValue(ctx, OpContextKey{}, opContext)
+	newCtx = logger.WrapOpContext(newCtx, opContext)
 	return newCtx
 }
 
 func MakeOpContext(opContext Context) context.Context {
 	newCtx := context.WithValue(context.Background(), OpContextKey{}, opContext)
-	newCtx = context.WithValue(newCtx, logger.WithLoggerKey{}, newCtx)
+	newCtx = logger.WrapOpContext(newCtx, opContext)
 	return newCtx
 }
 

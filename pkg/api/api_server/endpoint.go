@@ -92,10 +92,10 @@ type EndpointBase struct {
 
 func (e *EndpointBase) Construct(op api.Operation) {
 	e.Operation = op
+	e.MessageHandlers = &MessageHandlersConfig{}
 }
 
 func (e *EndpointBase) Init(operationName string, accessType ...access_control.AccessType) {
-	e.MessageHandlers = &MessageHandlersConfig{}
 	e.Construct(api.NewOperation(operationName, utils.OptionalArg(access_control.Get, accessType...)))
 }
 

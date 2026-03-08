@@ -36,7 +36,7 @@ type AuthTokenHandlerConfig struct {
 	REFRESH_PATH                    string `default:"/auth/refresh"`
 	LOGOUT_PATH                     string `default:"/auth/logout"`
 
-	AUTH_BEARER_HEADER bool `default:"true"`
+	AUTH_BEARER_HEADER bool `default:"false"`
 
 	ACCESS_TOKEN_NAME string `default:"access-token"`
 	DIRECT_TOKEN_NAME bool
@@ -159,20 +159,19 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 	prev := &Token{}
 	if a.AUTH_BEARER_HEADER {
 		exists, err = auth.GetAndDecodeBearer(sctx, a.encryption, prev)
-		if !exists {
-			return false, err
-		}
 	} else {
 		exists, err = a.encryption.GetAuthParameter(sctx, a.Protocol(), tokenName, prev, ctx.GetAuthParameter(a.Protocol(), TagName), a.DIRECT_TOKEN_NAME)
-		if !exists {
-			return false, err
-		}
 	}
 	if err != nil {
 		c.SetMessage("failed to get encrypted auth parameter")
 		ctx.SetGenericErrorCode(ErrorCodeInvalidToken)
 		return true, err
 	}
+	if !exists {
+		// token must be present
+		return true, errors.New("token missing")
+	}
+
 	c.LoggerFields()["token"] = prev.Id
 	ctx.SetLoggerField("user", prev.UserDisplay)
 	ctx.SetLoggerField("session", prev.SessionId)

@@ -117,6 +117,11 @@ func MakeLoggetContext(ctx WithLogger) context.Context {
 	return newCtx
 }
 
+func WrapOpContext(ctx context.Context, loggerCtx WithLogger) context.Context {
+	newCtx := context.WithValue(ctx, WithLoggerKey{}, loggerCtx)
+	return newCtx
+}
+
 func LoggerContext(ctx context.Context) WithLogger {
 	v, _ := ctx.Value(WithLoggerKey{}).(WithLogger)
 	return v

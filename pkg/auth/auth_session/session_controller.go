@@ -159,7 +159,7 @@ func (s *SessionControllerBase) UpdateSessionClient(sctx context.Context) error 
 
 func (s *SessionControllerBase) UpdateSessionExpiration(sctx context.Context, session Session) error {
 
-	ctx := op_context.OpContext[auth.AuthContext](sctx)
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("auth_session.UpdateSessionExpiration")
 	defer ctx.TraceOutMethod()
 
@@ -173,7 +173,7 @@ func (s *SessionControllerBase) UpdateSessionExpiration(sctx context.Context, se
 
 func (s *SessionControllerBase) InvalidateSession(sctx context.Context, userId string, sessionId string) error {
 
-	ctx := op_context.OpContext[auth.AuthContext](sctx)
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("auth_session.InvalidateSession")
 	defer ctx.TraceOutMethod()
 
@@ -187,7 +187,7 @@ func (s *SessionControllerBase) InvalidateSession(sctx context.Context, userId s
 }
 
 func (s *SessionControllerBase) InvalidateUserSessions(sctx context.Context, userId string) error {
-	ctx := op_context.OpContext[auth.AuthContext](sctx)
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("auth_session.InvalidateUserSessions")
 	defer ctx.TraceOutMethod()
 
@@ -200,7 +200,7 @@ func (s *SessionControllerBase) InvalidateUserSessions(sctx context.Context, use
 }
 
 func (s *SessionControllerBase) InvalidateAllSessions(sctx context.Context) error {
-	ctx := op_context.OpContext[auth.AuthContext](sctx)
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("auth_session.InvalidateAllSessions")
 	defer ctx.TraceOutMethod()
 
@@ -215,7 +215,7 @@ func (s *SessionControllerBase) InvalidateAllSessions(sctx context.Context) erro
 // Get sessions using filter. Note that sessions argument must be of *[]Session type.
 func (s *SessionControllerBase) GetSessions(sctx context.Context, filter *db.Filter, sessions interface{}) (int64, error) {
 
-	ctx := op_context.OpContext[auth.AuthContext](sctx)
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("auth_session.GetSessions")
 	defer ctx.TraceOutMethod()
 	count, err := s.crud.List(sctx, filter, sessions)
@@ -229,7 +229,7 @@ func (s *SessionControllerBase) GetSessions(sctx context.Context, filter *db.Fil
 // Get sessions using filter. Note that sessions argument must be of *[]SessionClient type.
 func (s *SessionControllerBase) GetSessionClients(sctx context.Context, filter *db.Filter, sessions interface{}) (int64, error) {
 
-	ctx := op_context.OpContext[auth.AuthContext](sctx)
+	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("auth_session.GetSessionClients")
 	defer ctx.TraceOutMethod()
 	count, err := s.crud.List(sctx, filter, sessions)

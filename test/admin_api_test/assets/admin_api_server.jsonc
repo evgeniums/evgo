@@ -41,7 +41,7 @@
                     }
                 ]
             },
-            "default_schema": "token",
+            "default_schema": "evgo_token",
             "endpoints": {
                 "/auth/login": [
                     {
@@ -76,7 +76,7 @@
             }
         },
         "rest_api_server": {
-            "verbose":true,
+            "verbose":false,
             "oplog_user_type": "admin",
             "name": "Auth server",
             "api_version" : "1.0.0",

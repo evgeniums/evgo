@@ -1,3 +1,6 @@
 {
+    "pools" : {
+        "enable_pools": true
+    },
     "include" : ["../../api_test/assets/api_client.jsonc"]
 }

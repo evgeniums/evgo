@@ -14,6 +14,9 @@
     "multitenancy" : {
         "multitenancy" : true
     },
+    "pools" : {
+        "enable_pools": true
+    },
     "server": { 
         "rest_api_server": {
             "auth_from_tenancy_db" : false,

@@ -40,7 +40,7 @@
                     }
                 ]
             },
-            "default_schema": "token",
+            "default_schema": "evgo_token",
             "endpoints": {
                 "/auth/login": [
                     {
