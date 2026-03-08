@@ -51,21 +51,41 @@ type Request struct {
 
 	payloadSize int
 
-	metadata metadata.MD
+	requestMetadata  metadata.MD
+	responseMetadata metadata.MD
 
 	resourceIds api.ResourceIds
 }
 
-func (r *Request) getHeaders(name string) []string {
-	return r.metadata.Get(name)
+func (r *Request) SetRequestHeader(name string, value string) {
+	md, _ := metadata.FromIncomingContext(r.ctx)
+	md = md.Copy()
+	md.Set(name, value)
+	r.ctx = metadata.NewIncomingContext(r.ctx, md)
 }
 
-func (r *Request) getHeader(name string) string {
-	h := r.getHeaders(name)
+func (r *Request) AppendRequestHeader(name string, value string) {
+	md, _ := metadata.FromIncomingContext(r.ctx)
+	md = md.Copy()
+	md.Append(name, value)
+	r.ctx = metadata.NewIncomingContext(r.ctx, md)
+}
+
+func (r *Request) GetRequestHeaders(name string) []string {
+	return r.requestMetadata.Get(name)
+}
+
+func (r *Request) GetRequestHeader(name string) string {
+	h := r.GetRequestHeaders(name)
 	if len(h) > 0 {
 		return h[0]
 	}
 	return ""
+}
+
+func (r *Request) AppendResponsetHeader(name string, value string) {
+	header := metadata.Pairs(name, value)
+	grpc.SetHeader(r.ctx, header)
 }
 
 func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) error {
@@ -84,14 +104,14 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 
 	// collect data from headers
 	var ok bool
-	r.metadata, ok = metadata.FromIncomingContext(ctx)
+	r.requestMetadata, ok = metadata.FromIncomingContext(ctx)
 	if !ok {
 		// TODO log error
 		return status.Error(codes.Unauthenticated, "metadata missing")
 	}
 
 	r.resourceIds = api.NewResourceIdsBase()
-	for key, values := range r.metadata {
+	for key, values := range r.requestMetadata {
 		if strings.HasPrefix(key, strings.ToLower(r.server.RESOURCE_ID_HEADER_PREFIX)) {
 			for _, value := range values {
 				typ := strings.TrimPrefix(key, r.server.RESOURCE_ID_HEADER_PREFIX)
@@ -107,19 +127,16 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 	if ok {
 		r.clientIp = p.Addr.String()
 	}
-
-	if userAgents := r.metadata.Get("user-agent"); len(userAgents) > 0 {
-		r.userAgent = userAgents[0]
-	}
+	r.userAgent = r.GetRequestHeader("user-agent")
 
 	// check if it is behind gateway whose auth context can be used
 	if s.propagateContextId {
-		ctxId := r.getHeader(api.ForwardContext)
+		ctxId := r.GetRequestHeader(api.ForwardContext)
 		if ctxId != "" {
 			r.SetID(ctxId)
 			r.SetLoggerField("context", ctxId)
 		}
-		forwardedOpSource := r.getHeader(api.ForwardOpSource)
+		forwardedOpSource := r.GetRequestHeader(api.ForwardOpSource)
 		if forwardedOpSource != "" {
 			r.forwardedOpSource = forwardedOpSource
 			r.SetLoggerField("forwarded_op_source", forwardedOpSource)
@@ -191,12 +208,11 @@ func AuthKey(key string, directKeyName ...bool) string {
 }
 
 func (r *Request) SetAuthParameter(authMethodProtocol string, key string, value string, directKeyName ...bool) {
-	header := metadata.Pairs(AuthKey(key, directKeyName...), value)
-	grpc.SetHeader(r.ctx, header)
+	r.AppendResponsetHeader(AuthKey(key, directKeyName...), value)
 }
 
 func (r *Request) GetAuthParameter(authMethodProtocol string, key string, directKeyName ...bool) string {
-	return r.getHeader(AuthKey(key, directKeyName...))
+	return r.GetRequestHeader(AuthKey(key, directKeyName...))
 }
 
 func (r *Request) CheckRequestContent(smsMessage *string, skipSms *bool) error {
@@ -392,22 +408,15 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 		}
 	}
 
-	// // process auth
-	// if err == nil {
-	// 	err = s.Auth().HandleRequest(request, ep.Resource().ServicePathPrototype(), ep.AccessType())
-	// 	if err != nil {
-	// 		request.SetGenericErrorCode(auth.ErrorCodeUnauthorized)
-	// 	}
-	// }
 	if s.propagateAuthUser && (request.AuthUser() == nil || request.AuthUser().GetID() == "") {
-		userId := request.getHeader(api.ForwardUserId)
-		userLogin := request.getHeader(api.ForwardUserLogin)
-		userDisplay := request.getHeader(api.ForwardUserDisplay)
+		userId := request.GetRequestHeader(api.ForwardUserId)
+		userLogin := request.GetRequestHeader(api.ForwardUserLogin)
+		userDisplay := request.GetRequestHeader(api.ForwardUserDisplay)
 		if userId != "" || userLogin != "" || userDisplay != "" {
 			authUser := auth.NewAuthUser(userId, userLogin, userDisplay)
 			request.SetAuthUser(authUser)
 		}
-		sessionClient := request.getHeader(api.ForwardSessionClient)
+		sessionClient := request.GetRequestHeader(api.ForwardSessionClient)
 		if sessionClient != "" {
 			request.SetClientId(sessionClient)
 		}
