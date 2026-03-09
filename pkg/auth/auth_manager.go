@@ -162,8 +162,11 @@ func (a *AuthManagerBase) Handle(sctx context.Context, schema string) error {
 	// find handler
 	handler, err := a.schemas.Handler(schema)
 	if err != nil {
-		ctx.SetGenericErrorCode(ErrorCodeInvalidAuthSchema)
-		return c.SetError(err)
+		handler, err = a.handlers.Handler(schema)
+		if err != nil {
+			ctx.SetGenericErrorCode(ErrorCodeInvalidAuthSchema)
+			return c.SetError(err)
+		}
 	}
 
 	// run handler

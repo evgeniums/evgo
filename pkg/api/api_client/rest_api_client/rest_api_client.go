@@ -120,7 +120,7 @@ func (r *RestApiClientBase) Login(sctx context.Context, user string, password st
 
 	// second
 	salt := resp.Header().Get("x-evgo-login-salt")
-	phash := auth_login_phash.Phash(password, salt)
+	phash := auth_login_phash.PasswordHash(password, salt)
 	headers["x-evgo-login-phash"] = phash
 	resp, err = r.Post(sctx, path, nil, nil, headers)
 	if err != nil {

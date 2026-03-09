@@ -12,7 +12,7 @@ type AuthUserFinderBase struct {
 	userBuilder func() User
 }
 
-func (a *AuthUserFinderBase) FindAuthUser(sctx context.Context, login string) (auth.User, error) {
+func (a *AuthUserFinderBase) FindAuthUser(sctx context.Context, login string, parameters ...map[string]string) (auth.User, error) {
 	user := a.userBuilder()
 	var found bool
 	var err error

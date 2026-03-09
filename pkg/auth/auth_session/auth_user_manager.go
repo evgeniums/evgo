@@ -12,7 +12,7 @@ type UserValidators interface {
 }
 
 type AuthUserFinder interface {
-	FindAuthUser(sctx context.Context, login string) (auth.User, error)
+	FindAuthUser(sctx context.Context, login string, parameters ...map[string]string) (auth.User, error)
 	FillAuthUser(sctx context.Context, useExistingSessisonParams ...bool) error
 }
 

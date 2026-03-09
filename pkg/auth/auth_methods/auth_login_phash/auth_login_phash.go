@@ -20,11 +20,12 @@ import (
 )
 
 const LoginProtocol = "evgo-login"
-const LoginName = "x-evgo-login"
+const XLoginName = "x-evgo-login"
 const SaltName = "salt"
 const PasswordHashName = "phash"
+const XPhashName = "x-evgo-login-phash"
 
-// TODO use token for second phase
+// TODO use token with nonce for second phase
 
 const DelayCacheKey = "login-delay"
 
@@ -57,11 +58,12 @@ func (u *UserBase) PasswordSalt() string {
 
 func (u *UserBase) SetPassword(password string) {
 	u.PASSWORD_SALT = crypt_utils.GenerateString()
-	u.PASSWORD_HASH = Phash(password, u.PASSWORD_SALT)
+	u.PASSWORD_HASH = PasswordHash(password, u.PASSWORD_SALT)
 }
 
 type LoginHandlerConfig struct {
-	THROTTLE_DELAY_SECONDS int `default:"2" validate:"gt=0"`
+	THROTTLE_DELAY_SECONDS int    `default:"2" validate:"gt=0"`
+	NEGOTIATE_PATH         string `default:"/auth/negotiate"`
 }
 
 // Auth handler for login processing. The AuthTokenHandler MUST ALWAYS follow this handler in session scheme with AND conjunction.
@@ -142,9 +144,12 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 
 	// get password hash from request
 	phash := ctx.GetAuthParameter(l.Protocol(), PasswordHashName)
+	path := ctx.GetRequestPath()
+	negotiate := path == l.NEGOTIATE_PATH
+	checkPhash := phash != ""
 
 	// get login from request
-	login := ctx.GetAuthParameter(l.Protocol(), LoginName, true)
+	login := ctx.GetAuthParameter(l.Protocol(), XLoginName, true)
 	if login == "" {
 		return false, nil
 	}
@@ -152,14 +157,18 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 	err = l.users.AuthUserManager().ValidateLogin(login)
 	if err != nil {
 		err = errors.New("invalid login format")
-		if phash == "" {
-			// forward client to second step anyway with fake salt
-			ctx.SetAuthParameter(l.Protocol(), SaltName, crypt_utils.GenerateString())
-			ctx.SetGenericErrorCode(ErrorCodeCredentialsRequired)
-		} else {
+		if checkPhash {
 			ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
+			return true, err
 		}
-		return true, err
+
+		// forward client to second step anyway with fake salt
+		ctx.SetAuthParameter(l.Protocol(), SaltName, crypt_utils.GenerateString())
+		if !negotiate {
+			ctx.SetGenericErrorCode(ErrorCodeCredentialsRequired)
+			return true, err
+		}
+		return true, nil
 	}
 
 	// check delay expired
@@ -187,16 +196,19 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 	}
 	if dbUser == nil {
 		err = errors.New("user not found")
-		if phash == "" {
-			// forward client to second step anyway with fake salt
-			ctx.SetAuthParameter(l.Protocol(), SaltName, crypt_utils.GenerateString())
-			ctx.SetGenericErrorCode(ErrorCodeCredentialsRequired)
-		} else {
+		if checkPhash {
 			l.setDelay(sctx, c, delayCacheKey, delayItem)
 			ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
+			return true, err
 		}
 
-		return true, err
+		// forward client to second step anyway with fake salt
+		ctx.SetAuthParameter(l.Protocol(), SaltName, crypt_utils.GenerateString())
+		if !negotiate {
+			ctx.SetGenericErrorCode(ErrorCodeCredentialsRequired)
+			return true, err
+		}
+		return true, nil
 	}
 	ctx.SetLoggerField("user", dbUser.Display())
 
@@ -221,7 +233,7 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 	salt := phashUser.PasswordSalt()
 
 	// check password hash
-	if phash != "" {
+	if checkPhash {
 
 		// check password hash
 		err = CheckPasswordHash(phashUser.PasswordHash(), phash)
@@ -248,11 +260,14 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 
 	// add salt to auth parameters
 	ctx.SetAuthParameter(l.Protocol(), SaltName, salt)
-	ctx.SetGenericErrorCode(ErrorCodeCredentialsRequired)
+	if !negotiate {
+		err = errors.New("credentials not provided")
+		ctx.SetGenericErrorCode(ErrorCodeCredentialsRequired)
+		return true, err
+	}
 
-	// done
-	err = errors.New("credentials not provided")
-	return true, err
+	// done negotiate
+	return true, nil
 }
 
 func (l *LoginHandler) delayCacheKey(userId string) string {
@@ -270,7 +285,7 @@ func (l *LoginHandler) setDelay(sctx context.Context, c op_context.CallContext, 
 	}
 }
 
-func Phash(password string, salt string) string {
+func PasswordHash(password string, salt string) string {
 	h := crypt_utils.NewHmac(password)
 	return h.CalcStrStr(salt)
 }

@@ -225,7 +225,7 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 	}
 
 	// find user
-	user, err := a.users.AuthUserManager().FindAuthUser(sctx, session.GetUserLogin())
+	user, err := a.users.AuthUserManager().FindAuthUser(sctx, session.GetUserLogin(), prev.Parameters)
 	if err != nil {
 		c.SetMessage("failed to load user")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -350,14 +350,14 @@ func (a *AuthTokenHandler) GenRefreshToken(sctx context.Context, session auth_se
 		c.SetMessage("failed to update session expiration")
 		return nil, err
 	}
-	token, err := a.GenToken(sctx, RefreshTokenName, expirationSeconds, RefreshTokenExpireName)
+	token, err := a.GenToken(sctx, RefreshTokenName, expirationSeconds, RefreshTokenExpireName, false)
 	if err != nil {
 		return nil, err
 	}
 	return token, nil
 }
 
-func (a *AuthTokenHandler) GenToken(sctx context.Context, paramName string, expirationSeconds int, expireParamName string) (*Token, error) {
+func (a *AuthTokenHandler) GenToken(sctx context.Context, paramName string, expirationSeconds int, expireParamName string, appendTag ...bool) (*Token, error) {
 
 	ctx := op_context.OpContext[auth.AuthContext](sctx)
 	c := ctx.TraceInMethod("AuthTokenHandler.GenToken")
@@ -375,7 +375,9 @@ func (a *AuthTokenHandler) GenToken(sctx context.Context, paramName string, expi
 	token.SetTTL(expirationSeconds)
 	token.Parameters = ctx.StoreSessionParameters()
 
-	ctx.SetAuthParameter(a.baseProtocolName, TagName, a.encryption.CurrentTag())
+	if utils.OptionalArg(true, appendTag...) {
+		ctx.SetAuthParameter(a.baseProtocolName, TagName, a.encryption.CurrentTag())
+	}
 	ctx.SetAuthParameter(a.baseProtocolName, expireParamName, utils.SerializeTime(token.Exp))
 	err := a.encryption.SetAuthParameter(sctx, a.baseProtocolName, paramName, token, a.DIRECT_TOKEN_NAME)
 	if err != nil {

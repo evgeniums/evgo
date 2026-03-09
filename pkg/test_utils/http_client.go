@@ -129,7 +129,7 @@ func (c *HttpClient) Login(user string, password string, expectedErrorCode ...st
 	require.NotEmpty(c.T, salt)
 
 	// second
-	phash := auth_login_phash.Phash(password, salt)
+	phash := auth_login_phash.PasswordHash(password, salt)
 	headers["x-evgo-login-phash"] = phash
 	resp = c.Post(path, nil, headers)
 

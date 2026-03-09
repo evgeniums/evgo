@@ -135,11 +135,11 @@ func (e *EndpointBase) PreprocessBeforeAuth(sctx context.Context) (context.Conte
 }
 
 func (e *EndpointBase) SetRequestPostprocessor(handler EndpointExtraHandler) {
-	e.preprocessRequest = handler
+	e.postprocessRequest = handler
 }
 
 func (e *EndpointBase) GetRequestPostprocessor() EndpointExtraHandler {
-	return e.preprocessRequest
+	return e.postprocessRequest
 }
 
 func (e *EndpointBase) Postprocess(sctx context.Context) (context.Context, error) {

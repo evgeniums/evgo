@@ -73,6 +73,8 @@ type ServerConfig struct {
 	TLS_CERTIFICATE_FILE string
 	TLS_PRIVATE_KEY_FILE string
 	DISABLE_TLS          bool
+
+	DUMP_HEADERS bool
 }
 
 type GrpcServerRunner struct {
@@ -185,7 +187,7 @@ func (s *Server) unknownHandler(srv interface{}, stream grpc.ServerStream) error
 	ep := &api_server.EndpointBase{}
 	ep.Init("")
 
-	request, _, sctx, _ := newRequest(ctx, s, ep)
+	request, _, _ := newRequest(ctx, s, ep)
 	request.SetName(method)
 	request.SetGenericErrorCode(generic_error.ErrorCodeUnimplemented)
 
@@ -193,7 +195,7 @@ func (s *Server) unknownHandler(srv interface{}, stream grpc.ServerStream) error
 	request.SetLoggerField("status", request.GenericError().Code())
 	request.statusCode = status.Code(err)
 	request.statusMessage = "unknown method"
-	request.Close(sctx)
+	request.Close(request.sctx)
 
 	return err
 }
@@ -440,19 +442,16 @@ type methodContext interface {
 	Method() string
 	Error() error
 	PayloadSize() int
-	Context() context.Context
 }
 
-func (s *Server) logRequest(log logger.Logger, start time.Time, callCtx methodContext, extraFields ...logger.Fields) {
+func (s *Server) logRequest(sctx context.Context, log logger.Logger, start time.Time, callCtx methodContext, extraFields ...logger.Fields) {
 
 	stop := time.Since(start)
 	latency := int(math.Ceil(float64(stop.Nanoseconds()) / 1000000.0))
 
 	headerSize := 0
-	if callCtx.Context() != nil {
-		if info, ok := callCtx.Context().Value(HeaderSizeKey).(*SizeInfo); ok {
-			headerSize = info.value
-		}
+	if info, ok := sctx.Value(HeaderSizeKey).(*SizeInfo); ok {
+		headerSize = info.value
 	}
 
 	fields := logger.Fields{

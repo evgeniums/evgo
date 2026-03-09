@@ -83,7 +83,7 @@ func (u *UserClient[U]) UserOperation(userId string, resourceName string, op api
 	return op
 }
 
-func (u *UserClient[U]) FindAuthUser(sctx context.Context, login string) (auth.User, error) {
+func (u *UserClient[U]) FindAuthUser(sctx context.Context, login string, parameters ...map[string]string) (auth.User, error) {
 	return nil, errors.New("unsupported method")
 }
 

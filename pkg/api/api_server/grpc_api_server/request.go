@@ -22,7 +22,6 @@ import (
 	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
-	"google.golang.org/grpc/status"
 )
 
 type CallContext = context.Context
@@ -33,7 +32,6 @@ type Request struct {
 	response *Response
 
 	server *Server
-	ctx    context.Context
 
 	start time.Time
 
@@ -51,17 +49,18 @@ type Request struct {
 
 	payloadSize int
 
-	requestMetadata  metadata.MD
 	responseMetadata metadata.MD
 
 	resourceIds api.ResourceIds
 
 	responseHeaders metadata.MD
+
+	sctx context.Context
 }
 
-func (r *Request) InjectRequestHeaders(headers map[string]string, append ...bool) {
+func (r *Request) InjectRequestHeaders(sctx context.Context, headers map[string]string, append ...bool) context.Context {
 
-	md, ok := metadata.FromIncomingContext(r.ctx)
+	md, ok := metadata.FromIncomingContext(sctx)
 	if !ok {
 		md = metadata.New(nil)
 	} else {
@@ -76,11 +75,19 @@ func (r *Request) InjectRequestHeaders(headers map[string]string, append ...bool
 		}
 	}
 
-	r.ctx = metadata.NewIncomingContext(r.ctx, md)
+	return metadata.NewIncomingContext(sctx, md)
+}
+
+func (r *Request) requestMetadata() metadata.MD {
+	md, ok := metadata.FromIncomingContext(r.sctx)
+	if !ok {
+		return make(metadata.MD)
+	}
+	return md
 }
 
 func (r *Request) GetRequestHeaders(name string) []string {
-	return r.requestMetadata.Get(name)
+	return r.requestMetadata().Get(name)
 }
 
 func (r *Request) GetRequestHeader(name string) string {
@@ -94,7 +101,7 @@ func (r *Request) GetRequestHeader(name string) string {
 func (r *Request) AppendResponseHeader(name string, value string) {
 	r.responseHeaders.Append(name, value)
 	header := metadata.Pairs(name, value)
-	grpc.SetHeader(r.ctx, header)
+	grpc.SetHeader(r.sctx, header)
 }
 
 func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) error {
@@ -107,20 +114,13 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 	r.RequestBase.SetErrorManager(s)
 
 	r.params = make(map[string]any)
+	r.responseHeaders = make(metadata.MD)
 
 	r.statusCode = codes.OK
-	r.ctx = ctx
 
 	// collect data from headers
-	var ok bool
-	r.requestMetadata, ok = metadata.FromIncomingContext(ctx)
-	if !ok {
-		// TODO log error
-		return status.Error(codes.Unauthenticated, "metadata missing")
-	}
-
 	r.resourceIds = api.NewResourceIdsBase()
-	for key, values := range r.requestMetadata {
+	for key, values := range r.requestMetadata() {
 		if strings.HasPrefix(key, strings.ToLower(r.server.RESOURCE_ID_HEADER_PREFIX)) {
 			for _, value := range values {
 				typ := strings.TrimPrefix(key, r.server.RESOURCE_ID_HEADER_PREFIX)
@@ -199,7 +199,8 @@ func (r *Request) Close(sctx context.Context, successMessage ...string) {
 		r.Message().SetBinaryContent(nil)
 	}
 	r.RequestBase.Close(sctx, "")
-	r.server.logRequest(r.Logger(), r.start, r, r.LoggerFields())
+	r.server.logRequest(sctx, r.Logger(), r.start, r, r.LoggerFields())
+	r.sctx = nil
 }
 
 func (r *Request) GetRequestContent() []byte {
@@ -316,19 +317,15 @@ func (r *Request) Error() error {
 	return r.err
 }
 
-func (r *Request) Context() context.Context {
-	return r.ctx
-}
-
 func (r *Request) PayloadSize() int {
 	return r.payloadSize
 }
 
-func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Request, op_context.CallContext, context.Context, error) {
+func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Request, op_context.CallContext, error) {
 
 	request := &Request{}
 	request.SetEndpoint(ep)
-	sctx := op_context.MakeOpContext(request)
+	request.sctx = op_context.WrapOpContext(ctx, request)
 
 	var err error
 
@@ -441,7 +438,7 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 	}
 
 	// done
-	return request, c, sctx, err
+	return request, c, err
 }
 
 func (r *Request) GetResponseHeaders(name string) []string {

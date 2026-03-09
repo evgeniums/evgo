@@ -89,10 +89,6 @@ type Server struct {
 	crashed bool
 }
 
-func getHttpHeader(g *gin.Context, name string) string {
-	return g.GetHeader(name)
-}
-
 func NewServer() *Server {
 
 	s := &Server{}

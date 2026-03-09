@@ -23,7 +23,6 @@ import (
 
 type RequestWrapper struct {
 	request *Request
-	sctx    context.Context
 }
 
 type RequestCodec struct {
@@ -65,7 +64,7 @@ func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 
 		// prepare buffer with content payload
 		var materializedBuf *[]byte
-		if data.Len() == 1 {
+		if len(data) == 1 {
 			w.request.Message().SetBinaryContent(data[0].ReadOnlyData())
 		} else {
 			temp := data.Materialize()
@@ -74,14 +73,25 @@ func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 		}
 
 		// preprocess request
-		w.sctx, err = ep.PreprocessBeforeAuth(w.sctx)
+		w.request.sctx, err = ep.PreprocessBeforeAuth(w.request.sctx)
 		if err != nil {
 			callCtx.SetMessage("preprocess failed")
 			return err
 		}
 
+		// dump headers
+		if w.request.server.DUMP_HEADERS {
+			fmt.Println("=======Dumping gRPC request headers before auth=======")
+			for key, values := range w.request.requestMetadata() {
+				for _, value := range values {
+					fmt.Printf("%s: %s\n", key, value)
+				}
+			}
+			fmt.Println("==========================================")
+		}
+
 		// perform auth
-		err = w.request.server.Auth().HandleRequest(w.sctx, ep.Resource().ServicePathPrototype(), ep.AccessType())
+		err = w.request.server.Auth().HandleRequest(w.request.sctx, ep.Resource().ServicePathPrototype(), ep.AccessType())
 		if err != nil {
 			w.request.Message().SetBinaryContent(nil)
 			if materializedBuf != nil {
@@ -167,19 +177,7 @@ func getProtoName(i interface{}) string {
 
 func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 
-	if false {
-		fmt.Printf("Request headers:\n")
-		mdReq, ok := metadata.FromIncomingContext(ctx)
-		if !ok {
-			fmt.Printf("no metadata found\n")
-		} else {
-			for key, values := range mdReq {
-				fmt.Printf("Header: %s, Values: %v\n", key, values)
-			}
-		}
-	}
-
-	fillResponse := func(sctx context.Context, request *Request, callCtx op_context.CallContext) api_server.RequestMessage {
+	fillResponse := func(request *Request, callCtx op_context.CallContext) api_server.RequestMessage {
 
 		response := &api_server.RequestMessageBase{}
 		if request.Response().Payload() != nil {
@@ -234,30 +232,29 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 		if response.TransportMessage() != nil {
 			md.Append(u.server.MESSAGE_TYPE_HEADER, getProtoName(response.TransportMessage()))
 		}
-		if err := grpc.SetHeader(sctx, md); err != nil {
+		if err := grpc.SetHeader(request.sctx, md); err != nil {
 			callCtx.Logger().Error("failed to set response headers", err)
 		}
 
 		// close request
 		request.TraceOutMethod()
-		request.Close(sctx)
+		request.Close(request.sctx)
 
 		// done
 		return response
 	}
 
 	// create request
-	request, callCtx, sctx, err := newRequest(ctx, u.server, u.endpoint)
+	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
 	if err != nil {
-		resp := fillResponse(sctx, request, callCtx)
+		resp := fillResponse(request, callCtx)
 		return resp, status.Error(request.statusCode, request.statusMessage)
 	}
 
 	// invoke decoder
-	w := &RequestWrapper{request: request, sctx: sctx}
-	sctx = w.sctx
+	w := &RequestWrapper{request: request}
 	if err := dec(w); err != nil {
-		resp := fillResponse(sctx, request, callCtx)
+		resp := fillResponse(request, callCtx)
 		st := status.Error(request.statusCode, request.statusMessage)
 		return resp, st
 	}
@@ -265,30 +262,41 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 	// define final handler
 	finalHandler := func(ctx context.Context, transportRequest interface{}) (interface{}, error) {
 
-		sctx := ctx
+		request.sctx = ctx
 
-		err = u.endpoint.HandleRequest(sctx)
+		// dump headers
+		if u.server.DUMP_HEADERS {
+			fmt.Println("=======Dumping gRPC request header in final headers=======")
+			for key, values := range request.requestMetadata() {
+				for _, value := range values {
+					fmt.Printf("%s: %s\n", key, value)
+				}
+			}
+			fmt.Println("==========================================")
+		}
+
+		err = u.endpoint.HandleRequest(request.sctx)
 		if err != nil {
 			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			callCtx.SetError(err)
 		}
 
-		sctx, err = u.endpoint.Postprocess(sctx)
+		request.sctx, err = u.endpoint.Postprocess(request.sctx)
 		if err != nil {
 			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			callCtx.SetError(err)
 		}
 
-		response := fillResponse(sctx, request, callCtx)
+		response := fillResponse(request, callCtx)
 
 		return response, status.Error(request.statusCode, request.statusMessage)
 	}
 
 	// invoke interceptors if set
 	if interceptor == nil {
-		return finalHandler(sctx, request.Message().TransportMessage())
+		return finalHandler(request.sctx, request.Message().TransportMessage())
 	}
-	return interceptor(sctx, request.Message().TransportMessage(), u.grpcUnaryServerInfo, finalHandler)
+	return interceptor(request.sctx, request.Message().TransportMessage(), u.grpcUnaryServerInfo, finalHandler)
 }
 
 type SizeInfo struct {

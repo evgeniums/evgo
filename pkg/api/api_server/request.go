@@ -81,7 +81,7 @@ type Request interface {
 	SetMessage(msg RequestMessage)
 	Message() RequestMessage
 
-	InjectRequestHeaders(headers map[string]string, append ...bool)
+	InjectRequestHeaders(sctx context.Context, headers map[string]string, append ...bool) context.Context
 	GetRequestHeaders(name string) []string
 	GetRequestHeader(name string) string
 
@@ -100,16 +100,16 @@ func AuthKey(authProtocol string, key string, directKeyName ...bool) string {
 	return utils.ConcatStrings("x-auth-", key)
 }
 
-func InjectRequestAuthParameters(r Request, authMethodProtocol string, params map[string]string, directKeyNames ...bool) {
+func InjectRequestAuthParameters(sctx context.Context, r Request, authMethodProtocol string, params map[string]string, directKeyNames ...bool) context.Context {
 	authParams := make(map[string]string)
 	for k, v := range params {
 		authParams[AuthKey(authMethodProtocol, k, directKeyNames...)] = v
 	}
-	r.InjectRequestHeaders(authParams)
+	return r.InjectRequestHeaders(sctx, authParams)
 }
 
-func GetResponseAuthParameter(r Request, authMethodProtocol string, key string, directKeyName ...bool) {
-	r.GetResponseHeader(AuthKey(authMethodProtocol, key, directKeyName...))
+func GetResponseAuthParameter(r Request, authMethodProtocol string, key string, directKeyName ...bool) string {
+	return r.GetResponseHeader(AuthKey(authMethodProtocol, key, directKeyName...))
 }
 
 type RequestBase struct {

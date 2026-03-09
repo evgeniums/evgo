@@ -34,7 +34,7 @@ func TestPHash(t *testing.T) {
 	password := "khjliuhsd"
 	salt := "aitldk"
 
-	result := auth_login_phash.Phash(password, salt)
+	result := auth_login_phash.PasswordHash(password, salt)
 	t.Logf("Result: %s", result)
 }
 

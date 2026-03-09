@@ -286,7 +286,7 @@ func (r *Request) MessageFromRequest(builder func() interface{}) (interface{}, e
 	return builder(), nil
 }
 
-func (r *Request) InjectRequestHeaders(headers map[string]string, append ...bool) {
+func (r *Request) InjectRequestHeaders(sctx context.Context, headers map[string]string, append ...bool) context.Context {
 
 	for k, v := range headers {
 		if utils.OptionalArg(false, append...) {
@@ -295,6 +295,8 @@ func (r *Request) InjectRequestHeaders(headers map[string]string, append ...bool
 			r.ginCtx.Request.Header.Set(k, v)
 		}
 	}
+
+	return sctx
 }
 
 func (r *Request) GetRequestHeaders(name string) []string {
