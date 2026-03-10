@@ -86,11 +86,17 @@ func (g *GrpcServerRunner) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+type ServerExtender struct {
+	UnaryInterceptors        []grpc.UnaryServerInterceptor
+	StreamServerInterceptors []grpc.StreamServerInterceptor
+}
+
 type Server struct {
 	ServerConfig
 	api_server.ServerBase
 	generic_error.ErrorManagerBaseHttp
 	auth.WithAuthBase
+	ServerExtender
 
 	tenancies multitenancy.Multitenancy
 
@@ -113,8 +119,11 @@ type Server struct {
 	services map[string]api_server.Service
 }
 
-func NewServer() *Server {
+func NewServer(extender ...ServerExtender) *Server {
 	s := &Server{}
+	if len(extender) > 0 {
+		s.ServerExtender = extender[0]
+	}
 	return s
 }
 
@@ -271,9 +280,22 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 		}
 		return
 	}
-	opts := []recovery.Option{
-		recovery.WithRecoveryHandlerContext(crashRecoveryFunc),
+	recoveryOpts := []recovery.Option{recovery.WithRecoveryHandlerContext(crashRecoveryFunc)}
+
+	// setup unary interceptors
+	unaryInterceptors := []grpc.UnaryServerInterceptor{}
+	if !ctx.Testing() {
+		ctx.Logger().Info("Enable crash recovery")
+		unaryInterceptors = append(unaryInterceptors, recovery.UnaryServerInterceptor(recoveryOpts...))
+	} else {
+		ctx.Logger().Warn("Disable crash recovery in testing mode")
 	}
+	unaryInterceptors = append(unaryInterceptors, realip.UnaryServerInterceptor(trustedProxies, realIpHeaders))
+	if len(s.UnaryInterceptors) != 0 {
+		unaryInterceptors = append(unaryInterceptors, s.UnaryInterceptors...)
+	}
+
+	// TODO setup stream interceptors
 
 	// create codec wrapper
 	pc := encoding.GetCodecV2(proto.Name)
@@ -286,13 +308,10 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	serverOpts := []grpc.ServerOption{grpc.ForceServerCodecV2(codecWrapper),
 		grpc.StatsHandler(&sizeStatsHandler{}),
 		grpc.UnknownServiceHandler(s.unknownHandler),
-		grpc.ChainUnaryInterceptor(
-			realip.UnaryServerInterceptor(trustedProxies, realIpHeaders),
-			recovery.UnaryServerInterceptor(opts...),
-		),
+		grpc.ChainUnaryInterceptor(unaryInterceptors...),
 		grpc.ChainStreamInterceptor(
 			realip.StreamServerInterceptor(trustedProxies, realIpHeaders),
-			recovery.StreamServerInterceptor(opts...),
+			recovery.StreamServerInterceptor(recoveryOpts...),
 		),
 	}
 	if !s.DISABLE_TLS && s.TLS_PRIVATE_KEY_FILE != "" {
