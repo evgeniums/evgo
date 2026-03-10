@@ -7,6 +7,7 @@ import (
 
 	"github.com/evgeniums/evgo/pkg/access_control"
 	"github.com/evgeniums/evgo/pkg/api"
+	"github.com/evgeniums/evgo/pkg/common"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/utils"
 )
@@ -20,10 +21,20 @@ type MessageHandlers interface {
 	LogicResponseToTransport(msg MessageContent) error
 }
 
+type NamedMessageHandlers interface {
+	common.WithName
+	MessageHandlers
+}
+
 type MessageHandlersConfig struct {
 	RequestFromTransport    MessageConverter
 	ResponseToTransport     MessageConverter
 	TransportRequestBuilder MessageBuilder
+}
+
+type MessageHandlersBase interface {
+	common.WithNameBase
+	MessageHandlersConfig
 }
 
 func (m *MessageHandlersConfig) NewTransportRequest(ep Endpoint) interface{} {

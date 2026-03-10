@@ -161,6 +161,7 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 			ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
 			return true, err
 		}
+		ctx.Logger().Warn("invalid login format")
 
 		// forward client to second step anyway with fake salt
 		ctx.SetAuthParameter(l.Protocol(), SaltName, crypt_utils.GenerateString())
@@ -168,6 +169,7 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 			ctx.SetGenericErrorCode(ErrorCodeCredentialsRequired)
 			return true, err
 		}
+		err = nil
 		return true, nil
 	}
 
@@ -201,6 +203,7 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 			ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
 			return true, err
 		}
+		ctx.Logger().Warn("unknown user")
 
 		// forward client to second step anyway with fake salt
 		ctx.SetAuthParameter(l.Protocol(), SaltName, crypt_utils.GenerateString())
@@ -208,13 +211,14 @@ func (l *LoginHandler) Handle(sctx context.Context) (bool, error) {
 			ctx.SetGenericErrorCode(ErrorCodeCredentialsRequired)
 			return true, err
 		}
+		err = nil
 		return true, nil
 	}
 	ctx.SetLoggerField("user", dbUser.Display())
 
 	// check if user blocked
 	if dbUser.IsBlocked() {
-		err = errors.New("user blocked")
+		err = errors.New("login blocked")
 		ctx.SetGenericErrorCode(ErrorCodeLoginFailed)
 		l.setDelay(sctx, c, delayCacheKey, delayItem)
 		return true, err

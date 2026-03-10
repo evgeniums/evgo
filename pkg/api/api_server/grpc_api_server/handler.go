@@ -168,7 +168,7 @@ type UnaryHandler struct {
 	grpcUnaryServerInfo *grpc.UnaryServerInfo
 }
 
-func getProtoName(i interface{}) string {
+func GetProtoName(i interface{}) string {
 	if msg, ok := i.(proto.Message); ok {
 		return string(proto.MessageName(msg))
 	}
@@ -230,7 +230,7 @@ func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(int
 
 		md.Append(u.server.STATUS_HEADER, appStatus)
 		if response.TransportMessage() != nil {
-			md.Append(u.server.MESSAGE_TYPE_HEADER, getProtoName(response.TransportMessage()))
+			md.Append(u.server.MESSAGE_TYPE_HEADER, GetProtoName(response.TransportMessage()))
 		}
 		if err := grpc.SetHeader(request.sctx, md); err != nil {
 			callCtx.Logger().Error("failed to set response headers", err)

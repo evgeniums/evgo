@@ -240,7 +240,7 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 
 	// check if user blocked
 	if user.IsBlocked() {
-		err = errors.New("user blocked")
+		err = errors.New("login blocked")
 		ctx.SetGenericErrorCode(ErrorCodeSessionExpired)
 		return true, err
 	}

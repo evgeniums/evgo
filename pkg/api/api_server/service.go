@@ -9,8 +9,6 @@ import (
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
-type ServiceEachEndpointHandler = func(ep Endpoint)
-
 // Interface of service that implements one or more groups of API endpoints.
 type Service interface {
 	generic_error.ErrorsExtender
@@ -28,6 +26,8 @@ type Service interface {
 
 	Package() string
 	SetPackage(string)
+
+	SetEndpointMessageHandlers(handlers []NamedMessageHandlers)
 }
 
 type ServiceBase struct {
@@ -88,13 +88,19 @@ func (s *ServiceBase) AttachToServer(server Server) error {
 	return server.RegisterService(s)
 }
 
-func (s *ServiceBase) SetEndpointMessageHandlers(handlers map[string]MessageHandlers) {
+func (s *ServiceBase) SetEndpointMessageHandlers(handlers []NamedMessageHandlers) {
+
+	hm := make(map[string]NamedMessageHandlers)
+	for _, h := range handlers {
+		hm[h.Name()] = h
+	}
+
 	s.EachOperation(func(op api.Operation) error {
 		ep, ok := op.(Endpoint)
 		if !ok {
 			return nil
 		}
-		epHandlers, ok1 := handlers[ep.Name()]
+		epHandlers, ok1 := hm[ep.Name()]
 		if !ok1 {
 			return nil
 		}
