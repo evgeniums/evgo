@@ -301,5 +301,16 @@ func DateWithOffset(offset int, inDate ...Date) Date {
 }
 
 func ToHatnProtoDatetime(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
 	return t.UnixMilli() << 8
+}
+
+func FromHatnProtoDatetime(v int64) time.Time {
+	if v == 0 {
+		return time.Time{}
+	}
+	n := v >> 8
+	return time.UnixMilli(n)
 }
