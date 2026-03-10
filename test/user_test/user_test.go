@@ -77,7 +77,7 @@ func TestUserOperations(t *testing.T) {
 	assert.True(t, user1.GetCreatedAt().Equal(userDb1_1.GetCreatedAt()))
 	assert.True(t, user1.GetUpdatedAt().Equal(userDb1_1.GetUpdatedAt()))
 	userDb1_1.SetCreatedAt(user1.GetCreatedAt())
-	userDb1_1.SetUpDatedAt(user1.GetUpdatedAt())
+	userDb1_1.SetUpdatedAt(user1.GetUpdatedAt())
 	assert.Equal(t, user1, userDb1_1)
 
 	userNotInDb, err := users.FindByLogin(opCtx, "unknown-login")
