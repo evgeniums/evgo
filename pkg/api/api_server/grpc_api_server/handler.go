@@ -12,6 +12,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -239,75 +240,109 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 				callCtx.Logger().Warn("failed to send error response", logger.Fields{"send_err": err1})
 			}
 		}
-		return status.Error(request.statusCode, request.statusMessage)
+		err = status.Error(request.statusCode, request.statusMessage)
+		if request != nil {
+			if callCtx != nil {
+				callCtx.SetError(err)
+			}
+			request.Close(request.sctx)
+		}
 	}
+
+	defer func() {
+		if err != nil {
+			callCtx.SetError(err)
+		}
+		request.TraceOutMethod()
+		request.Close(request.sctx)
+	}()
 
 	// receive initial message
 	w := &RequestWrapper{request: request}
-	if err := stream.RecvMsg(w); err != nil {
+	if err1 := stream.RecvMsg(w); err1 != nil {
 		resp := u.fillResponse(request, callCtx)
 		if resp != nil && resp.TransportMessage() != nil {
-			err1 := stream.SendMsg(resp.TransportMessage())
-			if err1 != nil {
-				callCtx.Logger().Warn("failed to send error response", logger.Fields{"send_err": err1})
-			}
+			SendStreamingResponse(request, stream, resp.TransportMessage(), StreamingError)
 		}
+		err = err1
 		return status.Error(request.statusCode, request.statusMessage)
 	}
 
 	// process initial message and send response
 	resp, err1 := u.handleRequest(request.sctx, request.Message().TransportMessage())
 	if resp != nil {
-		err2 := stream.SendMsg(resp)
-		if err2 != nil {
-			callCtx.Logger().Warn("failed to send error response", logger.Fields{"send_err": err1})
-		}
+		respType := StreamingInitResponse
 		if err1 != nil {
+			respType = StreamingError
+		}
+		err2 := SendStreamingResponse(request, stream, resp, respType)
+		if err1 != nil {
+			err = err1
 			return err1
 		}
 		if err2 != nil {
+			err = err2
 			return err2
 		}
 	}
 
-	// endpoint must register this request context somewhere in data producer
+	sctx := request.sctx
 
-	// universal message wrapper must be used for errors, heartbeat and message wrapping
+	// extract producer from context
+	queue := api_server.QueueContext(sctx)
+	if queue == nil {
+		// nothing to produce
+		return nil
+	}
 
+	request.OnStreamIntialized(sctx, "queue opened")
+	producer := queue.Producer(sctx)
+
+	// init heartbeat ticker
 	ticker := time.NewTicker(time.Duration(request.server.HEARTBEAT_PERIOD) * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		// SIGNAL 1: Client disconnected or timeout
-		case <-stream.Context().Done():
-			return stream.Context().Err()
+		case <-sctx.Done():
+			err = stream.Context().Err()
+			callCtx.Logger().Warn("unexpectedly closed stream", logger.Fields{"stream_err": err})
+			return err
 
-		// // SIGNAL 2: Global server shutdown
-		// case <-s.hub.Closed:
-		// 	return status.Error(codes.Unavailable, "server is shutting down")
+		// SIGNAL 2: Global server shutdown
+		case <-request.server.shutdown:
+			return status.Error(codes.Unavailable, "server is shutting down")
 
 		// SIGNAL 3: Heartbeat to keep connection alive
 		case <-ticker.C:
-			// if err := stream.SendMsg(&pb.MyResponse{IsHeartbeat: true}); err != nil {
-			// 	return err
-			// }
+			heartBeat := &HeartBeat{Timestamp: utils.ToHatnProtoDatetime(time.Now())}
+			err = SendStreamingResponse(request, stream, heartBeat, StreamingHeartBeat)
+			if err != nil {
+				return nil
+			}
 
-			// // SIGNAL 4: Data from Producer (using 'ok' to detect closure)
-			// case event, ok := <-mySub:
-			// 	if !ok {
-			// 		// Hub closed this specific subscription (e.g., job finished)
-			// 		return nil
-			// 	}
+		// SIGNAL 4: Data from Producer (using 'ok' to detect closure)
+		case message, ok := <-producer:
+			if !ok {
+				callCtx.SetMessage("queue closed")
+				return nil
+			}
 
-			// 	resp := &pb.MyResponse{Message: event.Message}
-			// 	if err := stream.SendMsg(resp); err != nil {
-			// 		return err
-			// 	}
+			msgContent := api_server.NewMessageContent()
+			msgContent.SetLogicMessage(message)
+			err = u.endpoint.LogicResponseToTransport(msgContent)
+			if err != nil {
+				callCtx.SetMessage("failed convert logic to transport")
+				return status.Error(codes.Internal, "internal data error")
+			}
+
+			err = SendStreamingResponse(request, stream, msgContent.TransportMessage(), StreamingMessage)
+			if err != nil {
+				return err
+			}
 		}
 	}
-
-	return nil
 }
 
 func (u *Handler) handleRequest(sctx context.Context, transportRequest interface{}) (interface{}, error) {

@@ -193,6 +193,18 @@ func (r *Request) GetRequestUserAgent() string {
 	return r.userAgent
 }
 
+func (r *Request) OnStreamIntialized(sctx context.Context, logPrefix ...string) {
+	if r.GenericError() != nil {
+		r.SetLoggerField("status", r.GenericError().Code())
+	}
+	if r.Message().BinaryContent() != nil {
+		content := r.Message().BinaryContent()
+		mem.DefaultBufferPool().Put(&content)
+		r.Message().SetBinaryContent(nil)
+	}
+	r.server.logRequest(sctx, r.Logger(), r.start, r, r.LoggerFields(), logPrefix...)
+}
+
 func (r *Request) Close(sctx context.Context, successMessage ...string) {
 	if r.GenericError() != nil {
 		r.SetLoggerField("status", r.GenericError().Code())

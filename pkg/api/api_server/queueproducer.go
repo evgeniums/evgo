@@ -5,7 +5,7 @@ import (
 )
 
 type QueueProducer interface {
-	Produce(ctx context.Context) <-chan interface{}
+	Producer(ctx context.Context) <-chan interface{}
 	Push(ctx context.Context, object interface{})
 	Close()
 }
@@ -14,7 +14,13 @@ type QueueProducerBase struct {
 	ch chan interface{}
 }
 
-func (p *QueueProducerBase) Produce(ctx context.Context) <-chan interface{} {
+func NewQueueProducer() *QueueProducerBase {
+	q := &QueueProducerBase{}
+	q.ch = make(chan interface{})
+	return q
+}
+
+func (p *QueueProducerBase) Producer(ctx context.Context) <-chan interface{} {
 	return p.ch
 }
 

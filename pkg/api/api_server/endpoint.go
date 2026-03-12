@@ -87,6 +87,8 @@ type Endpoint interface {
 	SetRequestPostprocessor(handler EndpointExtraHandler)
 	GetRequestPostprocessor() EndpointExtraHandler
 	Postprocess(sctx context.Context) (context.Context, error)
+
+	IsServerStreaming() bool
 }
 
 type EndpointHandler = func(sctx context.Context) error
@@ -158,6 +160,10 @@ func (e *EndpointBase) Postprocess(sctx context.Context) (context.Context, error
 		return e.postprocessRequest(sctx)
 	}
 	return sctx, nil
+}
+
+func (e *EndpointBase) IsServerStreaming() bool {
+	return false
 }
 
 type ResourceEndpointI interface {

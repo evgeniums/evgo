@@ -77,14 +77,41 @@ type ServerConfig struct {
 	DUMP_HEADERS bool
 
 	HEARTBEAT_PERIOD int `default:"15"`
+
+	SHUTDOWN_TIMEOUT int `default:"15"`
 }
 
 type GrpcServerRunner struct {
 	*grpc.Server
+	server *Server
 }
 
-func (g *GrpcServerRunner) Shutdown(ctx context.Context) error {
-	g.GracefulStop()
+func (g *GrpcServerRunner) Shutdown(sctx context.Context) error {
+
+	g.server.App().Logger().Info("shutting down gRPC server...")
+
+	close(g.server.shutdown)
+
+	// create a 'hard' deadline for the entire server to vanish
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(g.server.SHUTDOWN_TIMEOUT)*time.Second)
+	defer cancel()
+
+	// start GracefulStop in a goroutine
+	go func() {
+		g.server.App().Logger().Info("gracefully stopping gRPC server...")
+		g.GracefulStop()
+		g.server.App().Logger().Info("gRPC server gracefully stopped")
+		cancel() // Signal that we finished early if possible
+	}()
+
+	// wait for either the server to stop OR the timeout to hit
+	<-ctx.Done()
+	if ctx.Err() == context.DeadlineExceeded {
+		g.server.App().Logger().Warn("force stopping gRPC server by timeout")
+		g.Stop() // Force kill remaining connections
+	}
+
+	g.server.App().Logger().Info("gRPC server stopped")
 	return nil
 }
 
@@ -113,16 +140,20 @@ type Server struct {
 	propagateContextId bool
 	propagateAuthUser  bool
 
-	logPrefix string
+	logPrefix       string
+	streamLogPrefix string
 
 	hostname string
 
 	handlers map[string]Handler
 	services map[string]api_server.Service
+
+	shutdown chan struct{}
 }
 
 func NewServer(extender ...ServerExtender) *Server {
 	s := &Server{}
+	s.shutdown = make(chan struct{})
 	if len(extender) > 0 {
 		s.ServerExtender = extender[0]
 	}
@@ -297,7 +328,18 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 		unaryInterceptors = append(unaryInterceptors, s.UnaryInterceptors...)
 	}
 
-	// TODO setup stream interceptors
+	// setup stream interceptors
+	streamInterceptors := []grpc.StreamServerInterceptor{}
+	if !ctx.Testing() {
+		ctx.Logger().Info("Enable streaming endpoints crash recovery")
+		streamInterceptors = append(streamInterceptors, recovery.StreamServerInterceptor(recoveryOpts...))
+	} else {
+		ctx.Logger().Warn("Disable streaming endpoints crash recovery in testing mode")
+	}
+	streamInterceptors = append(streamInterceptors, realip.StreamServerInterceptor(trustedProxies, realIpHeaders))
+	if len(s.StreamServerInterceptors) != 0 {
+		streamInterceptors = append(streamInterceptors, s.StreamServerInterceptors...)
+	}
 
 	// create codec wrapper
 	pc := encoding.GetCodecV2(proto.Name)
@@ -311,10 +353,7 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 		grpc.StatsHandler(&sizeStatsHandler{}),
 		grpc.UnknownServiceHandler(s.unknownHandler),
 		grpc.ChainUnaryInterceptor(unaryInterceptors...),
-		grpc.ChainStreamInterceptor(
-			realip.StreamServerInterceptor(trustedProxies, realIpHeaders),
-			recovery.StreamServerInterceptor(recoveryOpts...),
-		),
+		grpc.ChainStreamInterceptor(streamInterceptors...),
 	}
 	if !s.DISABLE_TLS && s.TLS_PRIVATE_KEY_FILE != "" {
 		creds, err := credentials.NewServerTLSFromFile(s.TLS_CERTIFICATE_FILE, s.TLS_PRIVATE_KEY_FILE)
@@ -327,6 +366,7 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	// create grpc server
 	s.grpcServer = &GrpcServerRunner{
 		Server: grpc.NewServer(serverOpts...),
+		server: s,
 	}
 
 	// set server name
@@ -380,7 +420,7 @@ func (s *Server) GrpcHandler(service api_server.Service, ep api_server.Endpoint)
 	return &handler
 }
 
-func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint, methods *[]grpc.MethodDesc) {
+func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint, methods *[]grpc.MethodDesc, streams *[]grpc.StreamDesc) {
 
 	if ep.TestOnly() && !s.Testing() {
 		return
@@ -402,14 +442,24 @@ func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint,
 		s.App().Logger().Warn("Grpc API server: duplicate endpoint", logger.Fields{"method": fullMethodName})
 	}
 	s.handlers[fullMethodName] = handler
-
-	grpcMethod := grpc.MethodDesc{
-		MethodName: ep.Name(),
-		Handler:    handler.handleUnary,
+	if ep.IsServerStreaming() {
+		grpcStreamMethod := grpc.StreamDesc{
+			StreamName:    ep.Name(),
+			Handler:       handler.handleServerStream,
+			ServerStreams: true,
+			ClientStreams: false,
+		}
+		*streams = append(*streams, grpcStreamMethod)
+	} else {
+		grpcMethod := grpc.MethodDesc{
+			MethodName: ep.Name(),
+			Handler:    handler.handleUnary,
+		}
+		*methods = append(*methods, grpcMethod)
 	}
-	*methods = append(*methods, grpcMethod)
 
-	s.App().Logger().Info("Grpc API server: register endpoint", logger.Fields{"method": fullMethodName, "path": ep.Resource().FullPathPrototype()})
+	s.App().Logger().Info("Grpc API server: register endpoint",
+		logger.Fields{"method": fullMethodName, "path": ep.Resource().FullPathPrototype(), "server_stream": ep.IsServerStreaming()})
 }
 
 func (s *Server) MakeResponseError(gerr generic_error.Error) (int, generic_error.Error) {
@@ -420,13 +470,14 @@ func (s *Server) MakeResponseError(gerr generic_error.Error) (int, generic_error
 func (s *Server) RegisterService(service api_server.Service) error {
 
 	methods := []grpc.MethodDesc{}
+	streams := []grpc.StreamDesc{}
 
 	service.EachOperation(func(op api.Operation) error {
 		ep, ok := op.(api_server.Endpoint)
 		if !ok {
 			return fmt.Errorf("invalid opertaion type, must be endpoint: %s", op.Name())
 		}
-		s.AddEndpoint(service, ep, &methods)
+		s.AddEndpoint(service, ep, &methods, &streams)
 		return nil
 	})
 
@@ -436,7 +487,7 @@ func (s *Server) RegisterService(service api_server.Service) error {
 		ServiceName: serviceName,
 		HandlerType: (*interface{})(nil),
 		Methods:     methods,
-		Streams:     []grpc.StreamDesc{},
+		Streams:     streams,
 		Metadata:    "",
 	}
 
@@ -450,7 +501,8 @@ func (s *Server) ListEndpoints() {
 	for serviceName, info := range serviceInfo {
 		s.App().Logger().Info("Registered service", logger.Fields{"service": serviceName})
 		for _, method := range info.Methods {
-			s.App().Logger().Info("Registered endpoint", logger.Fields{"method": fmt.Sprintf("/%s/%s", serviceName, method.Name)})
+			s.App().Logger().Info("Registered endpoint", logger.Fields{"method": fmt.Sprintf("/%s/%s", serviceName, method.Name),
+				"server_stream": method.IsServerStream})
 		}
 	}
 }
@@ -465,7 +517,7 @@ type methodContext interface {
 	PayloadSize() int
 }
 
-func (s *Server) logRequest(sctx context.Context, log logger.Logger, start time.Time, callCtx methodContext, extraFields ...logger.Fields) {
+func (s *Server) logRequest(sctx context.Context, log logger.Logger, start time.Time, callCtx methodContext, extraFields logger.Fields, logPrefix ...string) {
 
 	stop := time.Since(start)
 	latency := int(math.Ceil(float64(stop.Nanoseconds()) / 1000000.0))
@@ -485,14 +537,15 @@ func (s *Server) logRequest(sctx context.Context, log logger.Logger, start time.
 		"agent":   callCtx.UserAgent(),
 		"server":  s.Name(),
 	}
-	logger.AppendFields(fields, extraFields...)
+	logger.AppendFields(fields, extraFields)
 
+	prefix := utils.OptionalString(s.logPrefix, logPrefix...)
 	if StatusError(callCtx.StatusCode()) {
-		log.Error(s.logPrefix, errors.New("internal server error"), fields)
+		log.Error(prefix, errors.New("internal server error"), fields)
 	} else if StatusWarn(callCtx.StatusCode()) {
-		log.Warn(s.logPrefix, fields)
+		log.Warn(prefix, fields)
 	} else {
-		log.Info(s.logPrefix, fields)
+		log.Info(prefix, fields)
 	}
 }
 

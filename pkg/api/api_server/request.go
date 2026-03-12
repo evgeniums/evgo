@@ -30,10 +30,17 @@ type RequestMessage interface {
 	MessageContent
 }
 
-type RequestMessageBase struct {
+type MessageContentBase struct {
 	logicMessage     interface{}
 	transportMessage interface{}
 	content          []byte
+}
+
+type RequestMessageBase = MessageContentBase
+
+func NewMessageContent() *MessageContentBase {
+	r := &MessageContentBase{}
+	return r
 }
 
 func NewRequestMessage() *RequestMessageBase {
@@ -41,27 +48,27 @@ func NewRequestMessage() *RequestMessageBase {
 	return r
 }
 
-func (m *RequestMessageBase) BinaryContent() []byte {
+func (m *MessageContentBase) BinaryContent() []byte {
 	return m.content
 }
 
-func (m *RequestMessageBase) SetBinaryContent(content []byte) {
+func (m *MessageContentBase) SetBinaryContent(content []byte) {
 	m.content = content
 }
 
-func (m *RequestMessageBase) LogicMessage() any {
+func (m *MessageContentBase) LogicMessage() any {
 	return m.logicMessage
 }
 
-func (m *RequestMessageBase) TransportMessage() any {
+func (m *MessageContentBase) TransportMessage() any {
 	return m.transportMessage
 }
 
-func (m *RequestMessageBase) SetLogicMessage(msg interface{}) {
+func (m *MessageContentBase) SetLogicMessage(msg interface{}) {
 	m.logicMessage = msg
 }
 
-func (m *RequestMessageBase) SetTransportMessage(msg interface{}) {
+func (m *MessageContentBase) SetTransportMessage(msg interface{}) {
 	m.transportMessage = msg
 }
 
