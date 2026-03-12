@@ -13,7 +13,7 @@ type ListPoolsEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *ListPoolsEndpoint) HandleRequest(sctx context.Context) error {
+func (e *ListPoolsEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -24,21 +24,21 @@ func (e *ListPoolsEndpoint) HandleRequest(sctx context.Context) error {
 	queryName := request.Endpoint().Resource().ServicePathPrototype()
 	filter, err := api_server.ParseDbQuery(sctx, &pool.PoolBase{}, queryName)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// get services
 	resp := &pool_api.ListPoolsResponse{}
 	resp.Items, resp.Count, err = e.service.Pools.GetPools(sctx, filter)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response message
 	api_server.SetResponseList(request, resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func ListPools(s *PoolService) *ListPoolsEndpoint {

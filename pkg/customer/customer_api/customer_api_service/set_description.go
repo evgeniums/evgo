@@ -14,7 +14,7 @@ type SetDescriptionEndpoint[T customer.User] struct {
 	Endpoint[T]
 }
 
-func (s *SetDescriptionEndpoint[T]) HandleRequest(sctx context.Context) error {
+func (s *SetDescriptionEndpoint[T]) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("customer.SetDescription")
@@ -22,15 +22,15 @@ func (s *SetDescriptionEndpoint[T]) HandleRequest(sctx context.Context) error {
 
 	cmd, err := api_server.ParseValidateRequest[common.WithDescriptionBase](sctx)
 	if err != nil {
-		return err
+		return sctx, err
 	}
 
 	err = Setter(s.service.Controller, request).SetName(sctx, request.GetResourceId(s.service.UserTypeName).Value(), cmd.Description())
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
-	return nil
+	return sctx, nil
 }
 
 func SetDescription[T customer.User](service *Service[T]) api_server.ResourceEndpointI {

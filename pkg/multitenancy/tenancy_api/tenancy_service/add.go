@@ -13,7 +13,7 @@ type AddEndpoint struct {
 	TenancyEndpoint
 }
 
-func (e *AddEndpoint) HandleRequest(sctx context.Context) error {
+func (e *AddEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -25,7 +25,7 @@ func (e *AddEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[multitenancy.TenancyData](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	// add
@@ -33,14 +33,14 @@ func (e *AddEndpoint) HandleRequest(sctx context.Context) error {
 	resp.TenancyItem, err = e.service.Tenancies.Add(sctx, cmd)
 	if err != nil {
 		c.SetMessage("failed to add tenancy")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func Add(s *TenancyService) *AddEndpoint {

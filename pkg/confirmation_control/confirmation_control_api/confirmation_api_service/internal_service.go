@@ -45,7 +45,7 @@ type PrepareOperationEndpoint struct {
 	InternalEndpoint
 }
 
-func (e *PrepareOperationEndpoint) HandleRequest(sctx context.Context) error {
+func (e *PrepareOperationEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -56,7 +56,7 @@ func (e *PrepareOperationEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[confirmation_control_api.PrepareOperationCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 	request.SetLoggerField("confirmation_id", cmd.Id)
 
@@ -73,7 +73,7 @@ func (e *PrepareOperationEndpoint) HandleRequest(sctx context.Context) error {
 	err = request.Cache().Set(cacheKey, cacheToken, ttl)
 	if err != nil {
 		c.SetMessage("failed to store operation in cache")
-		return err
+		return sctx, err
 	}
 
 	// set response
@@ -87,7 +87,7 @@ func (e *PrepareOperationEndpoint) HandleRequest(sctx context.Context) error {
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func PrepareOperation(s *ConfirmationInternalService) *PrepareOperationEndpoint {

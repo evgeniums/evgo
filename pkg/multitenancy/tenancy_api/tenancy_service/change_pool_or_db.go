@@ -13,7 +13,7 @@ type ChangePoolOrDbEndpoint struct {
 	TenancyUpdateEndpoint
 }
 
-func (s *ChangePoolOrDbEndpoint) HandleRequest(sctx context.Context) error {
+func (s *ChangePoolOrDbEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -25,17 +25,17 @@ func (s *ChangePoolOrDbEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[multitenancy.WithPoolAndDb](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	// apply
 	err = s.service.Tenancies.ChangePoolOrDb(sctx, request.GetTenancyId(), cmd.PoolId(), cmd.DbName())
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func ChangePoolOrDb(s *TenancyService) *ChangePoolOrDbEndpoint {

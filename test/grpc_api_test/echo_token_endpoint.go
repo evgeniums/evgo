@@ -12,11 +12,11 @@ type EchoTokenEndpoint struct {
 	api_server.EndpointBase
 }
 
-func (e *EchoTokenEndpoint) HandleRequest(sctx context.Context) error {
+func (e *EchoTokenEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 	request := op_context.OpContext[api_server.Request](sctx)
 	content := request.GetRequestContent()
 	request.Response().SetPayload(content)
-	return nil
+	return sctx, nil
 }
 
 func (e *EchoTokenEndpoint) IsRequestPayloadNeeded() bool {

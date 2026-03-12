@@ -14,7 +14,7 @@ type SetNameEndpoint[T customer.User] struct {
 	Endpoint[T]
 }
 
-func (s *SetNameEndpoint[T]) HandleRequest(sctx context.Context) error {
+func (s *SetNameEndpoint[T]) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("SetName")
@@ -23,15 +23,15 @@ func (s *SetNameEndpoint[T]) HandleRequest(sctx context.Context) error {
 	cmd := &common.WithNameBase{}
 	cmd, err := api_server.ParseValidateRequest[common.WithNameBase](sctx)
 	if err != nil {
-		return err
+		return sctx, err
 	}
 
 	err = Setter(s.service.Controller, request).SetName(sctx, request.GetResourceId(s.service.UserTypeName).Value(), cmd.Name())
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
-	return nil
+	return sctx, nil
 }
 
 func SetName[T customer.User](service *Service[T]) api_server.ResourceEndpointI {

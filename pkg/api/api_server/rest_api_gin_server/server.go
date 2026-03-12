@@ -478,7 +478,7 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 
 		// call endpoint's request handler
 		if err == nil {
-			err = ep.HandleRequest(sctx)
+			_, err = ep.HandleRequest(sctx)
 			if err != nil {
 				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
 			}

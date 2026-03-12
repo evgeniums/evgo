@@ -19,6 +19,7 @@ const (
 	ErrorCodeResourceBusy               string = "resource_busyr"
 	ErrorCodeUnimplemented              string = "unimplemented"
 	ErrorCodeBadRequest                 string = "bad_request"
+	ErrorCodeForeignUnavailable         string = "foreign_unavailable"
 )
 
 var CommonErrorDescriptions = map[string]string{
@@ -38,6 +39,7 @@ var CommonErrorDescriptions = map[string]string{
 	ErrorCodeResourceBusy:               "Resource is busy, please retry later",
 	ErrorCodeUnimplemented:              "Method or operation not implemeted",
 	ErrorCodeBadRequest:                 "Bad request",
+	ErrorCodeForeignUnavailable:         "Unavailable object at foreign server",
 }
 
 var CommonErrorHttpCodes = map[string]int{
@@ -51,4 +53,5 @@ var CommonErrorHttpCodes = map[string]int{
 	ErrorCodeOperationNotPermitted:      http.StatusForbidden,
 	ErrorCodeResourceBusy:               http.StatusServiceUnavailable,
 	ErrorCodeUnimplemented:              http.StatusNotImplemented,
+	ErrorCodeForeignUnavailable:         http.StatusNotFound,
 }

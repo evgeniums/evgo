@@ -50,7 +50,7 @@ type ListEndpoint struct {
 
 type ListResponse = api.ResponseList[*InTenancySample]
 
-func (e *ListEndpoint) HandleRequest(sctx context.Context) error {
+func (e *ListEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	var err error
@@ -62,13 +62,13 @@ func (e *ListEndpoint) HandleRequest(sctx context.Context) error {
 	resp := &ListResponse{}
 	resp.Count, err = request.Db().FindWithFilter(sctx, nil, &resp.Items)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 	// set response message
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func List(s *SampleService) *ListEndpoint {

@@ -12,7 +12,7 @@ type FindEndpoint struct {
 	TenancyEndpoint
 }
 
-func (f *FindEndpoint) HandleRequest(sctx context.Context) error {
+func (f *FindEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	var err error
@@ -25,14 +25,14 @@ func (f *FindEndpoint) HandleRequest(sctx context.Context) error {
 	resp.TenancyItem, err = f.service.Tenancies.Find(sctx, request.GetTenancyId())
 	if err != nil {
 		c.SetMessage("failed to find tenancy")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func Find(s *TenancyService) *FindEndpoint {

@@ -14,7 +14,7 @@ type FindEndpoint[U user.User] struct {
 	UserEndpoint[U]
 }
 
-func (e *FindEndpoint[U]) HandleRequest(sctx context.Context) error {
+func (e *FindEndpoint[U]) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	var err error
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -24,12 +24,12 @@ func (e *FindEndpoint[U]) HandleRequest(sctx context.Context) error {
 	resp := &user_api.UserResponse[U]{}
 	resp.User, err = Users(e.service, request).Find(sctx, request.GetResourceId(e.service.UserTypeName).Value())
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	request.Response().SetMessage(resp)
 
-	return nil
+	return sctx, nil
 }
 
 func Find[U user.User](service *UserService[U]) *FindEndpoint[U] {

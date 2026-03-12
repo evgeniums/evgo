@@ -42,7 +42,7 @@ type CallbackConfirmationEndpoint struct {
 	CallbackEndpoint
 }
 
-func (e *CallbackConfirmationEndpoint) HandleRequest(sctx context.Context) error {
+func (e *CallbackConfirmationEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -53,7 +53,7 @@ func (e *CallbackConfirmationEndpoint) HandleRequest(sctx context.Context) error
 	cmd, err := api_server.ParseValidateRequest[confirmation_control_api.CallbackConfirmationCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	request.SetLoggerField("confirmation_id", cmd.Id)
@@ -63,14 +63,14 @@ func (e *CallbackConfirmationEndpoint) HandleRequest(sctx context.Context) error
 	resp.Url, err = e.service.ConfirmationCallbackHandler.ConfirmationCallback(sctx, cmd.Id, &cmd.ConfirmationResult)
 	if err != nil {
 		c.SetMessage("failed to invoke callback")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func CallbackConfirmation(s *ConfirmationCallbackService) *CallbackConfirmationEndpoint {

@@ -13,7 +13,7 @@ type SetPhoneEndpoint struct {
 	SetUserFieldEndpoint
 }
 
-func (s *SetPhoneEndpoint) HandleRequest(sctx context.Context) error {
+func (s *SetPhoneEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.SetPhone")
@@ -21,15 +21,15 @@ func (s *SetPhoneEndpoint) HandleRequest(sctx context.Context) error {
 
 	cmd, err := api_server.ParseValidateRequest[user.UserPhone](sctx)
 	if err != nil {
-		return err
+		return sctx, err
 	}
 
 	err = Setter(s.users, request).SetPhone(sctx, request.GetResourceId(s.userTypeName).Value(), cmd.PHONE)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
-	return nil
+	return sctx, nil
 }
 
 func SetPhone(userTypeName string, users user.MainFieldSetters) api_server.ResourceEndpointI {

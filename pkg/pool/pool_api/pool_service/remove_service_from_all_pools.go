@@ -12,7 +12,7 @@ type RemoveServiceFromAllPoolsEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *RemoveServiceFromAllPoolsEndpoint) HandleRequest(sctx context.Context) error {
+func (e *RemoveServiceFromAllPoolsEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -24,11 +24,11 @@ func (e *RemoveServiceFromAllPoolsEndpoint) HandleRequest(sctx context.Context) 
 	err := e.service.Pools.RemoveServiceFromAllPools(sctx, serviceId)
 	if err != nil {
 		c.SetMessage("failed to remove services from all pools")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func RemoveServiceFromAllPools(s *PoolService) *RemoveServiceFromAllPoolsEndpoint {

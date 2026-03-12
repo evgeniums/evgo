@@ -12,7 +12,7 @@ type DeletePoolEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *DeletePoolEndpoint) HandleRequest(sctx context.Context) error {
+func (e *DeletePoolEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -23,11 +23,11 @@ func (e *DeletePoolEndpoint) HandleRequest(sctx context.Context) error {
 	err := e.service.Pools.DeletePool(sctx, request.GetResourceId("pool").Value())
 	if err != nil {
 		c.SetMessage("failed to delete pool")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func DeletePool(s *PoolService) *DeletePoolEndpoint {

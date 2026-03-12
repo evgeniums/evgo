@@ -13,7 +13,7 @@ type SetPasswordEndpoint struct {
 	SetUserFieldEndpoint
 }
 
-func (s *SetPasswordEndpoint) HandleRequest(sctx context.Context) error {
+func (s *SetPasswordEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.SetPassword")
@@ -21,15 +21,15 @@ func (s *SetPasswordEndpoint) HandleRequest(sctx context.Context) error {
 
 	cmd, err := api_server.ParseValidateRequest[user.UserPlainPassword](sctx)
 	if err != nil {
-		return err
+		return sctx, err
 	}
 
 	err = Setter(s.users, request).SetPassword(sctx, request.GetResourceId(s.userTypeName).Value(), cmd.PlainPassword)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
-	return nil
+	return sctx, nil
 }
 
 func SetPassword(userTypeName string, users user.MainFieldSetters) api_server.ResourceEndpointI {

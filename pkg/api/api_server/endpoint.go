@@ -73,7 +73,7 @@ type Endpoint interface {
 	NewRequestMessage() interface{}
 
 	// Handle request to server API.
-	HandleRequest(sctx context.Context) error
+	HandleRequest(sctx context.Context) (context.Context, error)
 
 	// Precheck request before some authorization methods
 	PrecheckBeforeAuth(sctx context.Context, smsMessage *string, skipSms *bool) error
@@ -126,8 +126,8 @@ func (e *EndpointBase) PrecheckBeforeAuth(sctx context.Context, smsMessage *stri
 	return nil
 }
 
-func (e *EndpointBase) HandleRequest(sctx context.Context) error {
-	return nil
+func (e *EndpointBase) HandleRequest(sctx context.Context) (context.Context, error) {
+	return sctx, nil
 }
 
 func (e *EndpointBase) SetRequestPreprocessor(handler EndpointExtraHandler) {
@@ -200,6 +200,6 @@ func InitKebabEndpoint(ep ResourceEndpointI, operationName string, accessType ..
 // Base type for API endpoints with empty handlers.
 type EndpointNoHandler struct{}
 
-func (e *EndpointNoHandler) HandleRequest(sctx context.Context) error {
-	return nil
+func (e *EndpointNoHandler) HandleRequest(sctx context.Context) (context.Context, error) {
+	return sctx, nil
 }

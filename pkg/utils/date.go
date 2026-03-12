@@ -300,17 +300,61 @@ func DateWithOffset(offset int, inDate ...Date) Date {
 	return result
 }
 
-func ToHatnProtoDatetime(t time.Time) int64 {
+const (
+	// epochBit is the 8th bit (0x80).
+	// If this bit is 1, the data is initialized.
+	epochBit = 1 << 7
+	tzMask   = 0x7F
+)
+
+// Pack compresses time into int64: [55-bit Milliseconds][1-bit epoch][7-bit tz]
+func PackDatetime(t time.Time) int64 {
 	if t.IsZero() {
 		return 0
 	}
-	return t.UnixMilli() << 8
+
+	// 1. Get Unix timestamp in Milliseconds
+	milli := t.UnixMilli()
+	var epoch int64 = 0
+	if milli == 0 {
+		epoch = epochBit
+	}
+
+	// 2. Get timezone offset in 15-min increments
+	_, offset := t.Zone()
+	tzValue := int64(offset / 60 / 15)
+
+	// 3. Pack: Shift millis left 8 bits, set epoch bit, add tz
+	return (milli << 8) | epoch | (tzValue & tzMask)
 }
 
-func FromHatnProtoDatetime(v int64) time.Time {
-	if v == 0 {
+// Unpack extracts the time from the packed int64
+func UnpackDatetime(packed int64) time.Time {
+	// If the epoch bit is 0, we treat it as an uninitialized/zero time
+	if packed&epochBit == 0 {
 		return time.Time{}
 	}
-	n := v >> 8
-	return time.UnixMilli(n)
+
+	// Extract components
+	milli := packed >> 8
+	tzValue := packed & tzMask
+
+	// Sign extend 7-bit timezone for negative offsets
+	if tzValue > 63 {
+		tzValue -= 128
+	}
+
+	offsetSeconds := int(tzValue * 15 * 60)
+	// Using "" for name to avoid side effects in string output
+	loc := time.FixedZone("", offsetSeconds)
+
+	return time.UnixMilli(milli).In(loc)
+}
+
+func ToHatnProtoDatetime(t time.Time) int64 {
+	return PackDatetime(t)
+}
+
+func FromHatnProtoDatetime(n int64) time.Time {
+	return UnpackDatetime(n).Local()
 }

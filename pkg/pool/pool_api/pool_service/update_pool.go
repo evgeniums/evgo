@@ -16,7 +16,7 @@ type UpdatePoolEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *UpdatePoolEndpoint) HandleRequest(sctx context.Context) error {
+func (e *UpdatePoolEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -27,14 +27,14 @@ func (e *UpdatePoolEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[api.UpdateCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 	// validate fields
 	vErr := validator.ValidateMap(request.App().Validator(), cmd.Fields, &pool.PoolBaseData{})
 	if vErr != nil {
 		c.SetMessage("failed to validate fields")
 		request.SetGenericError(vErr.GenericError())
-		return c.SetError(vErr.Err)
+		return sctx, c.SetError(vErr.Err)
 	}
 
 	// update pool
@@ -42,13 +42,13 @@ func (e *UpdatePoolEndpoint) HandleRequest(sctx context.Context) error {
 	p, err := e.service.Pools.UpdatePool(sctx, poolId, cmd.Fields)
 	if err != nil {
 		c.SetMessage("failed to update pool")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// find updated pool
 	if p == nil {
 		request.SetGenericErrorCode(pool.ErrorCodePoolNotFound)
-		return c.SetError(errors.New("pool not found"))
+		return sctx, c.SetError(errors.New("pool not found"))
 	}
 
 	// set response
@@ -57,7 +57,7 @@ func (e *UpdatePoolEndpoint) HandleRequest(sctx context.Context) error {
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func UpdatePool(s *PoolService) *UpdatePoolEndpoint {

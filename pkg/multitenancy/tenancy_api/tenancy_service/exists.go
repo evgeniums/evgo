@@ -14,7 +14,7 @@ type ExistsEndpoint struct {
 	TenancyEndpoint
 }
 
-func (e *ExistsEndpoint) HandleRequest(sctx context.Context) error {
+func (e *ExistsEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -25,21 +25,21 @@ func (e *ExistsEndpoint) HandleRequest(sctx context.Context) error {
 	queryName := request.Endpoint().Resource().ServicePathPrototype()
 	filter, err := api_server.ParseDbQuery(sctx, &multitenancy.TenancyDb{}, queryName)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// check existence
 	resp := &api.ResponseExists{}
 	resp.Exists, err = e.service.Tenancies.Exists(sctx, filter.Fields)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func Exists(s *TenancyService) *ExistsEndpoint {

@@ -13,7 +13,7 @@ type SetActiveEndpoint struct {
 	TenancyUpdateEndpoint
 }
 
-func (s *SetActiveEndpoint) HandleRequest(sctx context.Context) error {
+func (s *SetActiveEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("tenancy.SetActive")
@@ -24,7 +24,7 @@ func (s *SetActiveEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[common.WithActiveBase](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	if cmd.IsActive() {
@@ -33,10 +33,10 @@ func (s *SetActiveEndpoint) HandleRequest(sctx context.Context) error {
 		err = s.service.Tenancies.Deactivate(sctx, request.GetTenancyId())
 	}
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
-	return nil
+	return sctx, nil
 }
 
 func SetActive(s *TenancyService) *SetActiveEndpoint {

@@ -13,7 +13,7 @@ type SetPathEndpoint struct {
 	TenancyUpdateEndpoint
 }
 
-func (s *SetPathEndpoint) HandleRequest(sctx context.Context) error {
+func (s *SetPathEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -24,17 +24,17 @@ func (s *SetPathEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[multitenancy.WithPath](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	// apply
 	err = s.service.Tenancies.SetPath(sctx, request.GetTenancyId(), cmd.Path())
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func SetPath(s *TenancyService) *SetPathEndpoint {
@@ -47,7 +47,7 @@ type SetShadowPathEndpoint struct {
 	TenancyUpdateEndpoint
 }
 
-func (s *SetShadowPathEndpoint) HandleRequest(sctx context.Context) error {
+func (s *SetShadowPathEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -58,17 +58,17 @@ func (s *SetShadowPathEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[multitenancy.WithPath](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	// apply
 	err = s.service.Tenancies.SetShadowPath(sctx, request.GetTenancyId(), cmd.ShadowPath())
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func SetShadowPath(s *TenancyService) *SetShadowPathEndpoint {

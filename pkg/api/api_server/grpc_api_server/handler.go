@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"time"
 
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/auth"
 	"github.com/evgeniums/evgo/pkg/generic_error"
+	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/op_context"
 
 	"google.golang.org/grpc"
@@ -162,7 +164,7 @@ func (c *RequestCodec) Name() string {
 	return c.server.TRANSPORT_CODEC_TYPE
 }
 
-type UnaryHandler struct {
+type Handler struct {
 	endpoint            api_server.Endpoint
 	server              *Server
 	grpcUnaryServerInfo *grpc.UnaryServerInfo
@@ -175,128 +177,28 @@ func GetProtoName(i interface{}) string {
 	return ""
 }
 
-func (u *UnaryHandler) handle(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-
-	fillResponse := func(request *Request, callCtx op_context.CallContext) api_server.RequestMessage {
-
-		response := &api_server.RequestMessageBase{}
-		if request.Response().Payload() != nil {
-			response.SetBinaryContent(request.Response().Payload())
-		} else if request.Response().Message() != nil {
-			response.SetLogicMessage(request.Response().Message())
-			err := u.endpoint.LogicResponseToTransport(response)
-			if err != nil {
-				callCtx.Logger().Error("failed to convert logic message to protobuf", err)
-				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-			}
-		}
-
-		// fill response headers
-		// TODO put message ID to header
-		md := metadata.Pairs()
-
-		var appStatus string
-		if request.GenericError() == nil {
-			appStatus = "success"
-			request.SetLoggerField("status", "success")
-		} else {
-			code, err := request.server.MakeResponseError(request.GenericError())
-			if code < http.StatusInternalServerError {
-				request.SetErrorAsWarn(true)
-			}
-			request.statusCode = HTTPToGRPC(code)
-			request.statusMessage = request.GenericError().Message()
-			appStatus = err.Code()
-			errMsg := err.Message()
-			if errMsg == "" {
-				errMsg = request.statusMessage
-			}
-			if errMsg != "" {
-				md.Append(u.server.ERROR_DESCRIPTION_HEADER, errMsg)
-			}
-			errDetails := err.Details()
-			if errDetails != "" {
-				md.Append(u.server.ERROR_DETAILS_HEADER, errDetails)
-			}
-			errFamily := err.Family()
-			if errFamily != "" {
-				md.Append(u.server.ERROR_FAMILY_HEADER, errFamily)
-			}
-
-			if err.Data() != nil {
-				// TODO convert error data to protobuf and put to response message
-			}
-		}
-
-		md.Append(u.server.STATUS_HEADER, appStatus)
-		if response.TransportMessage() != nil {
-			md.Append(u.server.MESSAGE_TYPE_HEADER, GetProtoName(response.TransportMessage()))
-		}
-		if err := grpc.SetHeader(request.sctx, md); err != nil {
-			callCtx.Logger().Error("failed to set response headers", err)
-		}
-
-		// close request
-		request.TraceOutMethod()
-		request.Close(request.sctx)
-
-		// done
-		return response
-	}
+func (u *Handler) handleUnary(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 
 	// create request
 	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
 	if err != nil {
-		resp := fillResponse(request, callCtx)
+		resp := u.fillResponse(request, callCtx)
 		return resp, status.Error(request.statusCode, request.statusMessage)
 	}
 
 	// invoke decoder
 	w := &RequestWrapper{request: request}
 	if err := dec(w); err != nil {
-		resp := fillResponse(request, callCtx)
+		resp := u.fillResponse(request, callCtx)
 		st := status.Error(request.statusCode, request.statusMessage)
 		return resp, st
 	}
 
-	// define final handler
-	finalHandler := func(ctx context.Context, transportRequest interface{}) (interface{}, error) {
-
-		request.sctx = ctx
-
-		// dump headers
-		if u.server.DUMP_HEADERS {
-			fmt.Println("=======Dumping gRPC request header in final headers=======")
-			for key, values := range request.requestMetadata() {
-				for _, value := range values {
-					fmt.Printf("%s: %s\n", key, value)
-				}
-			}
-			fmt.Println("==========================================")
-		}
-
-		err = u.endpoint.HandleRequest(request.sctx)
-		if err != nil {
-			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-			callCtx.SetError(err)
-		}
-
-		request.sctx, err = u.endpoint.Postprocess(request.sctx)
-		if err != nil {
-			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-			callCtx.SetError(err)
-		}
-
-		response := fillResponse(request, callCtx)
-
-		return response, status.Error(request.statusCode, request.statusMessage)
-	}
-
 	// invoke interceptors if set
 	if interceptor == nil {
-		return finalHandler(request.sctx, request.Message().TransportMessage())
+		return u.handleRequest(request.sctx, request.Message().TransportMessage())
 	}
-	return interceptor(request.sctx, request.Message().TransportMessage(), u.grpcUnaryServerInfo, finalHandler)
+	return interceptor(request.sctx, request.Message().TransportMessage(), u.grpcUnaryServerInfo, u.handleRequest)
 }
 
 type SizeInfo struct {
@@ -322,3 +224,191 @@ func (h *sizeStatsHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo)
 	return ctx
 }
 func (h *sizeStatsHandler) HandleConn(ctx context.Context, s stats.ConnStats) {}
+
+func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) error {
+
+	ctx := stream.Context()
+
+	// create request
+	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
+	if err != nil {
+		resp := u.fillResponse(request, callCtx)
+		if resp != nil && resp.TransportMessage() != nil {
+			err1 := stream.SendMsg(resp.TransportMessage())
+			if err1 != nil {
+				callCtx.Logger().Warn("failed to send error response", logger.Fields{"send_err": err1})
+			}
+		}
+		return status.Error(request.statusCode, request.statusMessage)
+	}
+
+	// receive initial message
+	w := &RequestWrapper{request: request}
+	if err := stream.RecvMsg(w); err != nil {
+		resp := u.fillResponse(request, callCtx)
+		if resp != nil && resp.TransportMessage() != nil {
+			err1 := stream.SendMsg(resp.TransportMessage())
+			if err1 != nil {
+				callCtx.Logger().Warn("failed to send error response", logger.Fields{"send_err": err1})
+			}
+		}
+		return status.Error(request.statusCode, request.statusMessage)
+	}
+
+	// process initial message and send response
+	resp, err1 := u.handleRequest(request.sctx, request.Message().TransportMessage())
+	if resp != nil {
+		err2 := stream.SendMsg(resp)
+		if err2 != nil {
+			callCtx.Logger().Warn("failed to send error response", logger.Fields{"send_err": err1})
+		}
+		if err1 != nil {
+			return err1
+		}
+		if err2 != nil {
+			return err2
+		}
+	}
+
+	// endpoint must register this request context somewhere in data producer
+
+	// universal message wrapper must be used for errors, heartbeat and message wrapping
+
+	ticker := time.NewTicker(time.Duration(request.server.HEARTBEAT_PERIOD) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		// SIGNAL 1: Client disconnected or timeout
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+
+		// // SIGNAL 2: Global server shutdown
+		// case <-s.hub.Closed:
+		// 	return status.Error(codes.Unavailable, "server is shutting down")
+
+		// SIGNAL 3: Heartbeat to keep connection alive
+		case <-ticker.C:
+			// if err := stream.SendMsg(&pb.MyResponse{IsHeartbeat: true}); err != nil {
+			// 	return err
+			// }
+
+			// // SIGNAL 4: Data from Producer (using 'ok' to detect closure)
+			// case event, ok := <-mySub:
+			// 	if !ok {
+			// 		// Hub closed this specific subscription (e.g., job finished)
+			// 		return nil
+			// 	}
+
+			// 	resp := &pb.MyResponse{Message: event.Message}
+			// 	if err := stream.SendMsg(resp); err != nil {
+			// 		return err
+			// 	}
+		}
+	}
+
+	return nil
+}
+
+func (u *Handler) handleRequest(sctx context.Context, transportRequest interface{}) (interface{}, error) {
+
+	request := op_context.OpContext[*Request](sctx)
+	request.sctx = sctx
+
+	c := request.TraceInMethod("handleRequest")
+	defer request.TraceOutMethod()
+
+	// dump headers
+	if u.server.DUMP_HEADERS {
+		fmt.Println("=======Dumping gRPC request header in final headers=======")
+		for key, values := range request.requestMetadata() {
+			for _, value := range values {
+				fmt.Printf("%s: %s\n", key, value)
+			}
+		}
+		fmt.Println("==========================================")
+	}
+
+	newCtx, err := u.endpoint.HandleRequest(request.sctx)
+	if err != nil {
+		request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+		c.SetError(err)
+	}
+	request.sctx = newCtx
+
+	request.sctx, err = u.endpoint.Postprocess(request.sctx)
+	if err != nil {
+		request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+		c.SetError(err)
+	}
+
+	response := u.fillResponse(request, c)
+	return response, status.Error(request.statusCode, request.statusMessage)
+}
+
+func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext) api_server.RequestMessage {
+
+	response := &api_server.RequestMessageBase{}
+	if request.Response().Payload() != nil {
+		response.SetBinaryContent(request.Response().Payload())
+	} else if request.Response().Message() != nil {
+		response.SetLogicMessage(request.Response().Message())
+		err := u.endpoint.LogicResponseToTransport(response)
+		if err != nil {
+			callCtx.Logger().Error("failed to convert logic message to protobuf", err)
+			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+		}
+	}
+
+	// fill response headers
+	// TODO put message ID to header
+	md := metadata.Pairs()
+
+	var appStatus string
+	if request.GenericError() == nil {
+		appStatus = "success"
+		request.SetLoggerField("status", "success")
+	} else {
+		code, err := request.server.MakeResponseError(request.GenericError())
+		if code < http.StatusInternalServerError {
+			request.SetErrorAsWarn(true)
+		}
+		request.statusCode = HTTPToGRPC(code)
+		request.statusMessage = request.GenericError().Message()
+		appStatus = err.Code()
+		errMsg := err.Message()
+		if errMsg == "" {
+			errMsg = request.statusMessage
+		}
+		if errMsg != "" {
+			md.Append(u.server.ERROR_DESCRIPTION_HEADER, errMsg)
+		}
+		errDetails := err.Details()
+		if errDetails != "" {
+			md.Append(u.server.ERROR_DETAILS_HEADER, errDetails)
+		}
+		errFamily := err.Family()
+		if errFamily != "" {
+			md.Append(u.server.ERROR_FAMILY_HEADER, errFamily)
+		}
+
+		if err.Data() != nil {
+			// TODO convert error data to protobuf and put to response message
+		}
+	}
+
+	md.Append(u.server.STATUS_HEADER, appStatus)
+	if response.TransportMessage() != nil {
+		md.Append(u.server.MESSAGE_TYPE_HEADER, GetProtoName(response.TransportMessage()))
+	}
+	if err := grpc.SetHeader(request.sctx, md); err != nil {
+		callCtx.Logger().Error("failed to set response headers", err)
+	}
+
+	// close request
+	request.TraceOutMethod()
+	request.Close(request.sctx)
+
+	// done
+	return response
+}

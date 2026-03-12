@@ -12,7 +12,7 @@ type DeleteEndpoint struct {
 	TenancyEndpoint
 }
 
-func (e *DeleteEndpoint) HandleRequest(sctx context.Context) error {
+func (e *DeleteEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -23,17 +23,17 @@ func (e *DeleteEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[tenancy_api.DeleteTenancyCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	// delete
 	err = e.service.Tenancies.Delete(sctx, request.GetTenancyId(), cmd.WithDatabase)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func Delete(s *TenancyService) *DeleteEndpoint {

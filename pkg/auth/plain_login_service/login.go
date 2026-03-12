@@ -41,7 +41,7 @@ func (r *requestWrapper) SetAuthParameter(authMethodProtocol string, key string,
 	r.token = value
 }
 
-func (e *LoginEndpoint) HandleRequest(sctx context.Context) error {
+func (e *LoginEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	var err error
@@ -53,7 +53,7 @@ func (e *LoginEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[LoginCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// find user
@@ -61,19 +61,19 @@ func (e *LoginEndpoint) HandleRequest(sctx context.Context) error {
 	if err != nil {
 		c.SetMessage("user not found")
 		request.SetGenericErrorCode(auth_login_phash.ErrorCodeLoginFailed)
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	userWithPassword, ok := user.(UserWithPlainPassword)
 	if !ok {
 		request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-		return c.SetErrorStr("user is not of UserWithPlainPassword type")
+		return sctx, c.SetErrorStr("user is not of UserWithPlainPassword type")
 	}
 
 	// check password
 	if subtle.ConstantTimeCompare([]byte(userWithPassword.PlainPassword()), []byte(cmd.Password)) != 1 {
 		request.SetGenericErrorCode(auth_login_phash.ErrorCodeLoginFailed)
-		return c.SetErrorStr("invalid login or password")
+		return sctx, c.SetErrorStr("invalid login or password")
 	}
 
 	// set auth user
@@ -83,7 +83,7 @@ func (e *LoginEndpoint) HandleRequest(sctx context.Context) error {
 	err = e.service.users.AuthUserManager().FillAuthUser(sctx)
 	if err != nil {
 		c.SetMessage("failed to fill auth user")
-		return err
+		return sctx, err
 	}
 
 	// generate session token
@@ -92,7 +92,7 @@ func (e *LoginEndpoint) HandleRequest(sctx context.Context) error {
 	_, _, err = e.service.tokenHandler.Process(ctxWrapper)
 	if err != nil {
 		c.SetMessage("failed to process token")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// prepare response
@@ -102,7 +102,7 @@ func (e *LoginEndpoint) HandleRequest(sctx context.Context) error {
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func NewLoginEndpoint(service *PlainLoginService) *LoginEndpoint {

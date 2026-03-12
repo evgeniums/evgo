@@ -15,7 +15,7 @@ type UpdateServiceEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *UpdateServiceEndpoint) HandleRequest(sctx context.Context) error {
+func (e *UpdateServiceEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -26,14 +26,14 @@ func (e *UpdateServiceEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[api.UpdateCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 	// validate fields
 	vErr := validator.ValidateMap(request.App().Validator(), cmd.Fields, &pool.PoolServiceBaseEssentials{})
 	if vErr != nil {
 		c.SetMessage("failed to validate fields")
 		request.SetGenericError(vErr.GenericError())
-		return c.SetError(vErr.Err)
+		return sctx, c.SetError(vErr.Err)
 	}
 
 	// update service
@@ -41,7 +41,7 @@ func (e *UpdateServiceEndpoint) HandleRequest(sctx context.Context) error {
 	s, err := e.service.Pools.UpdateService(sctx, serviceId, cmd.Fields)
 	if err != nil {
 		c.SetMessage("failed to update service")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
@@ -50,7 +50,7 @@ func (e *UpdateServiceEndpoint) HandleRequest(sctx context.Context) error {
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func UpdateService(s *PoolService) *UpdateServiceEndpoint {

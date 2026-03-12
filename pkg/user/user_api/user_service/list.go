@@ -15,7 +15,7 @@ type ListEndpoint[U user.User] struct {
 	UserEndpoint[U]
 }
 
-func (e *ListEndpoint[U]) HandleRequest(sctx context.Context) error {
+func (e *ListEndpoint[U]) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.List")
@@ -26,17 +26,17 @@ func (e *ListEndpoint[U]) HandleRequest(sctx context.Context) error {
 	queryName := request.Endpoint().Resource().ServicePathPrototype()
 	filter, err := api_server.ParseDbQuery(sctx, u.MakeUser(), queryName)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	resp := &api.ResponseList[U]{}
 	resp.Items, resp.Count, err = u.FindUsers(sctx, filter)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	api_server.SetResponseList(request, resp, e.service.UserTypeName)
-	return nil
+	return sctx, nil
 }
 
 func List[U user.User](service *UserService[U]) *ListEndpoint[U] {

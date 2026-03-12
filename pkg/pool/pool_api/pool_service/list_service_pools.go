@@ -12,7 +12,7 @@ type ListServicePoolsEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *ListServicePoolsEndpoint) HandleRequest(sctx context.Context) error {
+func (e *ListServicePoolsEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	var err error
@@ -25,14 +25,14 @@ func (e *ListServicePoolsEndpoint) HandleRequest(sctx context.Context) error {
 	resp.Items, err = e.service.Pools.GetServiceBindings(sctx, request.GetResourceId("service").Value())
 	if err != nil {
 		c.SetMessage("failed to get service bindings")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func ListServicePools(s *PoolService) *ListServicePoolsEndpoint {

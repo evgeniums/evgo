@@ -13,7 +13,7 @@ type SetBlockedEndpoint struct {
 	SetUserFieldEndpoint
 }
 
-func (s *SetBlockedEndpoint) HandleRequest(sctx context.Context) error {
+func (s *SetBlockedEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.SetBlocked")
@@ -21,15 +21,15 @@ func (s *SetBlockedEndpoint) HandleRequest(sctx context.Context) error {
 
 	cmd, err := api_server.ParseValidateRequest[user.UserBlocked](sctx)
 	if err != nil {
-		return err
+		return sctx, err
 	}
 
 	err = Setter(s.users, request).SetBlocked(sctx, request.GetResourceId(s.userTypeName).Value(), cmd.BLOCKED)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
-	return nil
+	return sctx, nil
 }
 
 func SetBlocked(userTypeName string, users user.MainFieldSetters) api_server.ResourceEndpointI {

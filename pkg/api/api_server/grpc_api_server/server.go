@@ -75,6 +75,8 @@ type ServerConfig struct {
 	DISABLE_TLS          bool
 
 	DUMP_HEADERS bool
+
+	HEARTBEAT_PERIOD int `default:"15"`
 }
 
 type GrpcServerRunner struct {
@@ -115,7 +117,7 @@ type Server struct {
 
 	hostname string
 
-	handlers map[string]UnaryHandler
+	handlers map[string]Handler
 	services map[string]api_server.Service
 }
 
@@ -222,7 +224,7 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 
 	s.tenancies = tenancyManager
 
-	s.handlers = map[string]UnaryHandler{}
+	s.handlers = map[string]Handler{}
 	s.services = map[string]api_server.Service{}
 
 	if s.IsMultitenancy() {
@@ -370,7 +372,7 @@ func (s *Server) FullMethodName(service api_server.Service, ep api_server.Endpoi
 	return fmt.Sprintf("/%s.%s/%s", service.Package(), service.Name(), ep.Name())
 }
 
-func (s *Server) GrpcUnaryHandler(service api_server.Service, ep api_server.Endpoint) *UnaryHandler {
+func (s *Server) GrpcHandler(service api_server.Service, ep api_server.Endpoint) *Handler {
 	handler, ok := s.handlers[s.FullMethodName(service, ep)]
 	if !ok {
 		return nil
@@ -394,7 +396,7 @@ func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint,
 		Server:     s.grpcServer,
 		FullMethod: fullMethodName,
 	}
-	handler := UnaryHandler{endpoint: ep, server: s, grpcUnaryServerInfo: info}
+	handler := Handler{endpoint: ep, server: s, grpcUnaryServerInfo: info}
 	_, hasEndpoint := s.handlers[fullMethodName]
 	if hasEndpoint {
 		s.App().Logger().Warn("Grpc API server: duplicate endpoint", logger.Fields{"method": fullMethodName})
@@ -403,7 +405,7 @@ func (s *Server) AddEndpoint(service api_server.Service, ep api_server.Endpoint,
 
 	grpcMethod := grpc.MethodDesc{
 		MethodName: ep.Name(),
-		Handler:    handler.handle,
+		Handler:    handler.handleUnary,
 	}
 	*methods = append(*methods, grpcMethod)
 

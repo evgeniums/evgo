@@ -13,7 +13,7 @@ type AddPoolEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *AddPoolEndpoint) HandleRequest(sctx context.Context) error {
+func (e *AddPoolEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -24,14 +24,14 @@ func (e *AddPoolEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest(sctx, pool.InitPool)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	// add pool
 	p, err := e.service.Pools.AddPool(sctx, cmd)
 	if err != nil {
 		c.SetMessage("failed to add pool")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
@@ -40,7 +40,7 @@ func (e *AddPoolEndpoint) HandleRequest(sctx context.Context) error {
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func AddPool(s *PoolService) *AddPoolEndpoint {

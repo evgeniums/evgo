@@ -13,7 +13,7 @@ type ListIpAddressesEndpoint struct {
 	TenancyEndpoint
 }
 
-func (e *ListIpAddressesEndpoint) HandleRequest(sctx context.Context) error {
+func (e *ListIpAddressesEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -24,21 +24,21 @@ func (e *ListIpAddressesEndpoint) HandleRequest(sctx context.Context) error {
 	queryName := request.Endpoint().Resource().ServicePathPrototype()
 	filter, err := api_server.ParseDbQuery(sctx, &multitenancy.TenancyItem{}, queryName)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// get
 	resp := &tenancy_api.ListIpAddressesResponse{}
 	resp.Items, resp.Count, err = e.service.Tenancies.ListIpAddresses(sctx, filter)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response message
 	api_server.SetResponseList(request, resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func ListIpAddresses(s *TenancyService) *ListIpAddressesEndpoint {

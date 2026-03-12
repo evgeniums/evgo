@@ -230,6 +230,7 @@ func MessageFromRequest[T any](request Request, init ...func(*T)) (*T, error) {
 		msg, ok = request.Message().LogicMessage().(*T)
 		if !ok {
 			request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+			err = request.GenericError()
 			return nil, err
 		}
 	}

@@ -20,7 +20,7 @@ func NewDynamicTableEndpoint(service *DynamicTablesService) *DynamicTableEndpoin
 	return ep
 }
 
-func (e *DynamicTableEndpoint) HandleRequest(sctx context.Context) error {
+func (e *DynamicTableEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[Request](sctx)
@@ -31,7 +31,7 @@ func (e *DynamicTableEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := ParseValidateRequest[DynamicTableQuery](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	// get table
@@ -39,14 +39,14 @@ func (e *DynamicTableEndpoint) HandleRequest(sctx context.Context) error {
 	if err != nil {
 		c.SetMessage("failed to find table for path")
 		request.SetGenericErrorCode(generic_error.ErrorCodeNotFound)
-		return err
+		return sctx, err
 	}
 
 	// set response
 	request.Response().SetMessage(table)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 type DynamicTablesService struct {

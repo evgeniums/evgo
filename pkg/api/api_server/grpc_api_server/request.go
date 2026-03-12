@@ -58,6 +58,10 @@ type Request struct {
 	sctx context.Context
 }
 
+func (r *Request) SetStatusCode(code codes.Code) {
+	r.statusCode = code
+}
+
 func (r *Request) InjectRequestHeaders(sctx context.Context, headers map[string]string, append ...bool) context.Context {
 
 	md, ok := metadata.FromIncomingContext(sctx)

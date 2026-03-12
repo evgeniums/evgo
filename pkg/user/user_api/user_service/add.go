@@ -15,7 +15,7 @@ type AddEndpoint[U user.User] struct {
 	setterBuilder func() user.UserFieldsSetter[U]
 }
 
-func (e *AddEndpoint[U]) HandleRequest(sctx context.Context) error {
+func (e *AddEndpoint[U]) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.Add")
@@ -26,18 +26,18 @@ func (e *AddEndpoint[U]) HandleRequest(sctx context.Context) error {
 	err := request.ParseAndValidate(sctx, cmd)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	resp := &user_api.UserResponse[U]{}
 	resp.User, err = Users(e.service, request).Add(sctx, cmd.Login(), cmd.Password(), cmd.SetUserFields)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	request.Response().SetMessage(resp)
 
-	return nil
+	return sctx, nil
 }
 
 func Add[U user.User](service *UserService[U], setterBuilder func() user.UserFieldsSetter[U]) *AddEndpoint[U] {

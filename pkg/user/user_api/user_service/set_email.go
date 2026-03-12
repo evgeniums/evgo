@@ -13,7 +13,7 @@ type SetEmailEndpoint struct {
 	SetUserFieldEndpoint
 }
 
-func (s *SetEmailEndpoint) HandleRequest(sctx context.Context) error {
+func (s *SetEmailEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("users.SetEmail")
@@ -21,15 +21,15 @@ func (s *SetEmailEndpoint) HandleRequest(sctx context.Context) error {
 
 	cmd, err := api_server.ParseValidateRequest[user.UserEmail](sctx)
 	if err != nil {
-		return err
+		return sctx, err
 	}
 
 	err = Setter(s.users, request).SetEmail(sctx, request.GetResourceId(s.userTypeName).Value(), cmd.EMAIL)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
-	return nil
+	return sctx, nil
 }
 
 func SetEmail(userTypeName string, users user.MainFieldSetters) api_server.ResourceEndpointI {

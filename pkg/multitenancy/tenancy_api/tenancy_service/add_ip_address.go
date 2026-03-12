@@ -12,7 +12,7 @@ type AddIpAddressEndpoint struct {
 	TenancyUpdateEndpoint
 }
 
-func (s *AddIpAddressEndpoint) HandleRequest(sctx context.Context) error {
+func (s *AddIpAddressEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	request := op_context.OpContext[api_server.Request](sctx)
 	c := request.TraceInMethod("tenancy.AddIpAddress")
@@ -23,15 +23,15 @@ func (s *AddIpAddressEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[tenancy_api.IpAddressCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	err = s.service.Tenancies.AddIpAddress(sctx, request.GetTenancyId(), cmd.Ip, cmd.Tag)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
-	return nil
+	return sctx, nil
 }
 
 func AddIpAddress(s *TenancyService) *AddIpAddressEndpoint {

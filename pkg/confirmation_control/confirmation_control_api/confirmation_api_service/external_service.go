@@ -79,7 +79,7 @@ func (e *CheckConfirmationEndpoint) PrecheckBeforeAuth(sctx context.Context, sms
 	return nil
 }
 
-func (e *CheckConfirmationEndpoint) HandleRequest(sctx context.Context) error {
+func (e *CheckConfirmationEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	var err error
@@ -98,7 +98,7 @@ func (e *CheckConfirmationEndpoint) HandleRequest(sctx context.Context) error {
 		if err != nil {
 			c.SetLoggerField("request_content", string(request.GetRequestContent()))
 			c.SetMessage("failed to parse/validate command")
-			return c.SetError(err)
+			return sctx, c.SetError(err)
 		}
 		result.Code = cmd.Code
 	} else {
@@ -111,7 +111,7 @@ func (e *CheckConfirmationEndpoint) HandleRequest(sctx context.Context) error {
 	request.SetLoggerField("redirect_url", resp.RedirectUrl)
 	if err != nil {
 		c.SetMessage("failed to invoke callback")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
@@ -121,7 +121,7 @@ func (e *CheckConfirmationEndpoint) HandleRequest(sctx context.Context) error {
 	confirmation_control_api.DeleteTokenFromCache(sctx)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func CheckConfirmation(s *ConfirmationExternalService) *CheckConfirmationEndpoint {
@@ -134,7 +134,7 @@ type PrepareCheckConfirmationEndpoint struct {
 	ExternalEndpoint
 }
 
-func (e *PrepareCheckConfirmationEndpoint) HandleRequest(sctx context.Context) error {
+func (e *PrepareCheckConfirmationEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -144,7 +144,7 @@ func (e *PrepareCheckConfirmationEndpoint) HandleRequest(sctx context.Context) e
 	// get token from cache
 	cacheToken, err := confirmation_control_api.GetTokenFromCache(sctx)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
@@ -159,7 +159,7 @@ func (e *PrepareCheckConfirmationEndpoint) HandleRequest(sctx context.Context) e
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func PrepareCheckConfirmation(s *ConfirmationExternalService) *PrepareCheckConfirmationEndpoint {
@@ -172,7 +172,7 @@ type FailedConfirmationEndpoint struct {
 	ExternalEndpoint
 }
 
-func (e *FailedConfirmationEndpoint) HandleRequest(sctx context.Context) error {
+func (e *FailedConfirmationEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -187,7 +187,7 @@ func (e *FailedConfirmationEndpoint) HandleRequest(sctx context.Context) error {
 	result, err := api_server.ParseValidateRequest[confirmation_control.ConfirmationResult](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 	// fill failed status
 	if result.Status != confirmation_control.StatusCancelled {
@@ -200,14 +200,14 @@ func (e *FailedConfirmationEndpoint) HandleRequest(sctx context.Context) error {
 	request.SetLoggerField("redirect_url", confirmationId)
 	if err != nil {
 		c.SetMessage("failed to invoke callback")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// set response
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func FailedConfirmation(s *ConfirmationExternalService) *FailedConfirmationEndpoint {

@@ -13,7 +13,7 @@ type SetCustomerEndpoint struct {
 	TenancyUpdateEndpoint
 }
 
-func (s *SetCustomerEndpoint) HandleRequest(sctx context.Context) error {
+func (s *SetCustomerEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -25,17 +25,17 @@ func (s *SetCustomerEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[multitenancy.WithCustomerId](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	// apply
 	err = s.service.Tenancies.SetCustomer(sctx, request.GetTenancyId(), cmd.CustomerId())
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func SetCustomer(s *TenancyService) *SetCustomerEndpoint {

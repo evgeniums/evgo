@@ -17,7 +17,7 @@ type BasicEndpoint struct {
 	api_server.EndpointBase
 }
 
-func (e *BasicEndpoint) HandleRequest(sctx context.Context) error {
+func (e *BasicEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -28,7 +28,7 @@ func (e *BasicEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[BasicLogic](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 	jsonDataPretty, err := json.MarshalIndent(cmd, "", "  ")
 	if err != nil {
@@ -42,7 +42,7 @@ func (e *BasicEndpoint) HandleRequest(sctx context.Context) error {
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func (e *BasicEndpoint) NewRequestMessage() interface{} {

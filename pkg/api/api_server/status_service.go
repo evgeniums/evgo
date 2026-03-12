@@ -24,20 +24,20 @@ type StatusResponse struct {
 	Status string `json:"status"`
 }
 
-func (e *CheckStatusEndpoint) HandleRequest(sctx context.Context) error {
+func (e *CheckStatusEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 	resp := &StatusResponse{Status: "running"}
 	request := op_context.OpContext[Request](sctx)
 	request.Response().SetMessage(resp)
-	return nil
+	return sctx, nil
 }
 
 type CheckAccess struct{}
 
-func (e *CheckAccess) HandleRequest(sctx context.Context) error {
+func (e *CheckAccess) HandleRequest(sctx context.Context) (context.Context, error) {
 	resp := &StatusResponse{Status: "success"}
 	request := op_context.OpContext[Request](sctx)
 	request.Response().SetMessage(resp)
-	return nil
+	return sctx, nil
 }
 
 type CheckAccessEndpoint struct {
@@ -67,11 +67,11 @@ type EchoEndpoint struct {
 	EndpointBase
 }
 
-func (e *EchoEndpoint) HandleRequest(sctx context.Context) error {
+func (e *EchoEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 	request := op_context.OpContext[Request](sctx)
 	content := request.GetRequestContent()
 	request.Response().SetPayload(content)
-	return nil
+	return sctx, nil
 }
 
 func (e *EchoEndpoint) IsRequestPayloadNeeded() bool {

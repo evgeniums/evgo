@@ -13,7 +13,7 @@ type SetPathBlockedEndpoint struct {
 	TenancyUpdateEndpoint
 }
 
-func (s *SetPathBlockedEndpoint) HandleRequest(sctx context.Context) error {
+func (s *SetPathBlockedEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -25,17 +25,17 @@ func (s *SetPathBlockedEndpoint) HandleRequest(sctx context.Context) error {
 	cmd, err := api_server.ParseValidateRequest[multitenancy.BlockPathCmd](sctx)
 	if err != nil {
 		c.SetMessage("failed to parse/validate command")
-		return err
+		return sctx, err
 	}
 
 	// apply
 	err = s.service.Tenancies.SetPathBlocked(sctx, request.GetTenancyId(), cmd.Block, cmd.Mode)
 	if err != nil {
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func SetPathBlocked(s *TenancyService) *SetPathBlockedEndpoint {

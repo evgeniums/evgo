@@ -14,7 +14,7 @@ type FindServiceEndpoint struct {
 	PoolEndpoint
 }
 
-func (e *FindServiceEndpoint) HandleRequest(sctx context.Context) error {
+func (e *FindServiceEndpoint) HandleRequest(sctx context.Context) (context.Context, error) {
 
 	// setup
 	request := op_context.OpContext[api_server.Request](sctx)
@@ -25,11 +25,11 @@ func (e *FindServiceEndpoint) HandleRequest(sctx context.Context) error {
 	s, err := e.service.Pools.FindService(sctx, request.GetResourceId("service").Value())
 	if err != nil {
 		c.SetMessage("failed to find service")
-		return c.SetError(err)
+		return sctx, c.SetError(err)
 	}
 	if s == nil {
 		request.SetGenericErrorCode(pool.ErrorCodeServiceNotFound)
-		return c.SetError(errors.New("service not found"))
+		return sctx, c.SetError(errors.New("service not found"))
 	}
 
 	// set response
@@ -38,7 +38,7 @@ func (e *FindServiceEndpoint) HandleRequest(sctx context.Context) error {
 	request.Response().SetMessage(resp)
 
 	// done
-	return nil
+	return sctx, nil
 }
 
 func FindService(s *PoolService) *FindServiceEndpoint {
