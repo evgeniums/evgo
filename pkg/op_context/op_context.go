@@ -8,6 +8,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/cache"
 	"github.com/evgeniums/evgo/pkg/common"
 	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/oplog"
@@ -98,6 +99,9 @@ type Context interface {
 
 	SetOrigin(o Origin)
 	Origin() Origin
+
+	SetEventDisaptcher(dispatcher event_dispatcher.Dispatcher)
+	EventDisaptcher() event_dispatcher.Dispatcher
 
 	ClearError()
 	Reset()

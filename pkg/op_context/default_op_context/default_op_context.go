@@ -9,6 +9,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/background_worker"
 	"github.com/evgeniums/evgo/pkg/cache"
 	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -109,6 +110,8 @@ type ContextBase struct {
 	writeCloseLog bool
 
 	overrideDb db.DBHandlers
+
+	eventDispatcher event_dispatcher.Dispatcher
 }
 
 func NewContext() *ContextBase {
@@ -444,6 +447,14 @@ func (c *ContextBase) Origin() op_context.Origin {
 
 func (c *ContextBase) SetOrigin(o op_context.Origin) {
 	c.origin = o
+}
+
+func (c *ContextBase) SetEventDisaptcher(dispatcher event_dispatcher.Dispatcher) {
+	c.eventDispatcher = dispatcher
+}
+
+func (c *ContextBase) EventDisaptcher() event_dispatcher.Dispatcher {
+	return c.eventDispatcher
 }
 
 type OriginHolder struct {

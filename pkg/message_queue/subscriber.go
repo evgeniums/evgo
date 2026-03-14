@@ -2,15 +2,21 @@ package message_queue
 
 import "context"
 
-type SubscriberExt[K comparable, M Message[K]] interface {
+type SubscriberI[K comparable, M Message[K]] interface {
 	Consumer() Consumer[K, M]
-	Subscribe(producer Producer[K, M], selectors Matchable)
-	Unsubscribe(producer Producer[K, M])
+	Subscribe(ctx context.Context, mq MessageQueue[K, M], selectors Matchable) error
+
+	Channel() <-chan any
+	Next()
+}
+
+type SubscriberExt[K comparable, M Message[K]] interface {
+	SubscriberI[K, M]
+	Unsubscribe(ctx context.Context, mq MessageQueue[K, M])
 }
 
 type Subscriber[K comparable, M Message[K]] interface {
-	Consumer() Consumer[K, M]
-	Subscribe(producer Producer[K, M], selectors Matchable)
+	SubscriberI[K, M]
 	Unsubscribe()
 }
 
@@ -29,12 +35,13 @@ func NewSubscriberExt[K comparable, M Message[K]](consumer ...Consumer[K, M]) *S
 	return s
 }
 
-func (s *SubscriberExtBase[K, M]) Subscribe(producer Producer[K, M], selectors Matchable) {
-	s.subscription = producer.Subscribe(selectors, s.consumer)
+func (s *SubscriberExtBase[K, M]) Subscribe(ctx context.Context, mq MessageQueue[K, M], selectors Matchable) (err error) {
+	s.subscription, err = mq.Subscribe(ctx, selectors, s.consumer)
+	return err
 }
 
-func (s *SubscriberExtBase[K, M]) Unsubscribe(producer Producer[K, M]) {
-	producer.Unsubscribe(s.subscription)
+func (s *SubscriberExtBase[K, M]) Unsubscribe(mq MessageQueue[K, M]) {
+	mq.Unsubscribe(s.subscription)
 }
 
 func (s *SubscriberExtBase[K, M]) Consumer() Consumer[K, M] {
@@ -51,7 +58,7 @@ func (s *SubscriberExtBase[K, M]) Next() {
 
 type SubscriberBase[K comparable, M Message[K]] struct {
 	SubscriberExtBase[K, M]
-	producer Producer[K, M]
+	mq MessageQueue[K, M]
 }
 
 func NewSubscriber[K comparable, M Message[K]](consumer ...Consumer[K, M]) *SubscriberBase[K, M] {
@@ -64,14 +71,14 @@ func NewSubscriber[K comparable, M Message[K]](consumer ...Consumer[K, M]) *Subs
 	return s
 }
 
-func (s *SubscriberBase[K, M]) Subscribe(producer Producer[K, M], selectors Matchable) {
-	s.SubscriberExtBase.Subscribe(producer, selectors)
-	s.producer = producer
+func (s *SubscriberBase[K, M]) Subscribe(ctx context.Context, mq MessageQueue[K, M], selectors Matchable) {
+	s.SubscriberExtBase.Subscribe(ctx, mq, selectors)
+	s.mq = mq
 }
 
 func (s *SubscriberBase[K, M]) Unsubscribe() {
-	if s.producer != nil {
-		s.SubscriberExtBase.Unsubscribe(s.producer)
+	if s.mq != nil {
+		s.SubscriberExtBase.Unsubscribe(s.mq)
 	}
 }
 

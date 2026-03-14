@@ -43,7 +43,7 @@ func (st *SelectorTrie[T]) anyRemainingSet(s []Optional[string], start int) bool
 }
 
 // Register adds an object to the trie. It stops at the last 'Some' selector for efficiency.
-func (st *SelectorTrie[T]) Register(item Matchable, obj T) *RegistrySubscription {
+func (st *SelectorTrie[T]) Register(item Matchable, obj T) (*RegistrySubscription, error) {
 	selectors := item.GetSelectors()
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -65,7 +65,7 @@ func (st *SelectorTrie[T]) Register(item Matchable, obj T) *RegistrySubscription
 	}
 
 	curr.objects[subscription.index] = obj
-	return subscription
+	return subscription, nil
 }
 
 type reverseNode[T any] struct {

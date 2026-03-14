@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 )
 
-const DefaultMaxQueueDepth int = 0
-const DefaultWorkChannelDepth int = 100
+const DEFAULT_MAX_QUEUE_DEPTH int = 0
+const DEFAULT_WORK_CHANNEL_DEPTH int = 100
 
 type Message[K comparable] interface {
 	Key() K
@@ -25,16 +25,17 @@ type messageWrapper[K comparable, M Message[K]] struct {
 
 type ConsumerConfig struct {
 	FeederConfig
-	MaxQueueDepth    int
-	WorkChannelDepth int
+	MAX_QUEUE_DEPTH       int
+	WORK_CHANNEL_DEPTH    int  `default:"100"`
+	REPLACE_EXISITING_KEY bool `default:"true"`
 }
 
 func DefaultConsumerConfig() ConsumerConfig {
 	return ConsumerConfig{
-		MaxQueueDepth:    DefaultMaxQueueDepth,
-		WorkChannelDepth: DefaultWorkChannelDepth,
+		MAX_QUEUE_DEPTH:    DEFAULT_MAX_QUEUE_DEPTH,
+		WORK_CHANNEL_DEPTH: DEFAULT_WORK_CHANNEL_DEPTH,
 		FeederConfig: FeederConfig{
-			FeederChannelDepth: DefaultFeederChannelDepth,
+			FEEDER_CHANNEL_DEPTH: DEFAULT_FEEDER_CHANNEL_DEPTH,
 		},
 	}
 }
@@ -59,7 +60,7 @@ func NewConsumer[K comparable, M Message[K]](config ...ConsumerConfig) *Consumer
 		s.ConsumerConfig = config[0]
 	}
 
-	s.workChannel = make(chan messageWrapper[K, M], s.WorkChannelDepth)
+	s.workChannel = make(chan messageWrapper[K, M], s.WORK_CHANNEL_DEPTH)
 	s.closeChannel = make(chan struct{}, 1)
 	return s
 }
@@ -132,7 +133,7 @@ func (s *ConsumerBase[K, M]) process() {
 
 				// drop oldest message if queue is full
 				depth := s.queue.Depth()
-				if s.MaxQueueDepth != 0 && (depth+1) > s.MaxQueueDepth {
+				if s.MAX_QUEUE_DEPTH != 0 && (depth+1) > s.MAX_QUEUE_DEPTH {
 					s.queue.DropFront()
 				}
 

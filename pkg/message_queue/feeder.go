@@ -1,6 +1,6 @@
 package message_queue
 
-const DefaultFeederChannelDepth = 10
+const DEFAULT_FEEDER_CHANNEL_DEPTH = 10
 
 type MessageProvider interface {
 	Next()
@@ -15,8 +15,8 @@ type Feeder[V any] interface {
 }
 
 type FeederConfig struct {
-	FeederTypedChannel bool
-	FeederChannelDepth int
+	FEEDER_TYPED_CHANNEL bool
+	FEEDER_CHANNEL_DEPTH int `default:"10"`
 }
 
 type FeederBase[V any] struct {
@@ -30,13 +30,13 @@ func NewFeeder[V any](provider MessageProvider, config ...*FeederConfig) *Feeder
 
 	if len(config) != 0 {
 		cfg := config[0]
-		if cfg.FeederTypedChannel {
-			q.chV = make(chan V, cfg.FeederChannelDepth)
+		if cfg.FEEDER_TYPED_CHANNEL {
+			q.chV = make(chan V, cfg.FEEDER_CHANNEL_DEPTH)
 		} else {
-			q.ch = make(chan any, cfg.FeederChannelDepth)
+			q.ch = make(chan any, cfg.FEEDER_CHANNEL_DEPTH)
 		}
 	} else {
-		q.ch = make(chan any, DefaultFeederChannelDepth)
+		q.ch = make(chan any, DEFAULT_FEEDER_CHANNEL_DEPTH)
 	}
 
 	return q

@@ -9,7 +9,7 @@ type RegistrySubscription struct {
 // hierarchical, key-addressable Pub-Sub container.
 type AttributeRegistry[T any] interface {
 	// Register adds an object to the container based on its selector path.
-	Register(item Matchable, obj T) *RegistrySubscription
+	Register(item Matchable, obj T) (*RegistrySubscription, error)
 
 	// Unregister object
 	Unregister(subscription *RegistrySubscription)
