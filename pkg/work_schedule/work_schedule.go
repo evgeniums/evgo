@@ -542,7 +542,7 @@ func (s *WorkSchedule[T]) ProcessWorks() {
 				break
 			}
 			// TODO support multitenancy
-			s.enqueuWork(work, nil)
+			s.enqueuWork(sctx, work, nil)
 		}
 	}
 }
@@ -649,7 +649,7 @@ func (s *WorkSchedule[T]) InvokeWork(sctx context.Context, work T, postMode Post
 			return c.SetError(err)
 		}
 	case QUEUED:
-		s.enqueuWork(work, tenancy...)
+		s.enqueuWork(sctx, work, tenancy...)
 	}
 	return nil
 }
@@ -695,7 +695,11 @@ func (s *WorkSchedule[T]) worker() {
 	}
 }
 
-func (s *WorkSchedule[T]) enqueuWork(work T, tenancy ...multitenancy.Tenancy) {
+func (s *WorkSchedule[T]) enqueuWork(sctx context.Context, work T, tenancy ...multitenancy.Tenancy) {
 	s.workQueueSize.Add(1)
-	s.queue <- workItem[T]{work: work, tenancy: utils.OptionalArg(nil, tenancy...)}
+
+	select {
+	case s.queue <- workItem[T]{work: work, tenancy: utils.OptionalArg(nil, tenancy...)}:
+	case <-sctx.Done():
+	}
 }
