@@ -275,7 +275,7 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 	// extract message queue from context here to avoid memory leaks in case of handler errors
 	mq := message_queue.MqContext(ctx)
 	if mq != nil {
-		defer mq.Unsubscribe()
+		defer mq.Unsubscribe(ctx)
 	}
 	if resp != nil {
 		respType := StreamingInitResponse
