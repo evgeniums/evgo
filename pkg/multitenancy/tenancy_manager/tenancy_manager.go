@@ -10,6 +10,8 @@ import (
 	"github.com/evgeniums/evgo/pkg/crypt_utils"
 	"github.com/evgeniums/evgo/pkg/customer"
 	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher/default_event_dispatcher"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
@@ -70,6 +72,8 @@ type TenancyManager struct {
 	tenancyDbModels *multitenancy.TenancyDbModels
 
 	tenancyIpAddresses map[string]map[string]map[string]bool
+
+	eventDispatcherBuilder multitenancy.EventDispatcherBuilder
 }
 
 func NewTenancyManager(pools pool.PoolStore, poolPubsub pool_pubsub.PoolPubsub, tenancyDbModels *multitenancy.TenancyDbModels) *TenancyManager {
@@ -95,6 +99,14 @@ func (t *TenancyManager) SetController(controller multitenancy.TenancyController
 
 func (t *TenancyManager) SetCustomerController(controller customer.CustomerController) {
 	t.Customers = controller
+}
+
+func (t *TenancyManager) SetEventDispatcherBuilder(builder multitenancy.EventDispatcherBuilder) {
+	t.eventDispatcherBuilder = builder
+}
+
+func (t *TenancyManager) EventDispatcherBuilder() multitenancy.EventDispatcherBuilder {
+	return t.eventDispatcherBuilder
 }
 
 func (t *TenancyManager) Init(sctx context.Context, configPath ...string) error {
@@ -487,6 +499,31 @@ func (t *TenancyManager) CreateTenancy(sctx context.Context, data *multitenancy.
 		c.SetMessage("shadow path conflict")
 		return nil, err
 	}
+
+	// create event dispatcher
+	var eventDispatcher event_dispatcher.Dispatcher
+	if t.eventDispatcherBuilder != nil {
+		eventDispatcher, err = t.eventDispatcherBuilder(sctx, tenancy)
+		if err != nil {
+			c.SetMessage("failed to create event dispatcher")
+			return nil, err
+		}
+	} else {
+		app := ctx.App()
+		appEventDispatcher := app.EventDispatcher()
+		defaultAppEventDispatcher, ok := appEventDispatcher.(*default_event_dispatcher.DispatcherBase)
+		if !ok {
+			err = errors.New("unsupported type of  app event dispatcher")
+			return nil, err
+		}
+		eventDispatcher := default_event_dispatcher.New()
+		err = eventDispatcher.InitWithCtx(sctx, defaultAppEventDispatcher.DispatcherBaseConfig, defaultAppEventDispatcher.DispatcherOptions)
+		if err != nil {
+			c.SetMessage("failed to init default event dispatcher for tenancy")
+			return nil, err
+		}
+	}
+	tenancy.TenancyBaseData.EventDispatcher = eventDispatcher
 
 	// connect to database server
 	err = tenancy.ConnectDatabase(sctx, true)

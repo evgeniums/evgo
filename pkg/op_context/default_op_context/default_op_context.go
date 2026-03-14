@@ -449,12 +449,8 @@ func (c *ContextBase) SetOrigin(o op_context.Origin) {
 	c.origin = o
 }
 
-func (c *ContextBase) SetEventDisaptcher(dispatcher event_dispatcher.Dispatcher) {
-	c.eventDispatcher = dispatcher
-}
-
-func (c *ContextBase) EventDisaptcher() event_dispatcher.Dispatcher {
-	return c.eventDispatcher
+func (c *ContextBase) EventDispatcher() event_dispatcher.Dispatcher {
+	return c.App().EventDispatcher()
 }
 
 type OriginHolder struct {

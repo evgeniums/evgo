@@ -100,8 +100,7 @@ type Context interface {
 	SetOrigin(o Origin)
 	Origin() Origin
 
-	SetEventDisaptcher(dispatcher event_dispatcher.Dispatcher)
-	EventDisaptcher() event_dispatcher.Dispatcher
+	EventDispatcher() event_dispatcher.Dispatcher
 
 	ClearError()
 	Reset()

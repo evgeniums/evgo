@@ -6,6 +6,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/cache"
 	"github.com/evgeniums/evgo/pkg/customer"
 	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/multitenancy"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -16,10 +17,11 @@ type TenancyBaseData struct {
 	multitenancy.TenancyDb
 
 	db.WithDBBase
-	Cache          cache.Cache
-	Pool           pool.Pool
-	Customer       *customer.Customer
-	TenancyManager *TenancyManager
+	Cache           cache.Cache
+	Pool            pool.Pool
+	Customer        *customer.Customer
+	TenancyManager  *TenancyManager
+	EventDispatcher event_dispatcher.Dispatcher
 }
 
 type TenancyBase struct {
@@ -54,6 +56,10 @@ func (t *TenancyBase) Cache() cache.Cache {
 
 func (t *TenancyBase) SetCache(c cache.Cache) {
 	t.TenancyBaseData.Cache = c
+}
+
+func (t *TenancyBase) EventDispatcher() event_dispatcher.Dispatcher {
+	return t.TenancyBaseData.EventDispatcher
 }
 
 func (t *TenancyBase) Init(sctx context.Context, data *multitenancy.TenancyDb) error {

@@ -17,6 +17,8 @@ import (
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/db"
 	"github.com/evgeniums/evgo/pkg/db/db_gorm"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher/default_event_dispatcher"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/logger/logger_logrus"
 	"github.com/evgeniums/evgo/pkg/utils"
@@ -58,6 +60,9 @@ type Context struct {
 
 	testValues  map[string]interface{}
 	initialized bool
+
+	eventDispatcher        event_dispatcher.Dispatcher
+	eventDispatcherBuilder func(app app_context.Context) (event_dispatcher.Dispatcher, error)
 }
 
 func (c *Context) BuildConfig() *app_context.BuildConfig {
@@ -114,15 +119,21 @@ func (c *Context) GetTestParameter(key string) (interface{}, bool) {
 }
 
 type AppConfig struct {
-	Cache cache.Cache
+	Cache                  cache.Cache
+	EventDispatcherBuilder func(app app_context.Context) (event_dispatcher.Dispatcher, error)
 }
 
 func (a *AppConfig) GetCache() cache.Cache {
 	return a.Cache
 }
 
+func (a *AppConfig) GetEventDispatcherBuilder() func(app app_context.Context) (event_dispatcher.Dispatcher, error) {
+	return a.EventDispatcherBuilder
+}
+
 type AppConfigI interface {
 	GetCache() cache.Cache
+	GetEventDispatcherBuilder() func(app app_context.Context) (event_dispatcher.Dispatcher, error)
 }
 
 func New(buildConfig *app_context.BuildConfig, appConfig ...AppConfigI) *Context {
@@ -148,6 +159,7 @@ func New(buildConfig *app_context.BuildConfig, appConfig ...AppConfigI) *Context
 
 	if len(appConfig) != 0 {
 		c.cache = appConfig[0].GetCache()
+		c.eventDispatcherBuilder = appConfig[0].GetEventDispatcherBuilder()
 	}
 
 	c.logrusLogger = logger_logrus.New()
@@ -223,6 +235,21 @@ func (c *Context) InitWithArgs(configFile string, args []string, configType ...s
 		}
 	}
 
+	// init event dispatcher
+	if c.eventDispatcherBuilder != nil {
+		c.eventDispatcher, err = c.eventDispatcherBuilder(c)
+		if err != nil {
+			return log.PushFatalStack("failed to create event dispatcher", err)
+		}
+	}
+	if c.eventDispatcher == nil {
+		eventDispatcher := default_event_dispatcher.New()
+		err = eventDispatcher.Init(c, "")
+		if err != nil {
+			return log.PushFatalStack("failed to init event dispatcher", err)
+		}
+	}
+
 	// done
 	c.initialized = true
 	return nil
@@ -283,6 +310,10 @@ func (c *Context) Hostname() string {
 		hostname = "unknow"
 	}
 	return hostname
+}
+
+func (c *Context) EventDispatcher() event_dispatcher.Dispatcher {
+	return c.eventDispatcher
 }
 
 func ConfigFile(defaultConfigFile ...string) string {

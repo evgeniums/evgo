@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -65,6 +66,8 @@ var ErrorHttpCodes = map[string]int{
 	ErrorCodeForeignDatabase:               http.StatusInternalServerError,
 }
 
+type EventDispatcherBuilder = func(ctx context.Context, tenancy Tenancy) (event_dispatcher.Dispatcher, error)
+
 type Multitenancy interface {
 
 	// Check if multiple tenancies are enabled
@@ -99,6 +102,10 @@ type Multitenancy interface {
 
 	// Close tenancies, e.g. close tenancy databases.
 	Close()
+
+	SetEventDispatcherBuilder(builder EventDispatcherBuilder)
+
+	EventDispatcherBuilder() EventDispatcherBuilder
 }
 
 func IsMultiTenancy(m Multitenancy) bool {

@@ -9,6 +9,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/cache"
 	"github.com/evgeniums/evgo/pkg/common"
 	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
@@ -40,6 +41,8 @@ type Tenancy interface {
 	Db() db.DB
 	Pool() pool.Pool
 	Cache() cache.Cache
+
+	EventDispatcher() event_dispatcher.Dispatcher
 
 	IsBlockedPath() bool
 	IsBlockedShadowPath() bool
@@ -275,6 +278,14 @@ func (u *TenancyContextBase) Pool() pool.Pool {
 		return t.Pool()
 	}
 	return u.ContextBase.Pool()
+}
+
+func (u *TenancyContextBase) EventDispatcher() event_dispatcher.Dispatcher {
+	t := u.GetTenancy()
+	if t != nil && t.Pool() != nil {
+		return t.EventDispatcher()
+	}
+	return u.ContextBase.EventDispatcher()
 }
 
 func NewContext(fromCtx ...op_context.Context) *TenancyContextBase {

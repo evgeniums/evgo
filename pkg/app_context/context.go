@@ -6,6 +6,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/cache"
 	"github.com/evgeniums/evgo/pkg/config"
 	"github.com/evgeniums/evgo/pkg/db"
+	"github.com/evgeniums/evgo/pkg/event_dispatcher"
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
@@ -36,6 +37,8 @@ type Context interface {
 	AppInstance() string
 	Application() string
 	Hostname() string
+
+	EventDispatcher() event_dispatcher.Dispatcher
 
 	Close()
 }
