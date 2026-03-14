@@ -13,3 +13,9 @@ type EventConsumerRegistry = message_queue.AttributeRegistry[EventConsumer]
 type EventConsumerFeeder = message_queue.Feeder[Event]
 
 type EventConsumerQueue = message_queue.RandomAccessQueue[EventKey, Event]
+
+type EventSubscriberFanIn = message_queue.SubscriberFanIn[EventKey, Event]
+
+func NeEventSubscriberFanIn() EventSubscriberFanIn {
+	return message_queue.NewSubscriberFanIn[EventKey, Event]()
+}
