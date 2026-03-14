@@ -3,58 +3,31 @@ package event_dispatcher
 import (
 	"context"
 
-	"github.com/evgeniums/evgo/pkg/app_context"
-	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/generic_error"
-	"github.com/evgeniums/evgo/pkg/message_queue"
-	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type Dispatcher interface {
 	generic_error.ErrorsExtender
 
-	SubscriberConfig() message_queue.ConsumerConfig
+	MakeSubscriber() (EventSubscriber, error)
 
-	Subscribe(sctx context.Context, key EventKey, subscriber EventSubscriber) error
-	Publish(sctx context.Context, event EventKey) error
+	Subscribe(ctx context.Context, key EventKey) (EventSubscriber, error)
+	Publish(ctx context.Context, event Event) error
 }
 
-type DispatcherConfig struct {
-	LEVEL_TRIE bool
+type SubscriberKey struct{}
+
+func WrapSubscriberContext(ctx context.Context, e EventSubscriber) context.Context {
+	newCtx := context.WithValue(ctx, SubscriberKey{}, e)
+	return newCtx
 }
 
-type DispatcherBase struct {
-	DispatcherConfig
-	generic_error.ErrorsExtenderBase
-	message_queue.ConsumerConfig
-
-	mq EventMq
+func MakeSubscriberContext(e EventSubscriber) context.Context {
+	ctx := context.WithValue(context.Background(), SubscriberKey{}, e)
+	return ctx
 }
 
-func New() *DispatcherBase {
-	m := &DispatcherBase{}
-	return m
-}
-
-func (d *DispatcherBase) Config() interface{} {
-	return &d.DispatcherConfig
-}
-
-func (d *DispatcherBase) SubscriberConfig() message_queue.ConsumerConfig {
-	return d.ConsumerConfig
-}
-
-func (d *DispatcherBase) Init(app app_context.Context, parentConfigPath string, configPath ...string) error {
-
-	d.ErrorsExtenderBase.Init(ErrorDescriptions, ErrorHttpCodes)
-
-	path := object_config.Key(parentConfigPath, utils.OptionalString("event_dispatcher", configPath...))
-	err := object_config.LoadLogValidateApp(app, d, path)
-	if err != nil {
-		return app.Logger().PushFatalStack("failed to load configuration of event dispatcher", err)
-	}
-
-	d.mq = message_queue.NewMessageQueue[EventKey, Event](MaxSelectors, d.LEVEL_TRIE)
-
-	return nil
+func SubscriberContext(ctx context.Context) EventSubscriber {
+	v, _ := ctx.Value(SubscriberKey{}).(EventSubscriber)
+	return v
 }

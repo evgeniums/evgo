@@ -12,7 +12,7 @@ type AttributeRegistry[T any] interface {
 	Register(item Matchable, obj T) (*RegistrySubscription, error)
 
 	// Unregister object
-	Unregister(subscription *RegistrySubscription)
+	Unregister(subscription *RegistrySubscription) T
 
 	// Find retrieves all objects whose registered paths match
 	// the provided lookup key (including subsumed/general matches).

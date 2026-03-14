@@ -17,7 +17,7 @@ type SubscriberExt[K comparable, M Message[K]] interface {
 
 type Subscriber[K comparable, M Message[K]] interface {
 	SubscriberI[K, M]
-	Unsubscribe()
+	Unsubscribe(ctx context.Context)
 }
 
 type SubscriberExtBase[K comparable, M Message[K]] struct {
@@ -40,8 +40,8 @@ func (s *SubscriberExtBase[K, M]) Subscribe(ctx context.Context, mq MessageQueue
 	return err
 }
 
-func (s *SubscriberExtBase[K, M]) Unsubscribe(mq MessageQueue[K, M]) {
-	mq.Unsubscribe(s.subscription)
+func (s *SubscriberExtBase[K, M]) Unsubscribe(ctx context.Context, mq MessageQueue[K, M]) {
+	mq.Unsubscribe(ctx, s.subscription)
 }
 
 func (s *SubscriberExtBase[K, M]) Consumer() Consumer[K, M] {
@@ -71,14 +71,15 @@ func NewSubscriber[K comparable, M Message[K]](consumer ...Consumer[K, M]) *Subs
 	return s
 }
 
-func (s *SubscriberBase[K, M]) Subscribe(ctx context.Context, mq MessageQueue[K, M], selectors Matchable) {
+func (s *SubscriberBase[K, M]) Subscribe(ctx context.Context, mq MessageQueue[K, M], selectors Matchable) error {
 	s.SubscriberExtBase.Subscribe(ctx, mq, selectors)
 	s.mq = mq
+	return nil
 }
 
-func (s *SubscriberBase[K, M]) Unsubscribe() {
+func (s *SubscriberBase[K, M]) Unsubscribe(ctx context.Context) {
 	if s.mq != nil {
-		s.SubscriberExtBase.Unsubscribe(s.mq)
+		s.SubscriberExtBase.Unsubscribe(ctx, s.mq)
 	}
 }
 

@@ -4,6 +4,10 @@ import (
 	"context"
 )
 
-func (d *DispatcherBase) Subscribe(sctx context.Context, key EventKey, subscriber EventSubscriber) error {
-	return subscriber.Subscribe(sctx, d.mq, key)
+func (d *DispatcherBase) Subscribe(sctx context.Context, key EventKey) (EventSubscriber, error) {
+	subscriber, err := d.MakeSubscriber()
+	if err != nil {
+		return nil, err
+	}
+	return subscriber, subscriber.Subscribe(sctx, d.mq, key)
 }

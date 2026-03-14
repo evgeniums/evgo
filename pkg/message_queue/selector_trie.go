@@ -74,7 +74,7 @@ type reverseNode[T any] struct {
 }
 
 // Register adds an object to the trie. It stops at the last 'Some' selector for efficiency.
-func (st *SelectorTrie[T]) Unregister(subscription *RegistrySubscription) {
+func (st *SelectorTrie[T]) Unregister(subscription *RegistrySubscription) T {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
@@ -96,6 +96,7 @@ func (st *SelectorTrie[T]) Unregister(subscription *RegistrySubscription) {
 		}
 	}
 
+	found, _ := curr.objects[subscription.index]
 	delete(curr.objects, subscription.index)
 
 	for i := len(reversePath) - 1; i > 0; i-- {
@@ -103,6 +104,8 @@ func (st *SelectorTrie[T]) Unregister(subscription *RegistrySubscription) {
 			delete(reversePath[i-1].current.children, reversePath[i].selector)
 		}
 	}
+
+	return found
 }
 
 func appendValues[T any](results []T, m map[uint64]T) []T {

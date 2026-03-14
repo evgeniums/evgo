@@ -3,6 +3,7 @@ package message_queue
 import (
 	"context"
 	"sync/atomic"
+	"time"
 )
 
 const DEFAULT_MAX_QUEUE_DEPTH int = 0
@@ -16,6 +17,9 @@ type Consumer[K comparable, M Message[K]] interface {
 	MessageProvider
 	Consume(message M)
 	Feeder() Feeder[M]
+
+	Run(ctx context.Context)
+	Close(ctx context.Context)
 }
 
 type messageWrapper[K comparable, M Message[K]] struct {
@@ -25,9 +29,9 @@ type messageWrapper[K comparable, M Message[K]] struct {
 
 type ConsumerConfig struct {
 	FeederConfig
-	MAX_QUEUE_DEPTH       int
-	WORK_CHANNEL_DEPTH    int  `default:"100"`
-	REPLACE_EXISITING_KEY bool `default:"true"`
+	MAX_QUEUE_DEPTH    int
+	WORK_CHANNEL_DEPTH int `default:"100"`
+	SHUTDOWN_TIMEOUT   int `default:"1"`
 }
 
 func DefaultConsumerConfig() ConsumerConfig {
@@ -53,7 +57,7 @@ type ConsumerBase[K comparable, M Message[K]] struct {
 }
 
 func NewConsumer[K comparable, M Message[K]](config ...ConsumerConfig) *ConsumerBase[K, M] {
-	s := &ConsumerBase[K, M]{queue: NewRAQueue[K, M]()}
+	s := &ConsumerBase[K, M]{}
 	if len(config) == 0 {
 		s.ConsumerConfig = DefaultConsumerConfig()
 	} else {
@@ -84,7 +88,7 @@ func (s *ConsumerBase[K, M]) Run(ctx context.Context) {
 	}
 
 	if s.queue == nil {
-		s.queue = NewRAQueue[K, M]()
+		s.queue = NewReplacingQueue[K, M]()
 	}
 
 	s.ctx = ctx
@@ -193,9 +197,18 @@ func (s *ConsumerBase[K, M]) Handle(ctx context.Context, message M) error {
 	return nil
 }
 
-func (s *ConsumerBase[K, M]) Close() {
+func (s *ConsumerBase[K, M]) Close(ctx context.Context) {
 	if !s.closed.CompareAndSwap(false, true) {
 		s.closed.Store(true)
-		s.closeChannel <- struct{}{}
+
+		deadlineCtx, cancel := context.WithTimeout(ctx, time.Duration(s.SHUTDOWN_TIMEOUT)*time.Second)
+		defer cancel()
+
+		go func() {
+			s.closeChannel <- struct{}{}
+			cancel()
+		}()
+
+		<-deadlineCtx.Done()
 	}
 }

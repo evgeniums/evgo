@@ -4,6 +4,6 @@ import (
 	"context"
 )
 
-func (d *DispatcherBase) Publish(sctx context.Context, event EventKey) error {
-	return d.Publish(sctx, event)
+func (d *DispatcherBase) Publish(ctx context.Context, event Event) error {
+	return d.mq.Publish(ctx, event.Key(), event)
 }
