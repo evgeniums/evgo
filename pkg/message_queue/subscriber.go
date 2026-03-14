@@ -85,7 +85,7 @@ func (s *SubscriberBase[K, M]) Unsubscribe(ctx context.Context) {
 
 type MqChannel interface {
 	Channel() <-chan any
-	Unsubscribe()
+	Unsubscribe(ctx context.Context)
 	Next()
 }
 
