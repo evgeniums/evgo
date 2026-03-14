@@ -11,6 +11,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/auth"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/logger"
+	"github.com/evgeniums/evgo/pkg/message_queue"
 	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 
@@ -270,6 +271,12 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 
 	// process initial message and send response
 	resp, err1 := u.handleRequest(request.sctx, request.Message().TransportMessage())
+	sctx := request.sctx
+	// extract message queue from context here to avoid memory leaks in case of handler errors
+	mq := message_queue.MqContext(ctx)
+	if mq != nil {
+		defer mq.Unsubscribe()
+	}
 	if resp != nil {
 		respType := StreamingInitResponse
 		if err1 != nil {
@@ -286,17 +293,12 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 		}
 	}
 
-	sctx := request.sctx
-
-	// extract producer from context
-	queue := api_server.QueueContext(sctx)
-	if queue == nil {
-		// nothing to produce
+	if mq == nil {
+		// skip streaming
 		return nil
 	}
 
 	request.OnStreamIntialized(sctx, "queue opened")
-	producer := queue.Producer(sctx)
 
 	// init heartbeat ticker
 	ticker := time.NewTicker(time.Duration(request.server.HEARTBEAT_PERIOD) * time.Second)
@@ -319,11 +321,11 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 			heartBeat := &HeartBeat{Timestamp: utils.ToHatnProtoDatetime(time.Now())}
 			err = SendStreamingResponse(request, stream, heartBeat, StreamingHeartBeat)
 			if err != nil {
-				return nil
+				return err
 			}
 
-		// SIGNAL 4: Data from Producer (using 'ok' to detect closure)
-		case message, ok := <-producer:
+		// SIGNAL 4: Data from mq (using 'ok' to detect closure)
+		case message, ok := <-mq.Channel():
 			if !ok {
 				callCtx.SetMessage("queue closed")
 				return nil
@@ -341,6 +343,8 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 			if err != nil {
 				return err
 			}
+
+			mq.Next()
 		}
 	}
 }

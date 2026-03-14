@@ -25,7 +25,12 @@ func (p *QueueProducerBase) Producer(ctx context.Context) <-chan interface{} {
 }
 
 func (p *QueueProducerBase) Push(ctx context.Context, object interface{}) {
-	p.ch <- object
+	select {
+	case p.ch <- object:
+		return
+	case <-ctx.Done():
+		return
+	}
 }
 
 func (p *QueueProducerBase) Close() {
