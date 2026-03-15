@@ -248,6 +248,7 @@ func (c *Context) InitWithArgs(configFile string, args []string, configType ...s
 		if err != nil {
 			return log.PushFatalStack("failed to init event dispatcher", err)
 		}
+		c.eventDispatcher = eventDispatcher
 	}
 
 	// done
