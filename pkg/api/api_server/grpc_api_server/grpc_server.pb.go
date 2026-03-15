@@ -9,7 +9,6 @@ package grpc_api_server
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/known/anypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -182,7 +181,7 @@ var File_grpc_server_proto protoreflect.FileDescriptor
 
 const file_grpc_server_proto_rawDesc = "" +
 	"\n" +
-	"\x11grpc_server.proto\x12\x0fgrpc_api_server\x1a\x19google/protobuf/any.proto\")\n" +
+	"\x11grpc_server.proto\x12\x0fgrpc_api_server\")\n" +
 	"\tHeartBeat\x12\x1c\n" +
 	"\ttimestamp\x18\x01 \x01(\x03R\ttimestamp\"U\n" +
 	"\x05Error\x12\x12\n" +

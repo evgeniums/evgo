@@ -523,8 +523,11 @@ func (s *Server) logRequest(sctx context.Context, log logger.Logger, start time.
 	latency := int(math.Ceil(float64(stop.Nanoseconds()) / 1000000.0))
 
 	headerSize := 0
-	if info, ok := sctx.Value(HeaderSizeKey).(*SizeInfo); ok {
-		headerSize = info.value
+	sizeInfo := sctx.Value(HeaderSizeKey)
+	if sizeInfo != nil {
+		if info, ok := sizeInfo.(*SizeInfo); ok {
+			headerSize = info.value
+		}
 	}
 
 	fields := logger.Fields{
@@ -549,6 +552,38 @@ func (s *Server) logRequest(sctx context.Context, log logger.Logger, start time.
 	}
 }
 
+func GRPCToGeneric(st codes.Code) string {
+	switch st {
+	case codes.OK:
+		return generic_error.ErrorCodeSuccess
+	case codes.Aborted:
+		return generic_error.ErrorCodeIOAborted
+	case codes.InvalidArgument:
+		return generic_error.ErrorCodeBadRequest
+	case codes.DeadlineExceeded:
+		return generic_error.ErrorCodeExpired
+	case codes.Canceled:
+		return generic_error.ErrorCodeIOAborted
+	case codes.Unimplemented:
+		return generic_error.ErrorCodeUnimplemented
+	case codes.PermissionDenied:
+		return generic_error.ErrorCodeForbidden
+	case codes.AlreadyExists:
+		return generic_error.ErrorCodeConflict
+	case codes.NotFound:
+		return generic_error.ErrorCodeNotFound
+	case codes.Unauthenticated:
+		return auth.ErrorCodeUnauthorized
+	case codes.ResourceExhausted:
+		return generic_error.ErrorCodeResourceBusy
+	case codes.Unavailable:
+		return generic_error.ErrorCodeUnsupported
+
+	}
+
+	return generic_error.ErrorCodeExternalServiceError
+}
+
 func HTTPToGRPC(httpCode int) codes.Code {
 	switch httpCode {
 	case http.StatusOK:
@@ -567,6 +602,8 @@ func HTTPToGRPC(httpCode int) codes.Code {
 		return codes.ResourceExhausted
 	case http.StatusRequestTimeout:
 		return codes.DeadlineExceeded
+	case generic_error.HttpStatusClientAborted:
+		return codes.Aborted
 	case http.StatusNotImplemented:
 		return codes.Unimplemented
 	case http.StatusServiceUnavailable:

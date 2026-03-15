@@ -3,6 +3,7 @@ package grpc_api_server
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"runtime"
 	"time"
@@ -233,6 +234,7 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 
 	// create request
 	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
+	request.SetLoggerField("stream", true)
 	if err != nil {
 		resp := u.fillResponse(request, callCtx)
 		if resp != nil && resp.TransportMessage() != nil {
@@ -261,35 +263,55 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 	// receive initial message
 	w := &RequestWrapper{request: request}
 	if err1 := stream.RecvMsg(w); err1 != nil {
-		resp := u.fillResponse(request, callCtx)
-		if resp != nil && resp.TransportMessage() != nil {
-			SendStreamingResponse(request, stream, resp.TransportMessage(), StreamingError)
-		}
+		callCtx.SetMessage("initial RecvMsg failed")
 		err = err1
-		return status.Error(request.statusCode, request.statusMessage)
+		callCtx.SetError(err)
+		st, ok := status.FromError(err)
+		if ok {
+			request.statusCode = st.Code()
+			request.SetGenericErrorCode(GRPCToGeneric(st.Code()))
+		} else {
+			if err == io.EOF {
+				request.statusCode = codes.Aborted
+				request.SetGenericErrorCode(generic_error.ErrorCodeIOAborted)
+			} else {
+				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
+			}
+		}
+		fillResponseStatus(request, err)
+		callCtx.Logger().Debug("initial stream.RecvMsg failed", logger.Fields{"err_msg": err1})
+		return err
 	}
 
 	// process initial message and send response
 	resp, err1 := u.handleRequest(request.sctx, request.Message().TransportMessage())
 	sctx := request.sctx
 	// extract message queue from context here to avoid memory leaks in case of handler errors
-	mq := message_queue.MqContext(ctx)
+	mq := message_queue.MqContext(sctx)
 	if mq != nil {
-		defer mq.Unsubscribe(ctx)
+		defer mq.Unsubscribe(sctx)
 	}
 	if resp != nil {
-		respType := StreamingInitResponse
-		if err1 != nil {
-			respType = StreamingError
+
+		respMsg, ok := resp.(api_server.MessageContent)
+		if !ok {
+			callCtx.Logger().ErrorMessage("invalid response from handleRequest")
 		}
-		err2 := SendStreamingResponse(request, stream, resp, respType)
-		if err1 != nil {
-			err = err1
-			return err1
-		}
-		if err2 != nil {
-			err = err2
-			return err2
+
+		if respMsg != nil {
+			respType := StreamingInitResponse
+			if err1 != nil {
+				respType = StreamingError
+			}
+			err2 := SendStreamingResponse(request, stream, respMsg.TransportMessage(), respType)
+			if err1 != nil {
+				err = err1
+				return err
+			}
+			if err2 != nil {
+				err = err2
+				return err
+			}
 		}
 	}
 
@@ -335,6 +357,7 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 			msgContent.SetLogicMessage(message)
 			err = u.endpoint.LogicResponseToTransport(msgContent)
 			if err != nil {
+				fillResponseStatus(request, err)
 				callCtx.SetMessage("failed convert logic to transport")
 				return status.Error(codes.Internal, "internal data error")
 			}
@@ -349,7 +372,7 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 	}
 }
 
-func (u *Handler) handleRequest(sctx context.Context, transportRequest interface{}) (interface{}, error) {
+func (u *Handler) handleRequest(sctx context.Context, transportRequest any) (any, error) {
 
 	request := op_context.OpContext[*Request](sctx)
 	request.sctx = sctx
@@ -383,6 +406,20 @@ func (u *Handler) handleRequest(sctx context.Context, transportRequest interface
 
 	response := u.fillResponse(request, c)
 	return response, status.Error(request.statusCode, request.statusMessage)
+}
+
+func fillResponseStatus(request *Request, err error) {
+	if err == nil {
+		request.SetLoggerField("status", "success")
+	} else {
+		request.SetGenericErrorCode(generic_error.ErrorCodeExternalServiceError)
+		code, err := request.server.MakeResponseError(request.GenericError())
+		if err != nil && code < http.StatusInternalServerError {
+			request.SetErrorAsWarn(true)
+		}
+		request.statusCode = HTTPToGRPC(code)
+		request.statusMessage = request.GenericError().Message()
+	}
 }
 
 func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext) api_server.RequestMessage {
@@ -443,10 +480,6 @@ func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext)
 	if err := grpc.SetHeader(request.sctx, md); err != nil {
 		callCtx.Logger().Error("failed to set response headers", err)
 	}
-
-	// close request
-	request.TraceOutMethod()
-	request.Close(request.sctx)
 
 	// done
 	return response
