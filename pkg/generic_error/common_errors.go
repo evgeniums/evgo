@@ -2,7 +2,10 @@ package generic_error
 
 import "net/http"
 
+const HttpStatusClientAborted int = 499
+
 const (
+	ErrorCodeSuccess                    string = "success"
 	ErrorCodeUnknown                    string = "unknown_error"
 	ErrorCodeInternalServerError        string = "internal_server_error"
 	ErrorCodeFormat                     string = "invalid_format"
@@ -20,6 +23,9 @@ const (
 	ErrorCodeUnimplemented              string = "unimplemented"
 	ErrorCodeBadRequest                 string = "bad_request"
 	ErrorCodeForeignUnavailable         string = "foreign_unavailable"
+	ErrorCodeIOAborted                  string = "io_aborted"
+	ErrorCodeConflict                   string = "conflict"
+	ErrorCodeUnavailable                string = "unavailable"
 )
 
 var CommonErrorDescriptions = map[string]string{
@@ -40,6 +46,9 @@ var CommonErrorDescriptions = map[string]string{
 	ErrorCodeUnimplemented:              "Method or operation not implemeted",
 	ErrorCodeBadRequest:                 "Bad request",
 	ErrorCodeForeignUnavailable:         "Unavailable object at foreign server",
+	ErrorCodeIOAborted:                  "Client closed request",
+	ErrorCodeConflict:                   "Duplicate object or resource",
+	ErrorCodeUnavailable:                "Service or operation unavailable",
 }
 
 var CommonErrorHttpCodes = map[string]int{
@@ -54,4 +63,7 @@ var CommonErrorHttpCodes = map[string]int{
 	ErrorCodeResourceBusy:               http.StatusServiceUnavailable,
 	ErrorCodeUnimplemented:              http.StatusNotImplemented,
 	ErrorCodeForeignUnavailable:         http.StatusNotFound,
+	ErrorCodeConflict:                   http.StatusConflict,
+	ErrorCodeIOAborted:                  499,
+	ErrorCodeUnavailable:                http.StatusServiceUnavailable,
 }
