@@ -38,5 +38,8 @@ type node[T any] struct {
 }
 
 func newNode[T any]() *node[T] {
-	return &node[T]{children: make(map[Optional[string]]*node[T])}
+	return &node[T]{
+		children: make(map[Optional[string]]*node[T]),
+		objects:  map[uint64]T{},
+	}
 }

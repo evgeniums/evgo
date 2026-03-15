@@ -10,6 +10,8 @@ type SubscriberFanIn[K comparable, M Message[K]] interface {
 
 	AddSubscriber(subscriber Subscriber[K, M])
 	RemoveSubscriber(subscriber Subscriber[K, M])
+
+	Run(ctx context.Context)
 }
 
 type SubscriberFanInBase[K comparable, M Message[K]] struct {

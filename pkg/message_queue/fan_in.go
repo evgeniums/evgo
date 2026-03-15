@@ -72,6 +72,7 @@ func (f *FanInBase[T]) Run(ctx context.Context) {
 				// add input channel
 				wCtx, wCancel := context.WithCancel(ctx)
 				f.workers[newInput] = wCancel
+				f.wg.Add(1)
 
 				// run worker for this specific channel
 				go func(c <-chan T, workerCtx context.Context) {
