@@ -1,21 +1,30 @@
 package event_dispatcher
 
-import "github.com/evgeniums/evgo/pkg/message_queue"
+import (
+	"context"
 
-type EventMq = message_queue.MessageQueue[EventKey, Event]
+	"github.com/evgeniums/evgo/pkg/message_queue"
+)
 
-type EventSubscriber = message_queue.Subscriber[EventKey, Event]
+type EventWrapper struct {
+	*Event
+	Context context.Context
+}
 
-type EventConsumer = message_queue.Consumer[EventKey, Event]
+type EventMq = message_queue.MessageQueue[EventKey, EventWrapper]
+
+type EventSubscriber = message_queue.Subscriber[EventKey, EventWrapper]
+
+type EventConsumer = message_queue.Consumer[EventKey, EventWrapper]
 
 type EventConsumerRegistry = message_queue.AttributeRegistry[EventConsumer]
 
-type EventConsumerFeeder = message_queue.Feeder[Event]
+type EventConsumerFeeder = message_queue.Feeder[EventWrapper]
 
-type EventConsumerQueue = message_queue.RandomAccessQueue[EventKey, Event]
+type EventConsumerQueue = message_queue.RandomAccessQueue[EventKey, EventWrapper]
 
-type EventSubscriberFanIn = message_queue.SubscriberFanIn[EventKey, Event]
+type EventSubscriberAgregation = message_queue.SubscriberFanIn[EventKey, EventWrapper]
 
-func NeEventSubscriberFanIn() EventSubscriberFanIn {
-	return message_queue.NewSubscriberFanIn[EventKey, Event]()
+func NewEventSubscriberAggregation() EventSubscriberAgregation {
+	return message_queue.NewSubscriberFanIn[EventKey, EventWrapper]()
 }

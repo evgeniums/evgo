@@ -38,7 +38,7 @@ func (d *DispatcherBase) MakeConsumer() (event_dispatcher.EventConsumer, error) 
 		return d.ConsumerBuilder()
 	}
 
-	consumer := message_queue.NewConsumer[event_dispatcher.EventKey, event_dispatcher.Event](d.ConsumerConfig)
+	consumer := message_queue.NewConsumer[event_dispatcher.EventKey, event_dispatcher.EventWrapper](d.ConsumerConfig)
 
 	if d.ConsumerFeederBuilder != nil {
 		feeder, err := d.ConsumerFeederBuilder()
@@ -110,7 +110,7 @@ func (d *DispatcherBase) Init(app app_context.Context, parentConfigPath string, 
 	}
 
 	if consumers != nil {
-		d.mq = message_queue.NewInmemMq[event_dispatcher.EventKey, event_dispatcher.Event](event_dispatcher.MaxSelectors)
+		d.mq = message_queue.NewInmemMq[event_dispatcher.EventKey, event_dispatcher.EventWrapper](event_dispatcher.MaxSelectors)
 	} else {
 		d.mq = message_queue.NewInmemMq(event_dispatcher.MaxSelectors, consumers)
 	}
@@ -143,7 +143,7 @@ func (d *DispatcherBase) InitWithCtx(sctx context.Context, cfg DispatcherBaseCon
 	}
 
 	if consumers != nil {
-		d.mq = message_queue.NewInmemMq[event_dispatcher.EventKey, event_dispatcher.Event](event_dispatcher.MaxSelectors)
+		d.mq = message_queue.NewInmemMq[event_dispatcher.EventKey, event_dispatcher.EventWrapper](event_dispatcher.MaxSelectors)
 	} else {
 		d.mq = message_queue.NewInmemMq(event_dispatcher.MaxSelectors, consumers)
 	}

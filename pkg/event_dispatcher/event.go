@@ -1,8 +1,13 @@
 package event_dispatcher
 
-import "github.com/evgeniums/evgo/pkg/message_queue"
+import (
+	"context"
 
-const MaxSelectors int = 7
+	"github.com/evgeniums/evgo/pkg/message_queue"
+	"github.com/evgeniums/evgo/pkg/utils"
+)
+
+const MaxSelectors int = 5
 
 type Message struct {
 	MessageType string
@@ -10,13 +15,7 @@ type Message struct {
 }
 
 type EventKey struct {
-	Subject      string
-	SubjectType  string
-	SubjectTopic string
-	Service      string
-	Name         string
-	Object       string
-	ObjectTopic  string
+	selectors [MaxSelectors]utils.OptString
 }
 
 func (k EventKey) Key() EventKey {
@@ -24,30 +23,32 @@ func (k EventKey) Key() EventKey {
 }
 
 func (k EventKey) GetSelectors() []message_queue.Optional[string] {
-	selectors := make([]message_queue.Optional[string], 5)
+	return k.selectors[:]
+}
 
-	i := 0
-	addSelector := func(value string) {
-		if value == "" {
-			selectors[i] = message_queue.None[string]()
-		} else {
-			selectors[i] = message_queue.Some[string](value)
-		}
-		i++
+func (k EventKey) SetSelector(i int, selector string) {
+	k.selectors[i] = utils.Opt(selector)
+}
+
+func (k EventKey) UnsetSelector(i int, selector string) {
+	k.selectors[i] = utils.NullString()
+}
+
+func (k EventKey) Length() int {
+	return MaxSelectors
+}
+
+func (k EventKey) GetSelector(i int) (string, bool) {
+	if i >= k.Length() {
+		return "", false
 	}
-
-	addSelector(k.Subject)
-	addSelector(k.SubjectType)
-	addSelector(k.SubjectTopic)
-	addSelector(k.Service)
-	addSelector(k.Name)
-	addSelector(k.Object)
-	addSelector(k.ObjectTopic)
-
-	return selectors
+	v := k.selectors[i]
+	return v.Value, v.IsSet
 }
 
 type Event struct {
 	EventKey
 	Message
+	Context    context.Context
+	Parameters map[string]string
 }
