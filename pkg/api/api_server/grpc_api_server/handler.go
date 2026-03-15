@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"runtime"
-	"time"
 
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/auth"
@@ -14,7 +13,6 @@ import (
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/message_queue"
 	"github.com/evgeniums/evgo/pkg/op_context"
-	"github.com/evgeniums/evgo/pkg/utils"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -322,10 +320,6 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 
 	request.OnStreamIntialized(sctx, "queue opened")
 
-	// init heartbeat ticker
-	ticker := time.NewTicker(time.Duration(request.server.HEARTBEAT_PERIOD) * time.Second)
-	defer ticker.Stop()
-
 	for {
 		select {
 		// SIGNAL 1: Client disconnected or timeout
@@ -338,15 +332,7 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 		case <-request.server.shutdown:
 			return status.Error(codes.Unavailable, "server is shutting down")
 
-		// SIGNAL 3: Heartbeat to keep connection alive
-		case <-ticker.C:
-			heartBeat := &HeartBeat{Timestamp: utils.ToHatnProtoDatetime(time.Now())}
-			err = SendStreamingResponse(request, stream, heartBeat, StreamingHeartBeat)
-			if err != nil {
-				return err
-			}
-
-		// SIGNAL 4: Data from mq (using 'ok' to detect closure)
+		// SIGNAL 3: Data from mq (using 'ok' to detect closure)
 		case message, ok := <-mq.Channel():
 			if !ok {
 				callCtx.SetMessage("queue closed")

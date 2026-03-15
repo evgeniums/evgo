@@ -4,10 +4,6 @@ package grpc_api_server;
 
 option go_package = "pkg/api/api_server/grpc_api_server";
 
-message HeartBeat {
-	int64 timestamp = 1; 	
-}
-
 message Error {
 	int32 code = 1;
 	string status = 2;

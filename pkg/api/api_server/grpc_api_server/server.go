@@ -33,6 +33,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 )
 
@@ -76,9 +77,13 @@ type ServerConfig struct {
 
 	DUMP_HEADERS bool
 
-	HEARTBEAT_PERIOD int `default:"15"`
-
 	SHUTDOWN_TIMEOUT int `default:"15"`
+
+	KEEP_ALIVE_PERIOD  int `default:"60"` // Ping the client if it is idle for KEEP_ALIVE_PERIOD
+	KEEP_ALIVE_TIMEOUT int `default:"20"` // Wait KEEP_ALIVE_TIMEOUT for a ping response
+
+	KEEP_ALIVE_MIN_TIME             int  `default:"50"`   // Minimum time between client pings
+	KEEP_ALIVE_ALLOW_WITHOUT_STREAM bool `default:"true"` // Allow pings even if no active RPCs
 }
 
 type GrpcServerRunner struct {
@@ -354,6 +359,14 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 		grpc.UnknownServiceHandler(s.unknownHandler),
 		grpc.ChainUnaryInterceptor(unaryInterceptors...),
 		grpc.ChainStreamInterceptor(streamInterceptors...),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			Time:    time.Duration(s.KEEP_ALIVE_PERIOD) * time.Second,  // Ping the client if it is idle for KEEP_ALIVE_PERIOD
+			Timeout: time.Duration(s.KEEP_ALIVE_TIMEOUT) * time.Second, // Wait KEEP_ALIVE_TIMEOUT for a ping response
+		}),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             time.Duration(s.KEEP_ALIVE_MIN_TIME) * time.Second, // Minimum time between client pings
+			PermitWithoutStream: s.KEEP_ALIVE_ALLOW_WITHOUT_STREAM,                  // Allow pings even if no active RPCs
+		}),
 	}
 	if !s.DISABLE_TLS && s.TLS_PRIVATE_KEY_FILE != "" {
 		creds, err := credentials.NewServerTLSFromFile(s.TLS_CERTIFICATE_FILE, s.TLS_PRIVATE_KEY_FILE)

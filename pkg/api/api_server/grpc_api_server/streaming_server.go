@@ -18,8 +18,7 @@ type StreamingMessageType int
 const (
 	StreamingMessage      StreamingMessageType = 0
 	StreamingError        StreamingMessageType = 1
-	StreamingHeartBeat    StreamingMessageType = 2
-	StreamingInitResponse StreamingMessageType = 3
+	StreamingInitResponse StreamingMessageType = 2
 )
 
 func packResponse(input any) (*anypb.Any, string, error) {
