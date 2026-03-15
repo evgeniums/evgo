@@ -21,7 +21,8 @@ type FanInBase[T any] struct {
 
 	workers map[<-chan T]context.CancelFunc
 
-	stopAll chan struct{}
+	stopAll  chan struct{}
+	stopOnce sync.Once
 
 	wg sync.WaitGroup
 }
@@ -36,7 +37,7 @@ func (f *FanInBase[T]) construct() {
 	f.out = make(chan T, 1)
 	f.addInput = make(chan (<-chan T))
 	f.removeInput = make(chan (<-chan T))
-	f.stopAll = make(chan struct{}, 1)
+	f.stopAll = make(chan struct{})
 	f.workers = make(map[<-chan T]context.CancelFunc)
 }
 
@@ -108,5 +109,5 @@ func (f *FanInBase[T]) RemoveInput(ch <-chan T) {
 }
 
 func (f *FanInBase[T]) Close() {
-	f.stopAll <- struct{}{}
+	f.stopOnce.Do(func() { close(f.stopAll) })
 }

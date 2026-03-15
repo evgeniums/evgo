@@ -2,6 +2,7 @@ package message_queue
 
 import (
 	"context"
+	"sync"
 	"time"
 )
 
@@ -22,7 +23,9 @@ type SubscriberFanInBase[K comparable, M Message[K]] struct {
 	removeSubscriber chan Subscriber[K, M]
 
 	invokeNext  chan struct{}
-	unsubscribe chan context.Context
+	unsubscribe chan struct{}
+
+	unsubscribeOnce sync.Once
 }
 
 func NewSubscriberFanIn[K comparable, M Message[K]]() *SubscriberFanInBase[K, M] {
@@ -38,7 +41,7 @@ func (f *SubscriberFanInBase[K, M]) construct() {
 	f.addSubscriber = make(chan Subscriber[K, M])
 	f.removeSubscriber = make(chan Subscriber[K, M])
 	f.invokeNext = make(chan struct{}, 1)
-	f.unsubscribe = make(chan context.Context)
+	f.unsubscribe = make(chan struct{})
 }
 
 func (f *SubscriberFanInBase[K, M]) Run(ctx context.Context) {
@@ -47,23 +50,24 @@ func (f *SubscriberFanInBase[K, M]) Run(ctx context.Context) {
 
 	go func() {
 
-		unsubscribe := func(ctx context.Context) {
+		unsubscribe := func() {
+			unsubscribeCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+			defer cancel()
 			for subscriber := range f.subscribers {
-				subscriber.Unsubscribe(ctx)
+				subscriber.Unsubscribe(unsubscribeCtx)
 			}
+			clear(f.subscribers)
 		}
 
 		for {
 			select {
 
 			case <-ctx.Done():
-				unsubscribeCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-				defer cancel()
-				unsubscribe(unsubscribeCtx)
+				unsubscribe()
 				return
 
 			case <-f.stopAll:
-				unsubscribe(ctx)
+				unsubscribe()
 				return
 
 			case subscriber := <-f.addSubscriber:
@@ -86,9 +90,9 @@ func (f *SubscriberFanInBase[K, M]) Run(ctx context.Context) {
 					}
 				}
 
-			case opCtx := <-f.unsubscribe:
+			case <-f.unsubscribe:
 				{
-					unsubscribe(opCtx)
+					unsubscribe()
 					f.Close()
 					return
 				}
@@ -114,5 +118,7 @@ func (f *SubscriberFanInBase[K, M]) Next() {
 }
 
 func (f *SubscriberFanInBase[K, M]) Unsubscribe(ctx context.Context) {
-	f.unsubscribe <- ctx
+	f.unsubscribeOnce.Do(func() {
+		close(f.unsubscribe)
+	})
 }
