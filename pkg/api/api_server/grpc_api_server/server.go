@@ -391,7 +391,7 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 		}
 		s.SetName(name)
 	}
-	s.logPrefix = "Served gRPC"
+	s.logPrefix = "UNARY"
 
 	// done
 	return nil

@@ -205,7 +205,7 @@ func (r *Request) OnStreamIntialized(sctx context.Context, logPrefix ...string) 
 	r.server.logRequest(sctx, r.Logger(), r.start, r, r.LoggerFields(), logPrefix...)
 }
 
-func (r *Request) Close(sctx context.Context, successMessage ...string) {
+func (r *Request) Close(sctx context.Context, logPrefix ...string) {
 	if r.GenericError() != nil {
 		r.SetLoggerField("status", r.GenericError().Code())
 	}
@@ -215,7 +215,7 @@ func (r *Request) Close(sctx context.Context, successMessage ...string) {
 		r.Message().SetBinaryContent(nil)
 	}
 	r.RequestBase.Close(sctx, "")
-	r.server.logRequest(sctx, r.Logger(), r.start, r, r.LoggerFields())
+	r.server.logRequest(sctx, r.Logger(), r.start, r, r.LoggerFields(), logPrefix...)
 	r.sctx = nil
 }
 

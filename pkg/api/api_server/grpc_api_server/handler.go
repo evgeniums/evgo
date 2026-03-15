@@ -250,12 +250,22 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 		}
 	}
 
+	streamOpen := false
+	streamClosed := false
 	defer func() {
-		if err != nil {
+		if !streamOpen && err != nil {
 			callCtx.SetError(err)
 		}
 		request.TraceOutMethod()
-		request.Close(request.sctx)
+		if err != nil {
+			request.Close(request.sctx)
+		} else if streamClosed {
+			request.Close(request.sctx, "STREAM DONE")
+		} else if streamOpen {
+			request.Close(request.sctx, "STREAM OPEN")
+		} else {
+			request.Close(request.sctx)
+		}
 	}()
 
 	// receive initial message
@@ -318,18 +328,21 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 		return nil
 	}
 
-	request.OnStreamIntialized(sctx, "queue opened")
+	streamOpen = true
+	request.OnStreamIntialized(sctx, "STREAM OPEN")
 
 	for {
 		select {
 		// SIGNAL 1: Client disconnected or timeout
 		case <-sctx.Done():
-			err = stream.Context().Err()
-			callCtx.Logger().Warn("unexpectedly closed stream", logger.Fields{"stream_err": err})
-			return err
+			err1 := stream.Context().Err()
+			callCtx.Logger().Warn("unexpectedly closed stream", logger.Fields{"stream_err": err1})
+			streamClosed = true
+			return err1
 
 		// SIGNAL 2: Global server shutdown
 		case <-request.server.shutdown:
+			streamClosed = true
 			return status.Error(codes.Unavailable, "server is shutting down")
 
 		// SIGNAL 3: Data from mq (using 'ok' to detect closure)
@@ -350,6 +363,7 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 
 			err = SendStreamingResponse(request, stream, msgContent.TransportMessage(), StreamingMessage)
 			if err != nil {
+				streamClosed = true
 				return err
 			}
 
