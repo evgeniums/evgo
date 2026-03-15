@@ -51,3 +51,7 @@ message Embedded {
     grpc_api.Repeated f2=2;
     repeated grpc_api.Basic f3=3;
 }
+
+message Map {
+    map<string,string> f3=3;
+}

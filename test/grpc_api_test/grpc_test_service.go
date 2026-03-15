@@ -28,6 +28,10 @@ func NewGrpcTestService(multitenancy ...bool) *GrpcTestService {
 	embedded.AddOperation(NewEmbeddedEndpoint())
 	s.AddChild(embedded)
 
+	m := api.NewResource("map")
+	embedded.AddOperation(NewMapEndpoint())
+	s.AddChild(m)
+
 	echoToken := api.NewResource("echo-token")
 	echoToken.AddOperation(NewEchoTokenEndpoint())
 	s.AddChild(echoToken)
