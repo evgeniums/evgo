@@ -12,7 +12,7 @@ type Dispatcher interface {
 	MakeSubscriber() (EventSubscriber, error)
 
 	Subscribe(ctx context.Context, key EventKey) (EventSubscriber, error)
-	Publish(ctx context.Context, event Event) error
+	Publish(ctx context.Context, event *Event) error
 }
 
 type SubscriberKey struct{}
