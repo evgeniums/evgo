@@ -83,6 +83,7 @@ func (f *SubscriberFanInBase[K, M]) Run(ctx context.Context) {
 				{
 					unsubscribe(opCtx)
 					f.Close()
+					return
 				}
 			}
 		}

@@ -1,5 +1,7 @@
 package message_queue
 
+import "github.com/evgeniums/evgo/pkg/utils"
+
 type RegistrySubscription struct {
 	index uint64
 	path  []Optional[string]
@@ -20,10 +22,7 @@ type AttributeRegistry[T any] interface {
 }
 
 // Optional mimics std::optional to handle "Not Set" values without pointers.
-type Optional[T any] struct {
-	Value T
-	IsSet bool
-}
+type Optional[T any] = utils.Optional[T]
 
 func Some[T any](v T) Optional[T] { return Optional[T]{Value: v, IsSet: true} }
 func None[T any]() Optional[T]    { return Optional[T]{IsSet: false} }
