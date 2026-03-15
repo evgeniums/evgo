@@ -1,6 +1,9 @@
 package message_queue
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type SubscriberFanIn[K comparable, M Message[K]] interface {
 	MqChannel
@@ -52,7 +55,9 @@ func (f *SubscriberFanInBase[K, M]) Run(ctx context.Context) {
 			select {
 
 			case <-ctx.Done():
-				unsubscribe(ctx)
+				unsubscribeCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+				defer cancel()
+				unsubscribe(unsubscribeCtx)
 				return
 
 			case <-f.stopAll:
