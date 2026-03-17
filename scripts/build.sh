@@ -1,14 +1,24 @@
 #!/bin/bash
 
 # Configuration
-LABEL="${1:=whitelabel}"
-VERSION="${2:-0.0.1}"
-CONFIG_PACKAGE="${3:-$PWD/internal/build_config}"
+LABEL="${1:-whitelabel}"
+TARGET_ARCH="${2:-macos}"
+VERSION="${3:-0.0.1}"
+CONFIG_PACKAGE="${4:-$PWD/internal/build_config}"
 
 OUT_DIR=$PWD/../bin
 CMD_DIR=$PWD/cmd
 
-echo "Building all executables from $CMD_DIR for label \"$LABEL\" to output $OUT_DIR with config in $CONFIG_PACKAGE..."
+if [[  "${TARGET_ARCH}" == "linux" ]]; then
+  export GOOS=linux
+  export GOARCH=amd64
+  export CGO_ENABLED=1
+  export CC="zig cc -target x86_64-linux-gnu"
+  export CXX="zig c++ -target x86_64-linux-gnu"
+  OUT_DIR=$OUT_DIR/${TARGET_ARCH}
+fi
+
+echo "Building all executables for ${TARGET_ARCH} from $CMD_DIR for label \"$LABEL\" to output $OUT_DIR with config in $CONFIG_PACKAGE..."
 
 # Create output directory
 mkdir -p $OUT_DIR
