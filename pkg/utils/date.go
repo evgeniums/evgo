@@ -117,7 +117,7 @@ func StrToDate(s string) (Date, error) {
 	}
 
 	t, err := strDateToTime(s)
-	if t == TimeNil {
+	if t.IsZero() {
 		return DateNil, err
 	}
 	var d Date
@@ -357,4 +357,11 @@ func ToHatnProtoDatetime(t time.Time) int64 {
 
 func FromHatnProtoDatetime(n int64) time.Time {
 	return UnpackDatetime(n).Local()
+}
+
+func IsExpired(dt time.Time) bool {
+	if dt.IsZero() {
+		return false
+	}
+	return time.Now().After(dt)
 }
