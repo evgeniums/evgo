@@ -1,13 +1,11 @@
 package event_dispatcher
 
 import (
-	"context"
-
 	"github.com/evgeniums/evgo/pkg/message_queue"
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
-const MaxSelectors int = 5
+const MaxSelectors int = 6
 
 type Message struct {
 	MessageType string
@@ -49,6 +47,5 @@ func (k EventKey) GetSelector(i int) (string, bool) {
 type Event struct {
 	EventKey
 	Message
-	Context    context.Context
 	Parameters map[string]string
 }
