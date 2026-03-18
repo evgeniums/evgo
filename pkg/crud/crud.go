@@ -46,9 +46,13 @@ type WithCRUDBase struct {
 	crud CRUD
 }
 
+func NewDbCrud() *DbCRUD {
+	return &DbCRUD{}
+}
+
 func (w *WithCRUDBase) Construct(cruds ...CRUD) {
 	if len(cruds) == 0 {
-		w.crud = &DbCRUD{}
+		w.crud = NewDbCrud()
 	} else {
 		w.crud = cruds[0]
 	}
