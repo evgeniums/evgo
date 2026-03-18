@@ -61,7 +61,7 @@ func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 		}()
 
 		ep := w.request.Endpoint()
-		w.request.payloadSize = len(data)
+		w.request.payloadSize = data.Len()
 
 		// authenticate request
 
@@ -197,9 +197,9 @@ func (u *Handler) handleUnary(srv interface{}, ctx context.Context, dec func(int
 
 	// invoke interceptors if set
 	if interceptor == nil {
-		return u.handleRequest(request.sctx, request.Message().TransportMessage())
+		return u.handleUnaryRequest(request.sctx, request.Message().TransportMessage())
 	}
-	return interceptor(request.sctx, request.Message().TransportMessage(), u.grpcUnaryServerInfo, u.handleRequest)
+	return interceptor(request.sctx, request.Message().TransportMessage(), u.grpcUnaryServerInfo, u.handleUnaryRequest)
 }
 
 type SizeInfo struct {
@@ -335,8 +335,6 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 		select {
 		// SIGNAL 1: Client disconnected or timeout
 		case <-sctx.Done():
-			err1 := stream.Context().Err()
-			callCtx.Logger().Warn("unexpectedly closed stream", logger.Fields{"stream_err": err1})
 			streamClosed = true
 			return err1
 
@@ -370,6 +368,15 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 			mq.Next()
 		}
 	}
+}
+
+func (u *Handler) handleUnaryRequest(sctx context.Context, transportRequest any) (any, error) {
+	response, err := u.handleRequest(sctx, transportRequest)
+
+	request := op_context.OpContext[*Request](sctx)
+	request.Close(sctx)
+
+	return response, err
 }
 
 func (u *Handler) handleRequest(sctx context.Context, transportRequest any) (any, error) {
