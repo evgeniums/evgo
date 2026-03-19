@@ -381,6 +381,9 @@ func (u *Handler) handleUnaryRequest(sctx context.Context, transportRequest any)
 
 func (u *Handler) handleRequest(sctx context.Context, transportRequest any) (any, error) {
 
+	// igmore unused
+	_ = transportRequest
+
 	request := op_context.OpContext[*Request](sctx)
 	request.sctx = sctx
 
