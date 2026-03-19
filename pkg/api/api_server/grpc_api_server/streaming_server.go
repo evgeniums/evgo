@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type StreamingMessageType int
@@ -21,16 +20,12 @@ const (
 	StreamingInitResponse StreamingMessageType = 2
 )
 
-func packResponse(input any) (*anypb.Any, string, error) {
+func packResponse(input any) (proto.Message, string, error) {
 	protoMsg, ok := input.(proto.Message)
 	if !ok {
 		return nil, "", fmt.Errorf("response is not a valid protobuf message")
 	}
-	anyMsg, err := anypb.New(protoMsg)
-	if err != nil {
-		return nil, "", err
-	}
-	return anyMsg, string(proto.MessageName(protoMsg)), nil
+	return protoMsg, string(proto.MessageName(protoMsg)), nil
 }
 
 func SendStreamingResponse(request *Request, stream grpc.ServerStream, m any, msgType StreamingMessageType) error {
