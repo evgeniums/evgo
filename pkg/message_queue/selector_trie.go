@@ -83,7 +83,7 @@ func (st *SelectorTrie[T]) Unregister(subscription *RegistrySubscription) T {
 	reversePath := make([]reverseNode[T], depth)
 
 	curr := st.root
-	reversePath[0] = reverseNode[T]{Optional[string]{}, nil}
+	reversePath[0] = reverseNode[T]{Optional[string]{}, curr}
 	for i, selector := range subscription.path {
 		if i == st.maxSelectors {
 			break
