@@ -24,11 +24,11 @@ func (k EventKey) GetSelectors() []message_queue.Optional[string] {
 	return k.selectors[:]
 }
 
-func (k EventKey) SetSelector(i int, selector string) {
+func (k *EventKey) SetSelector(i int, selector string) {
 	k.selectors[i] = utils.Opt(selector)
 }
 
-func (k EventKey) UnsetSelector(i int, selector string) {
+func (k *EventKey) UnsetSelector(i int, selector string) {
 	k.selectors[i] = utils.NullString()
 }
 
