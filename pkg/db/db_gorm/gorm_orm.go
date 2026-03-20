@@ -109,6 +109,23 @@ func prepareInterval(db *gorm.DB, name string, interval *Interval) *gorm.DB {
 	return h
 }
 
+func prepareIntervalOrNull(db *gorm.DB, name string, interval *Interval) *gorm.DB {
+	h := db
+
+	if interval.From != nil && interval.To != nil {
+		if interval.From == interval.To {
+			h = h.Where(fmt.Sprintf("\"%v\" IS NULL OR \"%v\" = ?", name, name), interval.From)
+		} else {
+			h = h.Where(fmt.Sprintf("\"%v\" IS NULL OR (\"%v\" %s ? AND \"%v\" %s ? )", name, name, compareOp(interval.FromOpen, ">"), name, compareOp(interval.ToOpen, "<")), interval.From, interval.To)
+		}
+	} else if interval.From != nil {
+		h = h.Where(fmt.Sprintf("\"%v\" IS NULL OR (\"%v\" %s ?)", name, name, compareOp(interval.FromOpen, ">")), interval.From)
+	} else if interval.To != nil {
+		h = h.Where(fmt.Sprintf("\"%v\" IS NULL OR (\"%v\" %s ?)", name, name, compareOp(interval.ToOpen, "<")), interval.To)
+	}
+	return h
+}
+
 func prepareFilter(db *gorm.DB, filter *Filter) *gorm.DB {
 	h := db
 
@@ -130,6 +147,10 @@ func prepareFilter(db *gorm.DB, filter *Filter) *gorm.DB {
 
 	for name, interval := range filter.Intervals {
 		h = prepareInterval(h, name, interval)
+	}
+
+	for name, interval := range filter.IntervalsOrNull {
+		h = prepareIntervalOrNull(h, name, interval)
 	}
 
 	for _, between := range filter.BetweenFields {

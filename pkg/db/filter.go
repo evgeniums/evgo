@@ -45,12 +45,13 @@ type OrFields struct {
 
 type Filter struct {
 	FilterConfig
-	Fields        Fields
-	FieldsIn      map[string][]interface{}
-	FieldsNotIn   map[string][]interface{}
-	Intervals     map[string]*Interval
-	BetweenFields []*BetweenFields
-	OrFields      []*OrFields
+	Fields          Fields
+	FieldsIn        map[string][]interface{}
+	FieldsNotIn     map[string][]interface{}
+	Intervals       map[string]*Interval
+	IntervalsOrNull map[string]*Interval
+	BetweenFields   []*BetweenFields
+	OrFields        []*OrFields
 
 	PresetFields []Fields
 
@@ -110,6 +111,13 @@ func (f *Filter) AddInterval(name string, from interface{}, to interface{}) {
 		f.Intervals = make(map[string]*Interval)
 	}
 	f.Intervals[name] = &Interval{From: from, To: to}
+}
+
+func (f *Filter) AddIntervalOrNull(name string, from interface{}, to interface{}) {
+	if f.IntervalsOrNull == nil {
+		f.IntervalsOrNull = make(map[string]*Interval)
+	}
+	f.IntervalsOrNull[name] = &Interval{From: from, To: to}
 }
 
 func (f *Filter) AddBetweenField(fromField string, toField string, value interface{}) {
