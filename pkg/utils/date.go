@@ -359,9 +359,12 @@ func FromHatnProtoDatetime(n int64) time.Time {
 	return UnpackDatetime(n).Local()
 }
 
-func IsExpired(dt time.Time) bool {
+func IsExpired(dt *time.Time) bool {
+	if dt == nil {
+		return false
+	}
 	if dt.IsZero() {
 		return false
 	}
-	return time.Now().After(dt)
+	return time.Now().After(*dt)
 }
