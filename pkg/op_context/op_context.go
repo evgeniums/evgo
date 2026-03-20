@@ -108,6 +108,11 @@ type Context interface {
 	Close(sctx context.Context, successMessage ...string)
 }
 
+func SetGenericErrorCode(ctx Context, code string) error {
+	ctx.SetGenericErrorCode(code)
+	return ctx.GenericError()
+}
+
 func ExecDbTransaction(sctx context.Context, handler func() error) error {
 
 	ctx := OpContext[Context](sctx)
