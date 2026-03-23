@@ -192,6 +192,7 @@ func (u *Handler) handleUnary(srv interface{}, ctx context.Context, dec func(int
 	if err := dec(w); err != nil {
 		resp := u.fillResponse(request, callCtx)
 		st := status.Error(request.statusCode, request.statusMessage)
+		request.Close(request.sctx)
 		return resp, st
 	}
 
