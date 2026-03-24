@@ -70,6 +70,7 @@ type ServerConfig struct {
 	ERROR_DESCRIPTION_HEADER  string `default:"x-hatn-edescription"`
 	ERROR_DETAILS_HEADER      string `default:"x-hatn-edetails"`
 	RESOURCE_ID_HEADER_PREFIX string `default:"x-hatn-rid"`
+	GRPC_CODE_HEADER          string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-grpc-code"`
 
 	TLS_CERTIFICATE_FILE string
 	TLS_PRIVATE_KEY_FILE string

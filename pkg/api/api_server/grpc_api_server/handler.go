@@ -3,9 +3,10 @@ package grpc_api_server
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"runtime"
+	"strconv"
+	"time"
 
 	"github.com/evgeniums/evgo/pkg/api/api_server"
 	"github.com/evgeniums/evgo/pkg/auth"
@@ -13,6 +14,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/logger"
 	"github.com/evgeniums/evgo/pkg/message_queue"
 	"github.com/evgeniums/evgo/pkg/op_context"
+	"github.com/evgeniums/evgo/pkg/utils"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -26,6 +28,8 @@ import (
 
 type RequestWrapper struct {
 	request *Request
+	handler *Handler
+	resp    api_server.RequestMessage
 }
 
 type RequestCodec struct {
@@ -57,6 +61,10 @@ func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 					callCtx.SetError(err)
 				}
 				w.request.TraceOutMethod()
+			}
+
+			if err != nil {
+				w.resp = w.handler.fillResponse(w.request, callCtx)
 			}
 		}()
 
@@ -188,9 +196,9 @@ func (u *Handler) handleUnary(srv interface{}, ctx context.Context, dec func(int
 	}
 
 	// invoke decoder
-	w := &RequestWrapper{request: request}
+	w := &RequestWrapper{request: request, handler: u}
 	if err := dec(w); err != nil {
-		resp := u.fillResponse(request, callCtx)
+		resp := w.resp
 		st := status.Error(request.statusCode, request.statusMessage)
 		request.Close(request.sctx)
 		return resp, st
@@ -270,25 +278,10 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 	}()
 
 	// receive initial message
-	w := &RequestWrapper{request: request}
-	if err1 := stream.RecvMsg(w); err1 != nil {
+	w := &RequestWrapper{request: request, handler: u}
+	if err = stream.RecvMsg(w); err != nil {
 		callCtx.SetMessage("initial RecvMsg failed")
-		err = err1
 		callCtx.SetError(err)
-		st, ok := status.FromError(err)
-		if ok {
-			request.statusCode = st.Code()
-			request.SetGenericErrorCode(GRPCToGeneric(st.Code()))
-		} else {
-			if err == io.EOF {
-				request.statusCode = codes.Aborted
-				request.SetGenericErrorCode(generic_error.ErrorCodeIOAborted)
-			} else {
-				request.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
-			}
-		}
-		fillResponseStatus(request, err)
-		callCtx.Logger().Debug("initial stream.RecvMsg failed", logger.Fields{"err_msg": err1})
 		return err
 	}
 
@@ -332,6 +325,13 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 	streamOpen = true
 	request.OnStreamIntialized(sctx, "STREAM OPEN")
 
+	// add reconnection timer watching access token expiration
+	var authTimerChan <-chan time.Time
+	authTimer := request.AuthTimer()
+	if authTimer != nil {
+		authTimerChan = authTimer.C
+	}
+
 	for {
 		select {
 		// SIGNAL 1: Client disconnected or timeout
@@ -342,7 +342,12 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 		// SIGNAL 2: Global server shutdown
 		case <-request.server.shutdown:
 			streamClosed = true
-			return status.Error(codes.Unavailable, "server is shutting down")
+			return status.Error(codes.Aborted, "server is shutting down")
+
+		// SIGNAL 4: Auth timer
+		case <-authTimerChan:
+			streamClosed = true
+			return status.Error(codes.Aborted, "auth timer triggered")
 
 		// SIGNAL 3: Data from mq (using 'ok' to detect closure)
 		case message, ok := <-mq.Channel():
@@ -433,7 +438,7 @@ func fillResponseStatus(request *Request, err error) {
 	}
 }
 
-func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext) api_server.RequestMessage {
+func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext, trailing ...bool) api_server.RequestMessage {
 
 	response := &api_server.RequestMessageBase{}
 	if request.Response().Payload() != nil {
@@ -448,8 +453,8 @@ func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext)
 	}
 
 	// fill response headers
-	// TODO put message ID to header
 	md := metadata.Pairs()
+	md.Append(u.server.ID_HEADER, request.ID())
 
 	var appStatus string
 	if request.GenericError() == nil {
@@ -461,6 +466,7 @@ func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext)
 			request.SetErrorAsWarn(true)
 		}
 		request.statusCode = HTTPToGRPC(code)
+		md.Append(u.server.GRPC_CODE_HEADER, strconv.Itoa(int(request.statusCode)))
 		request.statusMessage = request.GenericError().Message()
 		appStatus = err.Code()
 		errMsg := err.Message()
@@ -488,8 +494,14 @@ func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext)
 	if response.TransportMessage() != nil {
 		md.Append(u.server.MESSAGE_TYPE_HEADER, GetProtoName(response.TransportMessage()))
 	}
-	if err := grpc.SetHeader(request.sctx, md); err != nil {
-		callCtx.Logger().Error("failed to set response headers", err)
+	if utils.OptionalArg(false, trailing...) {
+		if err := grpc.SetTrailer(request.sctx, md); err != nil {
+			callCtx.Logger().Error("failed to set response trailer", err)
+		}
+	} else {
+		if err := grpc.SetHeader(request.sctx, md); err != nil {
+			callCtx.Logger().Error("failed to set response headers", err)
+		}
 	}
 
 	// done
