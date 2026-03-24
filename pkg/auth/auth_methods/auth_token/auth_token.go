@@ -159,11 +159,11 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 
 	// check token in request
 	var exists bool
-	prev := &Token{}
+	prevToken := &Token{}
 	if a.AUTH_BEARER_HEADER {
-		exists, err = auth.GetAndDecodeBearer(sctx, a.encryption, prev)
+		exists, err = auth.GetAndDecodeBearer(sctx, a.encryption, prevToken)
 	} else {
-		exists, err = a.encryption.GetAuthParameter(sctx, a.baseProtocolName, tokenName, prev, ctx.GetAuthParameter(a.baseProtocolName, TagName), a.DIRECT_TOKEN_NAME)
+		exists, err = a.encryption.GetAuthParameter(sctx, a.baseProtocolName, tokenName, prevToken, ctx.GetAuthParameter(a.baseProtocolName, TagName), a.DIRECT_TOKEN_NAME)
 	}
 	if err != nil {
 		c.SetMessage("failed to get encrypted auth parameter")
@@ -175,10 +175,10 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 		return true, errors.New("token missing")
 	}
 
-	c.LoggerFields()["token"] = prev.Id
-	ctx.SetLoggerField("user", prev.UserDisplay)
-	ctx.SetLoggerField("session", prev.SessionId)
-	if prev.Expired() {
+	c.LoggerFields()["token"] = prevToken.Id
+	ctx.SetLoggerField("user", prevToken.UserDisplay)
+	ctx.SetLoggerField("session", prevToken.SessionId)
+	if prevToken.Expired() {
 		err = errors.New("token expired")
 		if refresh {
 			ctx.SetGenericErrorCode(ErrorCodeSessionExpired)
@@ -188,24 +188,24 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 		return true, err
 	}
 	// check token type
-	if prev.Type != tokenName {
+	if prevToken.Type != tokenName {
 		err = errors.New("token types mismatch")
 		ctx.SetGenericErrorCode(ErrorCodeInvalidToken)
 		return true, err
 	}
 
 	// check tenancy
-	if ctx.GetTenancy() != nil || prev.Tenancy != "" {
-		if ctx.GetTenancy() == nil || prev.Tenancy != ctx.GetTenancy().GetID() {
+	if ctx.GetTenancy() != nil || prevToken.Tenancy != "" {
+		if ctx.GetTenancy() == nil || prevToken.Tenancy != ctx.GetTenancy().GetID() {
 			err = errors.New("invalid tenancy")
-			c.LoggerFields()["token_tenancy"] = prev.Tenancy
+			c.LoggerFields()["token_tenancy"] = prevToken.Tenancy
 			ctx.SetGenericErrorCode(ErrorCodeSessionExpired)
 			return true, err
 		}
 	}
 
 	// find session
-	session, err := a.users.SessionManager().FindSession(sctx, prev.SessionId)
+	session, err := a.users.SessionManager().FindSession(sctx, prevToken.SessionId)
 	if err != nil {
 		ctx.SetGenericErrorCode(ErrorCodeSessionExpired)
 		return true, err
@@ -225,7 +225,7 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 	}
 
 	// find user
-	user, err := a.users.AuthUserManager().FindAuthUser(sctx, session.GetUserLogin(), prev.Parameters)
+	user, err := a.users.AuthUserManager().FindAuthUser(sctx, session.GetUserLogin(), prevToken.Parameters)
 	if err != nil {
 		c.SetMessage("failed to load user")
 		ctx.SetGenericErrorCode(generic_error.ErrorCodeInternalServerError)
@@ -257,7 +257,7 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 
 	// set user session
 	ctx.SetSessionId(session.GetID())
-	ctx.LoadSessionParameters(prev.Parameters)
+	ctx.LoadSessionParameters(prevToken.Parameters)
 
 	// update session client
 	err = a.users.SessionManager().UpdateSessionClient(sctx)
@@ -275,7 +275,7 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 			regenerateAccessToken := true
 			if !refresh {
 				tokenExpirationTime := now.Add(time.Second * time.Duration(a.ACCESS_TOKEN_GEN_BEFORE_SECONDS))
-				regenerateAccessToken = tokenExpirationTime.After(prev.Exp)
+				regenerateAccessToken = tokenExpirationTime.After(prevToken.Exp)
 			}
 
 			if regenerateAccessToken {
@@ -310,6 +310,15 @@ func (a *AuthTokenHandler) Handle(sctx context.Context) (bool, error) {
 			return true, err
 		}
 	}
+
+	// set timer
+	expireAt := session.GetExpiration()
+	if expireAt.After(prevToken.Exp) {
+		expireAt = prevToken.Exp
+	}
+	duration := time.Until(expireAt)
+	timer := time.NewTimer(duration)
+	ctx.SetAuthTimer(timer)
 
 	// done
 	return true, nil

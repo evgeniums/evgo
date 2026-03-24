@@ -3,6 +3,7 @@ package api_server
 import (
 	"context"
 	"mime/multipart"
+	"time"
 
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/app_context"
@@ -125,6 +126,8 @@ type RequestBase struct {
 	endpoint          Endpoint
 	message           RequestMessage
 	sessionParameters map[string]string
+
+	authTimer *time.Timer
 }
 
 func (r *RequestBase) Init(app app_context.Context, log logger.Logger, db db.DB, fields ...logger.Fields) {
@@ -165,6 +168,14 @@ func (r *RequestBase) GetSessionParameter(key string) string {
 
 func (r *RequestBase) SetSessionParameter(key string, value string) {
 	r.sessionParameters[key] = value
+}
+
+func (r *RequestBase) AuthTimer() *time.Timer {
+	return r.authTimer
+}
+
+func (r *RequestBase) SetAuthTimer(t *time.Timer) {
+	r.authTimer = t
 }
 
 func FullRequestPath(r Request) string {

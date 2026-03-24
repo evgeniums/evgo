@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/common"
@@ -44,6 +45,9 @@ type AuthContext interface {
 
 	SetAuthParameter(authMethodProtocol string, key string, value string, directKeyName ...bool)
 	GetAuthParameter(authMethodProtocol string, key string, directKeyName ...bool) string
+
+	AuthTimer() *time.Timer
+	SetAuthTimer(t *time.Timer)
 }
 
 func extractToken(headerr string) string {
