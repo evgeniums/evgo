@@ -21,50 +21,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type HeartBeat struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Timestamp     int64                  `protobuf:"varint,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HeartBeat) Reset() {
-	*x = HeartBeat{}
-	mi := &file_grpc_server_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HeartBeat) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HeartBeat) ProtoMessage() {}
-
-func (x *HeartBeat) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_server_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HeartBeat.ProtoReflect.Descriptor instead.
-func (*HeartBeat) Descriptor() ([]byte, []int) {
-	return file_grpc_server_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *HeartBeat) GetTimestamp() int64 {
-	if x != nil {
-		return x.Timestamp
-	}
-	return 0
-}
-
 type Error struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          int32                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
@@ -76,7 +32,7 @@ type Error struct {
 
 func (x *Error) Reset() {
 	*x = Error{}
-	mi := &file_grpc_server_proto_msgTypes[1]
+	mi := &file_grpc_server_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -88,7 +44,7 @@ func (x *Error) String() string {
 func (*Error) ProtoMessage() {}
 
 func (x *Error) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_server_proto_msgTypes[1]
+	mi := &file_grpc_server_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -101,7 +57,7 @@ func (x *Error) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Error.ProtoReflect.Descriptor instead.
 func (*Error) Descriptor() ([]byte, []int) {
-	return file_grpc_server_proto_rawDescGZIP(), []int{1}
+	return file_grpc_server_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Error) GetCode() int32 {
@@ -135,7 +91,7 @@ type StreamResponse struct {
 
 func (x *StreamResponse) Reset() {
 	*x = StreamResponse{}
-	mi := &file_grpc_server_proto_msgTypes[2]
+	mi := &file_grpc_server_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -147,7 +103,7 @@ func (x *StreamResponse) String() string {
 func (*StreamResponse) ProtoMessage() {}
 
 func (x *StreamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_server_proto_msgTypes[2]
+	mi := &file_grpc_server_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -160,7 +116,7 @@ func (x *StreamResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamResponse.ProtoReflect.Descriptor instead.
 func (*StreamResponse) Descriptor() ([]byte, []int) {
-	return file_grpc_server_proto_rawDescGZIP(), []int{2}
+	return file_grpc_server_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *StreamResponse) GetMessageType() string {
@@ -181,9 +137,7 @@ var File_grpc_server_proto protoreflect.FileDescriptor
 
 const file_grpc_server_proto_rawDesc = "" +
 	"\n" +
-	"\x11grpc_server.proto\x12\x0fgrpc_api_server\")\n" +
-	"\tHeartBeat\x12\x1c\n" +
-	"\ttimestamp\x18\x01 \x01(\x03R\ttimestamp\"U\n" +
+	"\x11grpc_server.proto\x12\x0fgrpc_api_server\"U\n" +
 	"\x05Error\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12 \n" +
@@ -204,11 +158,10 @@ func file_grpc_server_proto_rawDescGZIP() []byte {
 	return file_grpc_server_proto_rawDescData
 }
 
-var file_grpc_server_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_grpc_server_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_grpc_server_proto_goTypes = []any{
-	(*HeartBeat)(nil),      // 0: grpc_api_server.HeartBeat
-	(*Error)(nil),          // 1: grpc_api_server.Error
-	(*StreamResponse)(nil), // 2: grpc_api_server.StreamResponse
+	(*Error)(nil),          // 0: grpc_api_server.Error
+	(*StreamResponse)(nil), // 1: grpc_api_server.StreamResponse
 }
 var file_grpc_server_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -229,7 +182,7 @@ func file_grpc_server_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grpc_server_proto_rawDesc), len(file_grpc_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
