@@ -55,6 +55,14 @@ type DBHandlers interface {
 	UpdateAll(sctx context.Context, obj interface{}, newFields Fields) error
 	UpdateWithFilter(sctx context.Context, obj interface{}, filter *Filter, newFields Fields) error
 
+	UpdateSection(sctx context.Context, obj interface{}, filter Fields, section string, fields Fields) error
+	UpdateSectionAll(sctx context.Context, obj interface{}, section string, newFields Fields) error
+	UpdateSectionWithFilter(sctx context.Context, obj interface{}, filter *Filter, section string, newFields Fields) error
+
+	UpdateSections(sctx context.Context, obj interface{}, filter Fields, sections []string, fields Fields) error
+	UpdateSectionsAll(sctx context.Context, obj interface{}, sections []string, newFields Fields) error
+	UpdateSectionsWithFilter(sctx context.Context, obj interface{}, filter *Filter, sections []string, newFields Fields) error
+
 	Join(sctx context.Context, joinConfig *JoinQueryConfig, filter *Filter, dest interface{}) (int64, error)
 
 	Joiner() Joiner
@@ -142,6 +150,63 @@ func UpdateWithFilter(db DBHandlers, sctx context.Context, obj interface{}, filt
 	f := utils.CopyMap(fields)
 	f["updated_at"] = time.Now()
 	return db.UpdateWithFilter(sctx, obj, filter, f)
+}
+
+func updateSectionTime(fields Fields) {
+	for _, value := range fields {
+		obj, ok := value.(common.Object)
+		if ok {
+			obj.SetUpdatedAt(time.Now())
+		}
+	}
+}
+
+func UpdateSection(db DBHandlers, sctx context.Context, obj common.Object, section string, fields Fields) error {
+	f := utils.CopyMap(fields)
+	updateSectionTime(f)
+	return db.UpdateSection(sctx, obj, nil, section, f)
+}
+
+func UpdateSectionMulti(db DBHandlers, sctx context.Context, obj interface{}, filter Fields, section string, fields Fields) error {
+	f := utils.CopyMap(fields)
+	updateSectionTime(f)
+	return db.UpdateSection(sctx, obj, filter, section, f)
+}
+
+func UpdateSectionAll(db DBHandlers, sctx context.Context, obj interface{}, section string, fields Fields) error {
+	f := utils.CopyMap(fields)
+	updateSectionTime(f)
+	return db.UpdateSectionAll(sctx, obj, section, f)
+}
+
+func UpdateSectionWithFilter(db DBHandlers, sctx context.Context, obj interface{}, filter *Filter, section string, fields Fields) error {
+	f := utils.CopyMap(fields)
+	updateSectionTime(f)
+	return db.UpdateSectionWithFilter(sctx, obj, filter, section, f)
+}
+
+func UpdateSections(db DBHandlers, sctx context.Context, obj common.Object, section []string, fields Fields) error {
+	f := utils.CopyMap(fields)
+	updateSectionTime(f)
+	return db.UpdateSections(sctx, obj, nil, section, f)
+}
+
+func UpdateSectionsMulti(db DBHandlers, sctx context.Context, obj interface{}, filter Fields, section []string, fields Fields) error {
+	f := utils.CopyMap(fields)
+	updateSectionTime(f)
+	return db.UpdateSections(sctx, obj, filter, section, f)
+}
+
+func UpdateSectionsAll(db DBHandlers, sctx context.Context, obj interface{}, section []string, fields Fields) error {
+	f := utils.CopyMap(fields)
+	updateSectionTime(f)
+	return db.UpdateSectionsAll(sctx, obj, section, f)
+}
+
+func UpdateSectionsWithFilter(db DBHandlers, sctx context.Context, obj interface{}, filter *Filter, section []string, fields Fields) error {
+	f := utils.CopyMap(fields)
+	updateSectionTime(f)
+	return db.UpdateSectionsWithFilter(sctx, obj, filter, section, f)
 }
 
 type AllDatabases struct {

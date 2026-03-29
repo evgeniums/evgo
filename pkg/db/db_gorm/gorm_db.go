@@ -400,9 +400,29 @@ func (g *GormDB) FindWithFilter(sctx context.Context, filter *Filter, obj interf
 }
 
 func (g *GormDB) Update(sctx context.Context, obj interface{}, filter db.Fields, newFields db.Fields) error {
-	err := UpdateFielsdMulti(g.db_(), filter, obj, newFields)
+	err := UpdateFieldsMulti(g.db_(), filter, obj, newFields)
 	if err != nil && g.VERBOSE_ERRORS {
-		e := fmt.Errorf("failed to UpdateFieldsWithFilter %v", ObjectTypeName(obj))
+		e := fmt.Errorf("failed to Update %v", ObjectTypeName(obj))
+		ctx := logger.LoggerContext(sctx)
+		ctx.Logger().Error("GormDB", e, logger.FieldsWithError(err))
+	}
+	return err
+}
+
+func (g *GormDB) UpdateSection(sctx context.Context, obj interface{}, filter db.Fields, section string, newFields db.Fields) error {
+	err := UpdateSectionMulti(g.db_(), filter, obj, section, newFields)
+	if err != nil && g.VERBOSE_ERRORS {
+		e := fmt.Errorf("failed to UpdateSection %v", ObjectTypeName(obj))
+		ctx := logger.LoggerContext(sctx)
+		ctx.Logger().Error("GormDB", e, logger.FieldsWithError(err))
+	}
+	return err
+}
+
+func (g *GormDB) UpdateSections(sctx context.Context, obj interface{}, filter db.Fields, sections []string, newFields db.Fields) error {
+	err := UpdateSectionsMulti(g.db_(), filter, obj, sections, newFields)
+	if err != nil && g.VERBOSE_ERRORS {
+		e := fmt.Errorf("failed to UpdateSections %v", ObjectTypeName(obj))
 		ctx := logger.LoggerContext(sctx)
 		ctx.Logger().Error("GormDB", e, logger.FieldsWithError(err))
 	}
@@ -419,10 +439,50 @@ func (g *GormDB) UpdateWithFilter(sctx context.Context, obj interface{}, filter 
 	return err
 }
 
+func (g *GormDB) UpdateSectionWithFilter(sctx context.Context, obj interface{}, filter *db.Filter, section string, newFields db.Fields) error {
+	err := UpdateSectionWithFilter(g.db_(), filter, obj, section, newFields)
+	if err != nil && g.VERBOSE_ERRORS {
+		e := fmt.Errorf("failed to UpdateSectionWithFilter %v", ObjectTypeName(obj))
+		ctx := logger.LoggerContext(sctx)
+		ctx.Logger().Error("GormDB", e, logger.FieldsWithError(err))
+	}
+	return err
+}
+
+func (g *GormDB) UpdateSectionsWithFilter(sctx context.Context, obj interface{}, filter *db.Filter, sections []string, newFields db.Fields) error {
+	err := UpdateSectionsWithFilter(g.db_(), filter, obj, sections, newFields)
+	if err != nil && g.VERBOSE_ERRORS {
+		e := fmt.Errorf("failed to UpdateSectionWithFilter %v", ObjectTypeName(obj))
+		ctx := logger.LoggerContext(sctx)
+		ctx.Logger().Error("GormDB", e, logger.FieldsWithError(err))
+	}
+	return err
+}
+
 func (g *GormDB) UpdateAll(sctx context.Context, obj interface{}, newFields db.Fields) error {
 	err := UpdateFieldsAll(g.db_(), obj, newFields)
 	if err != nil && g.VERBOSE_ERRORS {
 		e := fmt.Errorf("failed to UpdateAll %v", ObjectTypeName(obj))
+		ctx := logger.LoggerContext(sctx)
+		ctx.Logger().Error("GormDB", e, logger.FieldsWithError(err))
+	}
+	return err
+}
+
+func (g *GormDB) UpdateSectionAll(sctx context.Context, obj interface{}, section string, newFields db.Fields) error {
+	err := UpdateSectionAll(g.db_(), obj, section, newFields)
+	if err != nil && g.VERBOSE_ERRORS {
+		e := fmt.Errorf("failed to UpdateSectionAll %v", ObjectTypeName(obj))
+		ctx := logger.LoggerContext(sctx)
+		ctx.Logger().Error("GormDB", e, logger.FieldsWithError(err))
+	}
+	return err
+}
+
+func (g *GormDB) UpdateSectionsAll(sctx context.Context, obj interface{}, sections []string, newFields db.Fields) error {
+	err := UpdateSectionsAll(g.db_(), obj, sections, newFields)
+	if err != nil && g.VERBOSE_ERRORS {
+		e := fmt.Errorf("failed to UpdateSectionsAll %v", ObjectTypeName(obj))
 		ctx := logger.LoggerContext(sctx)
 		ctx.Logger().Error("GormDB", e, logger.FieldsWithError(err))
 	}

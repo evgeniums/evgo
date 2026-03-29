@@ -18,10 +18,22 @@ type CRUD interface {
 	ReadByField(sctx context.Context, fieldName string, fieldValue interface{}, object interface{}, dest ...interface{}) (bool, error)
 	ReadForUpdate(sctx context.Context, fields db.Fields, object interface{}) (bool, error)
 	ReadForShare(sctx context.Context, fields db.Fields, object interface{}) (bool, error)
+
 	Update(sctx context.Context, object common.Object, fields db.Fields) error
 	UpdateMonthObject(sctx context.Context, obj common.ObjectWithMonth, fields db.Fields) error
 	UpdateMulti(sctx context.Context, model interface{}, filter db.Fields, fields db.Fields) error
 	UpdateWithFilter(sctx context.Context, model interface{}, filter *db.Filter, fields db.Fields) error
+
+	UpdateSection(sctx context.Context, object common.Object, section string, ields db.Fields) error
+	UpdateMonthObjectSection(sctx context.Context, obj common.ObjectWithMonth, section string, fields db.Fields) error
+	UpdateSectionMulti(sctx context.Context, model interface{}, filter db.Fields, section string, fields db.Fields) error
+	UpdateSectionWithFilter(sctx context.Context, model interface{}, filter *db.Filter, section string, fields db.Fields) error
+
+	UpdateSections(sctx context.Context, object common.Object, sections []string, ields db.Fields) error
+	UpdateMonthObjectSections(sctx context.Context, obj common.ObjectWithMonth, sections []string, fields db.Fields) error
+	UpdateSectionsMulti(sctx context.Context, model interface{}, filter db.Fields, sections []string, fields db.Fields) error
+	UpdateSectionsWithFilter(sctx context.Context, model interface{}, filter *db.Filter, sections []string, fields db.Fields) error
+
 	Delete(sctx context.Context, object common.Object) error
 	DeleteByFields(sctx context.Context, field db.Fields, object common.Object) error
 
@@ -207,6 +219,42 @@ func (d *DbCRUD) Update(sctx context.Context, obj common.Object, fields db.Field
 	return nil
 }
 
+func (d *DbCRUD) UpdateSection(sctx context.Context, obj common.Object, section string, fields db.Fields) error {
+
+	if d.DryRun {
+		return nil
+	}
+
+	ctx := op_context.OpContext[op_context.Context](sctx)
+	c := ctx.TraceInMethod("CRUD.UpdateSection")
+	defer ctx.TraceOutMethod()
+
+	err := db.UpdateSection(op_context.DB(ctx, d.ForceMainDb), sctx, obj, section, fields)
+	if err != nil {
+		return c.SetError(err)
+	}
+
+	return nil
+}
+
+func (d *DbCRUD) UpdateSections(sctx context.Context, obj common.Object, sections []string, fields db.Fields) error {
+
+	if d.DryRun {
+		return nil
+	}
+
+	ctx := op_context.OpContext[op_context.Context](sctx)
+	c := ctx.TraceInMethod("CRUD.UpdateSections")
+	defer ctx.TraceOutMethod()
+
+	err := db.UpdateSections(op_context.DB(ctx, d.ForceMainDb), sctx, obj, sections, fields)
+	if err != nil {
+		return c.SetError(err)
+	}
+
+	return nil
+}
+
 func (d *DbCRUD) UpdateMonthObject(sctx context.Context, obj common.ObjectWithMonth, fields db.Fields) error {
 
 	if d.DryRun {
@@ -218,6 +266,42 @@ func (d *DbCRUD) UpdateMonthObject(sctx context.Context, obj common.ObjectWithMo
 	defer ctx.TraceOutMethod()
 
 	err := db.UpdateMulti(op_context.DB(ctx, d.ForceMainDb), sctx, obj, db.Fields{"month": obj.GetMonth(), "id": obj.GetID()}, fields)
+	if err != nil {
+		return c.SetError(err)
+	}
+
+	return nil
+}
+
+func (d *DbCRUD) UpdateMonthObjectSection(sctx context.Context, obj common.ObjectWithMonth, section string, fields db.Fields) error {
+
+	if d.DryRun {
+		return nil
+	}
+
+	ctx := op_context.OpContext[op_context.Context](sctx)
+	c := ctx.TraceInMethod("CRUD.UpdateMonthObjectSection")
+	defer ctx.TraceOutMethod()
+
+	err := db.UpdateSectionMulti(op_context.DB(ctx, d.ForceMainDb), sctx, obj, db.Fields{"month": obj.GetMonth(), "id": obj.GetID()}, section, fields)
+	if err != nil {
+		return c.SetError(err)
+	}
+
+	return nil
+}
+
+func (d *DbCRUD) UpdateMonthObjectSections(sctx context.Context, obj common.ObjectWithMonth, sections []string, fields db.Fields) error {
+
+	if d.DryRun {
+		return nil
+	}
+
+	ctx := op_context.OpContext[op_context.Context](sctx)
+	c := ctx.TraceInMethod("CRUD.UpdateMonthObjectSections")
+	defer ctx.TraceOutMethod()
+
+	err := db.UpdateSectionsMulti(op_context.DB(ctx, d.ForceMainDb), sctx, obj, db.Fields{"month": obj.GetMonth(), "id": obj.GetID()}, sections, fields)
 	if err != nil {
 		return c.SetError(err)
 	}
@@ -248,6 +332,52 @@ func (d *DbCRUD) UpdateMulti(sctx context.Context, model interface{}, filter db.
 	return nil
 }
 
+func (d *DbCRUD) UpdateSectionMulti(sctx context.Context, model interface{}, filter db.Fields, section string, fields db.Fields) error {
+
+	if d.DryRun {
+		return nil
+	}
+
+	ctx := op_context.OpContext[op_context.Context](sctx)
+	c := ctx.TraceInMethod("CRUD.UpdateSectionMulti")
+	defer ctx.TraceOutMethod()
+
+	var err error
+	if filter == nil {
+		err = db.UpdateSectionAll(op_context.DB(ctx, d.ForceMainDb), sctx, model, section, fields)
+	} else {
+		err = db.UpdateSectionMulti(op_context.DB(ctx, d.ForceMainDb), sctx, model, filter, section, fields)
+	}
+	if err != nil {
+		return c.SetError(err)
+	}
+
+	return nil
+}
+
+func (d *DbCRUD) UpdateSectionsMulti(sctx context.Context, model interface{}, filter db.Fields, sections []string, fields db.Fields) error {
+
+	if d.DryRun {
+		return nil
+	}
+
+	ctx := op_context.OpContext[op_context.Context](sctx)
+	c := ctx.TraceInMethod("CRUD.UpdateSectionMulti")
+	defer ctx.TraceOutMethod()
+
+	var err error
+	if filter == nil {
+		err = db.UpdateSectionsAll(op_context.DB(ctx, d.ForceMainDb), sctx, model, sections, fields)
+	} else {
+		err = db.UpdateSectionsMulti(op_context.DB(ctx, d.ForceMainDb), sctx, model, filter, sections, fields)
+	}
+	if err != nil {
+		return c.SetError(err)
+	}
+
+	return nil
+}
+
 func (d *DbCRUD) UpdateWithFilter(sctx context.Context, model interface{}, filter *db.Filter, fields db.Fields) error {
 
 	if d.DryRun {
@@ -259,6 +389,42 @@ func (d *DbCRUD) UpdateWithFilter(sctx context.Context, model interface{}, filte
 	defer ctx.TraceOutMethod()
 
 	err := db.UpdateWithFilter(op_context.DB(ctx, d.ForceMainDb), sctx, model, filter, fields)
+	if err != nil {
+		return c.SetError(err)
+	}
+
+	return nil
+}
+
+func (d *DbCRUD) UpdateSectionWithFilter(sctx context.Context, model interface{}, filter *db.Filter, section string, fields db.Fields) error {
+
+	if d.DryRun {
+		return nil
+	}
+
+	ctx := op_context.OpContext[op_context.Context](sctx)
+	c := ctx.TraceInMethod("CRUD.UpdateSectionWithFilter")
+	defer ctx.TraceOutMethod()
+
+	err := db.UpdateSectionWithFilter(op_context.DB(ctx, d.ForceMainDb), sctx, model, filter, section, fields)
+	if err != nil {
+		return c.SetError(err)
+	}
+
+	return nil
+}
+
+func (d *DbCRUD) UpdateSectionsWithFilter(sctx context.Context, model interface{}, filter *db.Filter, sections []string, fields db.Fields) error {
+
+	if d.DryRun {
+		return nil
+	}
+
+	ctx := op_context.OpContext[op_context.Context](sctx)
+	c := ctx.TraceInMethod("CRUD.UpdateSectiosWithFilter")
+	defer ctx.TraceOutMethod()
+
+	err := db.UpdateSectionsWithFilter(op_context.DB(ctx, d.ForceMainDb), sctx, model, filter, sections, fields)
 	if err != nil {
 		return c.SetError(err)
 	}
