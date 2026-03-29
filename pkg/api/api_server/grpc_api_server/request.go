@@ -376,6 +376,11 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 
 	c := request.TraceInMethod("Server.Handle")
 
+	opId := request.GetRequestHeader(s.ID_HEADER)
+	if opId != "" {
+		request.SetOpId(opId)
+	}
+
 	// extract tenancy if applicable
 	var tenancy multitenancy.Tenancy
 	if s.IsMultitenancy() && ep.Resource().IsInTenancy() {

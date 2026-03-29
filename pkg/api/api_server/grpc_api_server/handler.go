@@ -356,6 +356,8 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 				return nil
 			}
 
+			request.Logger().Debug("stream channel triggered, sending message to stream")
+
 			msgContent := api_server.NewMessageContent()
 			msgContent.SetLogicMessage(message)
 			err = u.endpoint.LogicResponseToTransport(msgContent)
@@ -454,7 +456,10 @@ func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext,
 
 	// fill response headers
 	md := metadata.Pairs()
-	md.Append(u.server.ID_HEADER, request.ID())
+	opId := request.OpId()
+	if opId != "" {
+		md.Append(u.server.ID_HEADER, opId)
+	}
 
 	var appStatus string
 	if request.GenericError() == nil {
@@ -494,13 +499,19 @@ func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext,
 	if response.TransportMessage() != nil {
 		md.Append(u.server.MESSAGE_TYPE_HEADER, GetProtoName(response.TransportMessage()))
 	}
-	if utils.OptionalArg(false, trailing...) {
-		if err := grpc.SetTrailer(request.sctx, md); err != nil {
-			callCtx.Logger().Error("failed to set response trailer", err)
-		}
-	} else {
-		if err := grpc.SetHeader(request.sctx, md); err != nil {
-			callCtx.Logger().Error("failed to set response headers", err)
+
+	// set header only if context still alive
+	select {
+	case <-request.sctx.Done():
+	default:
+		if utils.OptionalArg(false, trailing...) {
+			if err := grpc.SetTrailer(request.sctx, md); err != nil {
+				callCtx.Logger().Error("failed to set response trailer", err)
+			}
+		} else {
+			if err := grpc.SetHeader(request.sctx, md); err != nil {
+				callCtx.Logger().Error("failed to set response headers", err)
+			}
 		}
 	}
 

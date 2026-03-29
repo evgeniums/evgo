@@ -96,6 +96,9 @@ type Request interface {
 	AppendResponseHeader(name string, value string)
 	GetResponseHeaders(name string) []string
 	GetResponseHeader(name string) string
+
+	SetOpId(opId string)
+	OpId() string
 }
 
 func AuthKey(authProtocol string, key string, directKeyName ...bool) string {
@@ -128,6 +131,8 @@ type RequestBase struct {
 	sessionParameters map[string]string
 
 	authTimer *time.Timer
+
+	opId string
 }
 
 func (r *RequestBase) Init(app app_context.Context, log logger.Logger, db db.DB, fields ...logger.Fields) {
@@ -176,6 +181,14 @@ func (r *RequestBase) AuthTimer() *time.Timer {
 
 func (r *RequestBase) SetAuthTimer(t *time.Timer) {
 	r.authTimer = t
+}
+
+func (r *RequestBase) SetOpId(opId string) {
+	r.opId = opId
+}
+
+func (r *RequestBase) OpId() string {
+	return r.opId
 }
 
 func FullRequestPath(r Request) string {

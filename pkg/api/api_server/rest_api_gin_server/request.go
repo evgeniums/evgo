@@ -304,12 +304,6 @@ func (r *Request) GetRequestHeaders(name string) []string {
 }
 
 func (r *Request) GetRequestHeader(name string) string {
-	// fmt.Printf("GetRequestHeader: \n")
-	// for name, values := range r.ginCtx.Request.Header {
-	// 	for _, value := range values {
-	// 		fmt.Printf("%s: %s\n", name, value)
-	// 	}
-	// }
 	return r.ginCtx.GetHeader(name)
 }
 
