@@ -24,15 +24,15 @@ type CRUD interface {
 	UpdateMulti(sctx context.Context, model interface{}, filter db.Fields, fields db.Fields) error
 	UpdateWithFilter(sctx context.Context, model interface{}, filter *db.Filter, fields db.Fields) error
 
-	UpdateSection(sctx context.Context, object common.Object, section string, ields db.Fields) error
-	UpdateMonthObjectSection(sctx context.Context, obj common.ObjectWithMonth, section string, fields db.Fields) error
-	UpdateSectionMulti(sctx context.Context, model interface{}, filter db.Fields, section string, fields db.Fields) error
-	UpdateSectionWithFilter(sctx context.Context, model interface{}, filter *db.Filter, section string, fields db.Fields) error
+	UpdateSection(sctx context.Context, object common.Object, section string, fields db.SectionFields) error
+	UpdateMonthObjectSection(sctx context.Context, obj common.ObjectWithMonth, section string, fields db.SectionFields) error
+	UpdateSectionMulti(sctx context.Context, model interface{}, filter db.Fields, section string, fields db.SectionFields) error
+	UpdateSectionWithFilter(sctx context.Context, model interface{}, filter *db.Filter, section string, fields db.SectionFields) error
 
-	UpdateSections(sctx context.Context, object common.Object, sections []string, ields db.Fields) error
-	UpdateMonthObjectSections(sctx context.Context, obj common.ObjectWithMonth, sections []string, fields db.Fields) error
-	UpdateSectionsMulti(sctx context.Context, model interface{}, filter db.Fields, sections []string, fields db.Fields) error
-	UpdateSectionsWithFilter(sctx context.Context, model interface{}, filter *db.Filter, sections []string, fields db.Fields) error
+	UpdateSections(sctx context.Context, object common.Object, sections []string, ields db.SectionFields) error
+	UpdateMonthObjectSections(sctx context.Context, obj common.ObjectWithMonth, sections []string, fields db.SectionFields) error
+	UpdateSectionsMulti(sctx context.Context, model interface{}, filter db.Fields, sections []string, fields db.SectionFields) error
+	UpdateSectionsWithFilter(sctx context.Context, model interface{}, filter *db.Filter, sections []string, fields db.SectionFields) error
 
 	Delete(sctx context.Context, object common.Object) error
 	DeleteByFields(sctx context.Context, field db.Fields, object common.Object) error
@@ -219,7 +219,7 @@ func (d *DbCRUD) Update(sctx context.Context, obj common.Object, fields db.Field
 	return nil
 }
 
-func (d *DbCRUD) UpdateSection(sctx context.Context, obj common.Object, section string, fields db.Fields) error {
+func (d *DbCRUD) UpdateSection(sctx context.Context, obj common.Object, section string, fields db.SectionFields) error {
 
 	if d.DryRun {
 		return nil
@@ -237,7 +237,7 @@ func (d *DbCRUD) UpdateSection(sctx context.Context, obj common.Object, section 
 	return nil
 }
 
-func (d *DbCRUD) UpdateSections(sctx context.Context, obj common.Object, sections []string, fields db.Fields) error {
+func (d *DbCRUD) UpdateSections(sctx context.Context, obj common.Object, sections []string, fields db.SectionFields) error {
 
 	if d.DryRun {
 		return nil
@@ -273,7 +273,7 @@ func (d *DbCRUD) UpdateMonthObject(sctx context.Context, obj common.ObjectWithMo
 	return nil
 }
 
-func (d *DbCRUD) UpdateMonthObjectSection(sctx context.Context, obj common.ObjectWithMonth, section string, fields db.Fields) error {
+func (d *DbCRUD) UpdateMonthObjectSection(sctx context.Context, obj common.ObjectWithMonth, section string, fields db.SectionFields) error {
 
 	if d.DryRun {
 		return nil
@@ -291,7 +291,7 @@ func (d *DbCRUD) UpdateMonthObjectSection(sctx context.Context, obj common.Objec
 	return nil
 }
 
-func (d *DbCRUD) UpdateMonthObjectSections(sctx context.Context, obj common.ObjectWithMonth, sections []string, fields db.Fields) error {
+func (d *DbCRUD) UpdateMonthObjectSections(sctx context.Context, obj common.ObjectWithMonth, sections []string, fields db.SectionFields) error {
 
 	if d.DryRun {
 		return nil
@@ -332,7 +332,7 @@ func (d *DbCRUD) UpdateMulti(sctx context.Context, model interface{}, filter db.
 	return nil
 }
 
-func (d *DbCRUD) UpdateSectionMulti(sctx context.Context, model interface{}, filter db.Fields, section string, fields db.Fields) error {
+func (d *DbCRUD) UpdateSectionMulti(sctx context.Context, model interface{}, filter db.Fields, section string, fields db.SectionFields) error {
 
 	if d.DryRun {
 		return nil
@@ -355,7 +355,7 @@ func (d *DbCRUD) UpdateSectionMulti(sctx context.Context, model interface{}, fil
 	return nil
 }
 
-func (d *DbCRUD) UpdateSectionsMulti(sctx context.Context, model interface{}, filter db.Fields, sections []string, fields db.Fields) error {
+func (d *DbCRUD) UpdateSectionsMulti(sctx context.Context, model interface{}, filter db.Fields, sections []string, fields db.SectionFields) error {
 
 	if d.DryRun {
 		return nil
@@ -396,7 +396,7 @@ func (d *DbCRUD) UpdateWithFilter(sctx context.Context, model interface{}, filte
 	return nil
 }
 
-func (d *DbCRUD) UpdateSectionWithFilter(sctx context.Context, model interface{}, filter *db.Filter, section string, fields db.Fields) error {
+func (d *DbCRUD) UpdateSectionWithFilter(sctx context.Context, model interface{}, filter *db.Filter, section string, fields db.SectionFields) error {
 
 	if d.DryRun {
 		return nil
@@ -414,7 +414,7 @@ func (d *DbCRUD) UpdateSectionWithFilter(sctx context.Context, model interface{}
 	return nil
 }
 
-func (d *DbCRUD) UpdateSectionsWithFilter(sctx context.Context, model interface{}, filter *db.Filter, sections []string, fields db.Fields) error {
+func (d *DbCRUD) UpdateSectionsWithFilter(sctx context.Context, model interface{}, filter *db.Filter, sections []string, fields db.SectionFields) error {
 
 	if d.DryRun {
 		return nil

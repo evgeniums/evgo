@@ -348,13 +348,13 @@ func UpdateWithFilter(db *gorm.DB, filter *db.Filter, doc interface{}, fields db
 	return result.Error
 }
 
-func UpdateSectionWithFilter(db *gorm.DB, filter *db.Filter, doc interface{}, section string, fields db.Fields) error {
+func UpdateSectionWithFilter(db *gorm.DB, filter *db.Filter, doc interface{}, section string, fields db.SectionFields) error {
 	h := SetFilter(db, filter, nil, doc)
 	result := h.Select(section).Updates(fields)
 	return result.Error
 }
 
-func UpdateSectionsWithFilter(db *gorm.DB, filter *db.Filter, doc interface{}, sections []string, fields db.Fields) error {
+func UpdateSectionsWithFilter(db *gorm.DB, filter *db.Filter, doc interface{}, sections []string, fields db.SectionFields) error {
 	h := SetFilter(db, filter, nil, doc)
 	result := h.Select(sections).Updates(fields)
 	return result.Error
@@ -378,12 +378,12 @@ func UpdateFieldsMulti(db *gorm.DB, filter db.Fields, doc interface{}, newFields
 	return result.Error
 }
 
-func UpdateSectionsMulti(db *gorm.DB, filter db.Fields, doc interface{}, sections []string, newFields db.Fields) error {
-	result := db.Model(doc).Where(filter).Select(sections).Updates(newFields)
+func UpdateSectionsMulti(db *gorm.DB, filter db.Fields, doc interface{}, sections []string, newFields db.SectionFields) error {
+	result := db.Model(doc).Where(filter).Select(sections).UpdateColumns(newFields)
 	return result.Error
 }
 
-func UpdateSectionMulti(db *gorm.DB, filter db.Fields, doc interface{}, section string, newFields db.Fields) error {
+func UpdateSectionMulti(db *gorm.DB, filter db.Fields, doc interface{}, section string, newFields db.SectionFields) error {
 	result := db.Model(doc).Where(filter).Select(section).Updates(newFields)
 	return result.Error
 }
@@ -393,12 +393,12 @@ func UpdateFieldsAll(db *gorm.DB, doc interface{}, newFields db.Fields) error {
 	return result.Error
 }
 
-func UpdateSectionAll(db *gorm.DB, doc interface{}, section string, newFields db.Fields) error {
+func UpdateSectionAll(db *gorm.DB, doc interface{}, section string, newFields db.SectionFields) error {
 	result := db.Model(doc).Where("1 = 1").Select(section).Updates(newFields)
 	return result.Error
 }
 
-func UpdateSectionsAll(db *gorm.DB, doc interface{}, sections []string, newFields db.Fields) error {
+func UpdateSectionsAll(db *gorm.DB, doc interface{}, sections []string, newFields db.SectionFields) error {
 	result := db.Model(doc).Where("1 = 1").Select(sections).Updates(newFields)
 	return result.Error
 }
