@@ -3,6 +3,7 @@ package db_gorm
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/db"
 	"github.com/mattn/go-sqlite3"
@@ -32,7 +33,7 @@ func DbDsnBuilder(config *db.DBConfig) (string, error) {
 		if config.DB_DSN != "" {
 			return config.DB_DSN, nil
 		}
-		dsn := config.DB_NAME
+		dsn := fmt.Sprintf("%s?_txlock=immediate", config.DB_NAME)
 		return dsn, nil
 	}
 
