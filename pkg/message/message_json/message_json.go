@@ -8,14 +8,14 @@ import (
 type JsonSerializer struct {
 }
 
-func (j *JsonSerializer) ParseMessage(data []byte, message interface{}) error {
+func (j *JsonSerializer) ParseMessage(data []byte, message any) error {
 	if len(data) == 0 {
 		return nil
 	}
 	return json.Unmarshal(data, message)
 }
 
-func (j *JsonSerializer) SerializeMessage(message interface{}) ([]byte, error) {
+func (j *JsonSerializer) SerializeMessage(message any) ([]byte, error) {
 	return json.Marshal(message)
 }
 

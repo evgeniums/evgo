@@ -1,8 +1,10 @@
 package rest_api_gin_server
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httputil"
@@ -54,6 +56,8 @@ type ServerConfig struct {
 	DEFAULT_RESPONSE_JSON string
 
 	FORM_SINGLE_FILE_FIELD string `default:"file"`
+
+	MAX_JSON_REQUEST_SIZE int64 `default:"1048576"`
 }
 
 type AuthParameterGetter = func(r *Request, key string) string
@@ -410,6 +414,18 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 				}
 				// TODO white list for non tenancy mode
 			}
+		}
+
+		if request.ginCtx.Request.Body != nil {
+			request.ginCtx.Request.Body = http.MaxBytesReader(request.ginCtx.Writer, request.ginCtx.Request.Body, s.MAX_JSON_REQUEST_SIZE)
+			var bodyBuffer bytes.Buffer
+			_, err1 := io.Copy(&bodyBuffer, request.ginCtx.Request.Body)
+			if err1 != nil {
+				err = err1
+				request.SetGenericErrorCode(generic_error.ErrorCodeBadRequest)
+				c.SetMessage("too big request")
+			}
+			request.content = bodyBuffer.Bytes()
 		}
 
 		// process CSRF

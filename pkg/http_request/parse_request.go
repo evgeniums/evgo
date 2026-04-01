@@ -1,10 +1,8 @@
 package http_request
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 
@@ -17,7 +15,7 @@ import (
 	"github.com/gorilla/schema"
 )
 
-func ParseQuery(sctx context.Context, request *http.Request, cmd interface{}) error {
+func ParseQuery(sctx context.Context, request *http.Request, cmd any) error {
 	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("http_request.ParseQuery", logger.Fields{"query": request.URL.RawQuery})
 	defer ctx.TraceOutMethod()
@@ -49,21 +47,13 @@ func ParseQuery(sctx context.Context, request *http.Request, cmd interface{}) er
 	return nil
 }
 
-func ParseBody(sctx context.Context, request *http.Request, cmd interface{}, serializer ...message.Serializer) error {
+func ParseBody(sctx context.Context, cmd any, body []byte, serializer ...message.Serializer) error {
 
 	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("http_request.ParseBody")
 	defer ctx.TraceOutMethod()
 
 	s := utils.OptionalArg[message.Serializer](message_json.Serializer, serializer...)
-
-	var body []byte
-	if request.Body != nil {
-		body, _ = io.ReadAll(request.Body)
-		if body != nil {
-			request.Body = io.NopCloser(bytes.NewBuffer(body))
-		}
-	}
 
 	err := s.ParseMessage(body, cmd)
 	if err != nil {

@@ -1,11 +1,9 @@
 package rest_api_gin_server
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -33,6 +31,8 @@ type Request struct {
 
 	clientIp          string
 	forwardedOpSource string
+
+	content []byte
 }
 
 func (r *Request) Init(s *Server, ginCtx *gin.Context, ep api_server.Endpoint, fields ...logger.Fields) {
@@ -150,12 +150,7 @@ func (r *Request) Close(sctx context.Context, successMessage ...string) {
 }
 
 func (r *Request) GetRequestContent() []byte {
-	if r.ginCtx.Request.Body != nil {
-		b, _ := io.ReadAll(r.ginCtx.Request.Body)
-		r.ginCtx.Request.Body = io.NopCloser(bytes.NewBuffer(b))
-		return b
-	}
-	return nil
+	return r.content
 }
 
 func (r *Request) SetAuthParameter(authMethodProtocol string, key string, value string, directKeyName ...bool) {
@@ -238,7 +233,7 @@ func (r *Request) ParseValidateBody(sctx context.Context, cmd interface{}) error
 	c := r.TraceInMethod("Request.ParseValidateBody")
 	defer r.TraceOutMethod()
 
-	err := http_request.ParseBody(sctx, r.ginCtx.Request, cmd)
+	err := http_request.ParseBody(sctx, cmd, r.content)
 	if err != nil {
 		return c.SetError(err)
 	}
