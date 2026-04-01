@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/netip"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/evgeniums/evgo/pkg/api"
@@ -44,8 +43,6 @@ const HeaderSizeKey = "gu-hsize"
 type ServerConfig struct {
 	api_server.ServerBaseConfig
 
-	HOST                       string `default:"127.0.0.1" validate:"ip"`
-	PORT                       uint16 `validate:"required"`
 	PROTOCOL                   string `default:"tcp" validate:"omitempty,oneof=tcp udp"`
 	TRUSTED_PROXIES            []string
 	VERBOSE                    bool
@@ -133,6 +130,8 @@ type Server struct {
 	auth.WithAuthBase
 	ServerExtender
 
+	listener *api_server.Listener
+
 	tenancies multitenancy.Multitenancy
 
 	configPoolService pool.PoolService
@@ -155,6 +154,8 @@ type Server struct {
 	services map[string]api_server.Service
 
 	shutdown chan struct{}
+
+	externalListener bool
 }
 
 func NewServer(extender ...ServerExtender) *Server {
@@ -164,6 +165,15 @@ func NewServer(extender ...ServerExtender) *Server {
 		s.ServerExtender = extender[0]
 	}
 	return s
+}
+
+func (s *Server) Runner() *GrpcServerRunner {
+	return s.grpcServer
+}
+
+func (s *Server) SetListener(lis *api_server.Listener) {
+	s.listener = lis
+	s.externalListener = true
 }
 
 func (s *Server) ConfigPoolService() pool.PoolService {
@@ -178,6 +188,14 @@ func (s *Server) SetPropagateAuthUser(val bool) {
 	s.propagateAuthUser = val
 }
 
+func (s *Server) ensureListener() {
+	if s.listener == nil {
+		s.listener = &api_server.Listener{}
+		s.listener.SetName(s.Name())
+		s.listener.WithAppBase.Init(s.App())
+	}
+}
+
 func (s *Server) SetConfigFromPoolService(service pool.PoolService, public ...bool) {
 
 	s.configPoolService = service
@@ -186,18 +204,22 @@ func (s *Server) SetConfigFromPoolService(service pool.PoolService, public ...bo
 
 	s.SetName(service.Name())
 	s.API_VERSION = service.ApiVersion()
-	s.HOST = service.IpAddress()
+
+	lis := s.listener
+	s.ensureListener()
+
+	lis.HOST = service.IpAddress()
 
 	if pub {
-		if s.HOST == "" {
-			s.HOST = service.PublicHost()
+		if lis.HOST == "" {
+			lis.HOST = service.PublicHost()
 		}
-		s.PORT = service.PublicPort()
+		lis.PORT = service.PublicPort()
 	} else {
-		if s.HOST == "" {
-			s.HOST = service.PrivateHost()
+		if lis.HOST == "" {
+			lis.HOST = service.PrivateHost()
 		}
-		s.PORT = service.PrivatePort()
+		lis.PORT = service.PrivatePort()
 	}
 }
 
@@ -215,13 +237,6 @@ func (s *Server) DynamicTables() api_server.DynamicTables {
 
 func (s *Server) TenancyManager() multitenancy.Multitenancy {
 	return s.tenancies
-}
-
-func (s *Server) address() string {
-	if strings.Contains(s.HOST, "::") {
-		return fmt.Sprintf("[%s]:%d", s.HOST, s.PORT)
-	}
-	return fmt.Sprintf("%s:%d", s.HOST, s.PORT)
 }
 
 func (s *Server) IsMultitenancy() bool {
@@ -284,6 +299,15 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	err = object_config.LoadLogValidate(ctx.Cfg(), ctx.Logger(), ctx.Validator(), s, defaultConfigSection, configPath...)
 	if err != nil {
 		return ctx.Logger().PushFatalStack("failed to load server configuration", err, logger.Fields{"name": s.Name()})
+	}
+
+	// init listener
+	if s.listener == nil {
+		s.ensureListener()
+		err = object_config.LoadLogValidate(ctx.Cfg(), ctx.Logger(), ctx.Validator(), s.listener, defaultConfigSection, configPath...)
+		if err != nil {
+			return ctx.Logger().PushFatalStack("failed to load server listener configuration", err, logger.Fields{"name": s.Name()})
+		}
 	}
 
 	// setup trusted proxies
@@ -369,7 +393,7 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 			PermitWithoutStream: s.KEEP_ALIVE_ALLOW_WITHOUT_STREAM,                  // Allow pings even if no active RPCs
 		}),
 	}
-	if !s.DISABLE_TLS && s.TLS_PRIVATE_KEY_FILE != "" {
+	if !s.externalListener && !s.DISABLE_TLS && s.TLS_PRIVATE_KEY_FILE != "" {
 		creds, err := credentials.NewServerTLSFromFile(s.TLS_CERTIFICATE_FILE, s.TLS_PRIVATE_KEY_FILE)
 		if err != nil {
 			return ctx.Logger().PushFatalStack("failed to load TLS", err)
@@ -400,18 +424,17 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 
 func (s *Server) Run(fin background_worker.Finisher) {
 
-	listener, err := net.Listen(s.PROTOCOL, s.address())
-	if err != nil {
-		msg := "TCP listening failed"
-		s.App().Logger().Fatal(msg, err, logger.Fields{"name": s.Name()})
-		app_context.AbortFatal(s.App(), msg)
-	}
+	s.listener.Run(s.PROTOCOL)
 
 	fin.AddRunner(s.grpcServer, &background_worker.RunnerConfig{Name: optional.NewString(s.Name())})
+	s.Serve(s.listener.Listener())
+}
+
+func (s *Server) Serve(lis net.Listener) {
 
 	go func() {
-		s.App().Logger().Info("Running gRPC API server", logger.Fields{"name": s.Name(), "address": listener.Addr().String()})
-		err := s.grpcServer.Serve(listener)
+		s.App().Logger().Info("Running gRPC API server", logger.Fields{"name": s.Name()})
+		err := s.grpcServer.Serve(lis)
 		if err != nil {
 			msg := "failed to run gRPC server"
 			fmt.Printf("%s %s: %s\n", msg, s.Name(), err)

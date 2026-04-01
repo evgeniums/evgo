@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -91,6 +92,9 @@ type Server struct {
 	logPrefix string
 
 	crashed bool
+
+	httpServer *http.Server
+	listener   *api_server.Listener
 }
 
 func NewServer() *Server {
@@ -116,6 +120,10 @@ func (s *Server) SetPropagateAuthUser(val bool) {
 	s.propagateAuthUser = val
 }
 
+func (s *Server) SetListener(lis *api_server.Listener) {
+	s.listener = lis
+}
+
 func (s *Server) SetConfigFromPoolService(service pool.PoolService, public ...bool) {
 
 	s.configPoolService = service
@@ -124,23 +132,27 @@ func (s *Server) SetConfigFromPoolService(service pool.PoolService, public ...bo
 
 	s.SetName(service.Name())
 	s.API_VERSION = service.ApiVersion()
-	s.HOST = service.IpAddress()
+
+	lis := s.listener
+	s.ensureListener()
+
+	lis.HOST = service.IpAddress()
 	s.PATH_PREFIX = service.PathPrefix()
 
 	if pub {
-		if s.HOST == "" {
-			s.HOST = service.PublicHost()
+		if lis.HOST == "" {
+			lis.HOST = service.PublicHost()
 		}
-		s.PORT = service.PublicPort()
+		lis.PORT = service.PublicPort()
 	} else {
-		if s.HOST == "" {
-			s.HOST = service.PrivateHost()
+		if lis.HOST == "" {
+			lis.HOST = service.PrivateHost()
 		}
-		s.PORT = service.PrivatePort()
+		lis.PORT = service.PrivatePort()
 	}
 }
 
-func (s *Server) Config() interface{} {
+func (s *Server) Config() any {
 	return &s.ServerConfig
 }
 
@@ -230,6 +242,14 @@ func (s *Server) ginDefaultLogger() gin.HandlerFunc {
 	}
 }
 
+func (s *Server) ensureListener() {
+	if s.listener == nil {
+		s.listener = &api_server.Listener{}
+		s.listener.SetName(s.Name())
+		s.listener.WithAppBase.Init(s.App())
+	}
+}
+
 func (s *Server) crashRecovery() gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		handle := func(c *gin.Context, err any) {
@@ -287,6 +307,15 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 		return ctx.Logger().PushFatalStack("failed to load server configuration", err, logger.Fields{"name": s.Name()})
 	}
 
+	// init listener
+	if s.listener == nil {
+		s.ensureListener()
+		err = object_config.LoadLogValidate(ctx.Cfg(), ctx.Logger(), ctx.Validator(), s.listener, defaultPath, configPath...)
+		if err != nil {
+			return ctx.Logger().PushFatalStack("failed to load server listener configuration", err, logger.Fields{"name": s.Name()})
+		}
+	}
+
 	// load CSRF configuration
 	csrfKey := object_config.Key(utils.OptionalArg(defaultPath, configPath...), "csrf")
 	if ctx.Cfg().IsSet(csrfKey) {
@@ -327,13 +356,25 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 }
 
 func (s *Server) Run(fin background_worker.Finisher) {
+	listener, err := net.Listen("tcp", s.address())
+	if err != nil {
+		msg := "TCP listening failed"
+		s.App().Logger().Fatal(msg, err, logger.Fields{"name": s.Name()})
+		app_context.AbortFatal(s.App(), msg)
+	}
 
-	srv := &http.Server{Addr: s.address(), Handler: s.ginEngine}
-	fin.AddRunner(srv, &background_worker.RunnerConfig{Name: optional.NewString(s.Name())})
+	s.App().Logger().Info("Listening for incoming connections", logger.Fields{"address": listener.Addr().String()})
+
+	s.httpServer = &http.Server{Addr: s.address(), Handler: s.ginEngine}
+	fin.AddRunner(s.httpServer, &background_worker.RunnerConfig{Name: optional.NewString(s.Name())})
+	s.Serve(listener)
+}
+
+func (s *Server) Serve(listener net.Listener) {
 
 	go func() {
-		s.App().Logger().Info("Running REST API server", logger.Fields{"name": s.Name(), "address": srv.Addr})
-		err := srv.ListenAndServe()
+		s.App().Logger().Info("Running REST API server", logger.Fields{"name": s.Name()})
+		err := s.httpServer.Serve(listener)
 		if err != http.ErrServerClosed {
 			msg := "failed to start HTTP server"
 			fmt.Printf("%s %s: %s\n", msg, s.Name(), err)
@@ -341,6 +382,10 @@ func (s *Server) Run(fin background_worker.Finisher) {
 			app_context.AbortFatal(s.App(), msg)
 		}
 	}()
+}
+
+func (s *Server) Runner() *http.Server {
+	return s.httpServer
 }
 
 const OriginType = "rest_api"
