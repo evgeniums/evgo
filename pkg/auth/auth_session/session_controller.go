@@ -117,6 +117,7 @@ func (s *SessionControllerBase) UpdateSessionClient(sctx context.Context) error 
 	clientHash := h.CalcStrStr(clientIp, userAgent)
 
 	// find client in database
+	// TODO do it in transaction
 	tryUpdate := true
 	client := s.MakeSessionClient()
 	fields := db.Fields{"session_id": ctx.GetSessionId(), "client_hash": clientHash}
