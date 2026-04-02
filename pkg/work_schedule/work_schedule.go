@@ -3,6 +3,7 @@ package work_schedule
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -222,11 +223,15 @@ type WorkSchedule[T Work] struct {
 
 	queue chan workItem[T]
 
-	running atomic.Bool
 	invoker WorkInvoker[T]
 
 	locker cache.Locker
 	db     db.DB
+
+	wg sync.WaitGroup
+
+	readNextWorks chan struct{}
+	stop          chan struct{}
 }
 
 type Config[T Work] struct {
@@ -242,7 +247,6 @@ func NewWorkSchedule[T Work](name string, config Config[T], cruds ...crud.CRUD) 
 	}
 	s.WorkSchedulerBase.Construct(config.WorkBuilder)
 	s.WithCRUDBase.Construct(cruds...)
-	s.queue = make(chan workItem[T])
 	s.invoker = config.WorkInvoker
 	if s.invoker == nil {
 		s.invoker = s.InvokeWork
@@ -264,6 +268,7 @@ func (s *WorkSchedule[T]) Init(app app_context.Context, configPath ...string) er
 		return app.Logger().PushFatalStack("failed to load configuration of WorkSchedule", err)
 	}
 
+	// TODO use configurable locker: inmem or redis
 	// init locker
 	redisCache := redis_cache.NewCache()
 	err = redisCache.Init(app.Cfg(), app.Logger(), app.Validator(), redis_cache.RedisCacheConfigPath)
@@ -272,21 +277,18 @@ func (s *WorkSchedule[T]) Init(app app_context.Context, configPath ...string) er
 	}
 	s.locker = redis_cache.NewLocker(redisCache)
 
-	// run workers
-	for i := 0; i < s.PARALLEL_JOBS; i++ {
-		go s.worker()
-	}
+	// create channels
+	s.queue = make(chan workItem[T], s.BUCKET_SIZE)
+	s.readNextWorks = make(chan struct{}, 1)
+	s.stop = make(chan struct{})
 
 	// done
 	return nil
 }
 
-func (s *WorkSchedule[T]) StopJob() {
-	close(s.queue)
-}
-
-func (s *WorkSchedule[T]) RunJob() {
-	s.ProcessWorks()
+func (s *WorkSchedule[T]) Shutdown(ctx context.Context) {
+	close(s.stop)
+	s.wg.Wait()
 }
 
 func (s *WorkSchedule[T]) SetRunner(runner WorkRunner[T]) {
@@ -349,9 +351,9 @@ func (s *WorkSchedule[T]) ReleaseWork(sctx context.Context, work T) error {
 
 func (s *WorkSchedule[T]) SetNextWorkTime(work T, reset ...bool) {
 	defaultNextTime := utils.OptionalArg(false, reset...)
-	if defaultNextTime || work.GetDelay() == 0 && work.GetNextTime() == utils.TimeNil {
+	if defaultNextTime || work.GetDelay() == 0 && work.GetNextTime().IsZero() {
 		work.SetNextTime(time.Now().Add(time.Second * time.Duration(s.INVOKATION_INTERVAL_SECONDS)))
-	} else if work.GetNextTime() == utils.TimeNil && work.GetDelay() != 0 {
+	} else if work.GetNextTime().IsZero() && work.GetDelay() != 0 {
 		work.SetNextTime(time.Now().Add(time.Second * time.Duration(work.GetDelay())))
 	}
 }
@@ -444,30 +446,17 @@ func (s *WorkSchedule[T]) SetOverrideDb(db db.DB) {
 	s.db = db
 }
 
-func (s *WorkSchedule[T]) ProcessWorks() {
+func (s *WorkSchedule[T]) readWorks(schedulerCtx context.Context) {
 
-	if !s.running.CompareAndSwap(false, true) {
-		return
-	}
-	defer s.running.Store(false)
+	readWorks := func() bool {
 
-	// TODO support multitenancy
-
-	ctx, sctx := default_op_context.BackgroundOpContext(s.App(), s.name)
-	if s.db != nil {
-		ctx.SetOverrideDb(s.db)
-	}
-	ctx.SetWriteCloseLog(s.LOG_EMPTY_WORKS)
-	defer ctx.Close(sctx)
-	c := ctx.TraceInMethod("WorkSchedule.ProcessWorks")
-
-	// process works
-	for {
-
-		// check if runner is stopped
-		if s.Stopper().IsStopped() {
-			break
+		ctx, sctx := default_op_context.BackgroundOpContext(s.App(), s.name)
+		if s.db != nil {
+			ctx.SetOverrideDb(s.db)
 		}
+		ctx.SetWriteCloseLog(s.LOG_EMPTY_WORKS)
+		defer ctx.Close(sctx)
+		c := ctx.TraceInMethod("WorkSchedule.readWorks")
 
 		// prepare filter
 		filter := db.NewFilter()
@@ -478,7 +467,7 @@ func (s *WorkSchedule[T]) ProcessWorks() {
 		filter.Limit = s.BUCKET_SIZE - int(s.runningWorkCount.Load()) - int(s.workQueueSize.Load())
 		if filter.Limit <= 0 {
 			c.Logger().Info("all bucket size is used, skipping")
-			break
+			return false
 		}
 
 		// read works from database
@@ -528,23 +517,73 @@ func (s *WorkSchedule[T]) ProcessWorks() {
 		err := op_context.ExecDbTransaction(sctx, handler)
 		if err != nil {
 			c.SetError(err)
-			break
+			return false
 		}
 
 		// stop cycle if there are no works
-		if len(works) == 0 || s.Stopper().IsStopped() {
-			break
+		if len(works) == 0 {
+			return false
 		}
 
 		// enqueu works to workers
 		for _, work := range works {
-			if s.Stopper().IsStopped() {
-				break
+			if !s.enqueuWork(sctx, work, nil) {
+				return false
 			}
-			// TODO support multitenancy
-			s.enqueuWork(sctx, work, nil)
+		}
+
+		return true
+	}
+
+	// read works
+	for {
+
+		select {
+		case <-schedulerCtx.Done():
+			return
+
+		case <-s.stop:
+			return
+
+		default:
+			if !readWorks() {
+				return
+			}
 		}
 	}
+}
+
+func (s *WorkSchedule[T]) Run(ctx context.Context) {
+
+	for i := 0; i < s.PARALLEL_JOBS; i++ {
+		s.wg.Add(1)
+		go s.worker(ctx)
+	}
+
+	go func() {
+
+		defer func() {
+			close(s.queue)
+		}()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+
+			case <-s.stop:
+				return
+
+			case _, ok := <-s.readNextWorks:
+				if !ok {
+					return
+				}
+				s.readWorks(ctx)
+			}
+		}
+	}()
+
+	s.readNextWorks <- struct{}{}
 }
 
 func (s *WorkSchedule[T]) DoWork(sctx context.Context, work T) error {
@@ -669,14 +708,12 @@ func (s *WorkSchedule[T]) UpdateWorkNextTime(sctx context.Context, work T, tenan
 	return nil
 }
 
-func (s *WorkSchedule[T]) worker() {
-	for work := range s.queue {
+func (s *WorkSchedule[T]) worker(schedulerCtx context.Context) {
 
+	defer s.wg.Done()
+
+	doWork := func(work workItem[T]) {
 		s.workQueueSize.Add(-1)
-
-		if s.Stopper().IsStopped() {
-			break
-		}
 
 		if work.tenancy != nil {
 			ctx, sctx := app_with_multitenancy.BackgroundOpContext(s.App(), work.tenancy, s.name)
@@ -691,15 +728,40 @@ func (s *WorkSchedule[T]) worker() {
 			ctx.Close(sctx, "Served queue work")
 		}
 
-		go s.ProcessWorks()
+		select {
+		case s.readNextWorks <- struct{}{}:
+		default:
+		}
+	}
+
+	for {
+
+		select {
+		case <-schedulerCtx.Done():
+			return
+
+		case <-s.stop:
+			return
+
+		case work, ok := <-s.queue:
+			if !ok {
+				return
+			}
+			doWork(work)
+		}
 	}
 }
 
-func (s *WorkSchedule[T]) enqueuWork(sctx context.Context, work T, tenancy ...multitenancy.Tenancy) {
+func (s *WorkSchedule[T]) enqueuWork(ctx context.Context, work T, tenancy ...multitenancy.Tenancy) bool {
 	s.workQueueSize.Add(1)
 
 	select {
 	case s.queue <- workItem[T]{work: work, tenancy: utils.OptionalArg(nil, tenancy...)}:
-	case <-sctx.Done():
+	case <-ctx.Done():
+		return false
+	case <-s.stop:
+		return false
 	}
+
+	return true
 }
