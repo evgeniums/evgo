@@ -10,7 +10,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/app_context"
 	"github.com/evgeniums/evgo/pkg/background_worker"
 	"github.com/evgeniums/evgo/pkg/cache"
-	"github.com/evgeniums/evgo/pkg/cache/redis_cache"
+	"github.com/evgeniums/evgo/pkg/cache/inmem_cache"
 	"github.com/evgeniums/evgo/pkg/common"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/crud"
@@ -238,6 +238,7 @@ type Config[T Work] struct {
 	WorkBuilder WorkBuilder[T]
 	WorkRunner  WorkRunner[T]
 	WorkInvoker WorkInvoker[T]
+	Locker      cache.Locker
 }
 
 func NewWorkSchedule[T Work](name string, config Config[T], cruds ...crud.CRUD) *WorkSchedule[T] {
@@ -250,6 +251,11 @@ func NewWorkSchedule[T Work](name string, config Config[T], cruds ...crud.CRUD) 
 	s.invoker = config.WorkInvoker
 	if s.invoker == nil {
 		s.invoker = s.InvokeWork
+	}
+
+	s.locker = config.Locker
+	if s.locker != nil {
+		s.locker = inmem_cache.NewLocker()
 	}
 
 	return s
@@ -267,15 +273,6 @@ func (s *WorkSchedule[T]) Init(app app_context.Context, configPath ...string) er
 	if err != nil {
 		return app.Logger().PushFatalStack("failed to load configuration of WorkSchedule", err)
 	}
-
-	// TODO use configurable locker: inmem or redis
-	// init locker
-	redisCache := redis_cache.NewCache()
-	err = redisCache.Init(app.Cfg(), app.Logger(), app.Validator(), redis_cache.RedisCacheConfigPath)
-	if err != nil {
-		return app.Logger().PushFatalStack("failed to init redis cache for WorkSchedule", err)
-	}
-	s.locker = redis_cache.NewLocker(redisCache)
 
 	// create channels
 	s.queue = make(chan workItem[T], s.BUCKET_SIZE)
