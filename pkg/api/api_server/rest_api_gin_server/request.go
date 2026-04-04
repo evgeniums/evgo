@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -107,10 +108,23 @@ func (r *Request) Close(sctx context.Context, successMessage ...string) {
 			} else if r.response.Message() != nil {
 				reponseBody = r.response.Message()
 				r.ginCtx.JSON(r.response.httpCode, r.response.Message())
+			} else if r.response.DataSource() != nil {
+
+				defer r.response.DataSource().Close()
+
+				statusCode := http.StatusOK
+				if r.response.DataContentHeaders() != nil {
+					_, contentRange := r.response.DataContentHeaders()["Content-Range"]
+					if contentRange {
+						statusCode = http.StatusPartialContent
+					}
+				}
+				r.ginCtx.DataFromReader(statusCode, r.response.DataContentLength(), r.response.DataContentType(), r.response.DataSource(), r.response.DataContentHeaders())
+
 			} else if r.response.File() != nil {
 				file := r.response.File()
 				r.ginCtx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", file.Name))
-				r.ginCtx.Header("Accept-Length", utils.NumToStr(len(file.Content)))
+				r.ginCtx.Header("Content-Length", utils.NumToStr(len(file.Content)))
 				r.ginCtx.Data(r.response.httpCode, file.ContentType, file.Content)
 			} else if r.server.DEFAULT_RESPONSE_JSON != "" {
 				r.ginCtx.String(r.response.httpCode, r.server.DEFAULT_RESPONSE_JSON)
@@ -312,4 +326,8 @@ func (r *Request) GetResponseHeaders(name string) []string {
 
 func (r *Request) GetResponseHeader(name string) string {
 	return r.ginCtx.Writer.Header().Get(name)
+}
+
+func (r *Request) UploadedData() io.ReadCloser {
+	return r.ginCtx.Request.Body
 }

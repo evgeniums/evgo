@@ -461,7 +461,7 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 			}
 		}
 
-		if request.ginCtx.Request.Body != nil {
+		if !ep.IsFileUpload() && request.ginCtx.Request.Body != nil {
 			request.ginCtx.Request.Body = http.MaxBytesReader(request.ginCtx.Writer, request.ginCtx.Request.Body, s.MAX_JSON_REQUEST_SIZE)
 			var bodyBuffer bytes.Buffer
 			_, err1 := io.Copy(&bodyBuffer, request.ginCtx.Request.Body)

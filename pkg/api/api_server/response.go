@@ -1,6 +1,8 @@
 package api_server
 
 import (
+	"io"
+
 	"github.com/evgeniums/evgo/pkg/api"
 	"github.com/evgeniums/evgo/pkg/utils"
 )
@@ -28,6 +30,12 @@ type Response interface {
 
 	SetFile(file *File)
 	File() *File
+
+	SetDataSource(source io.ReadCloser, length int64, contentType string, dataContentHeaders map[string]string)
+	DataSource() io.ReadCloser
+	DataContentType() string
+	DataContentLength() int64
+	DataContentHeaders() map[string]string
 }
 
 type ResponseBase struct {
@@ -36,6 +44,10 @@ type ResponseBase struct {
 	payload              []byte
 	redirectResourcePath string
 	file                 *File
+	dataSource           io.ReadCloser
+	dataContentType      string
+	dataLength           int64
+	dataContentHeaders   map[string]string
 }
 
 func (r *ResponseBase) Message() interface{} {
@@ -96,4 +108,27 @@ func (r *ResponseBase) SetFile(file *File) {
 
 func (r *ResponseBase) File() *File {
 	return r.file
+}
+
+func (r *ResponseBase) SetDataSource(source io.ReadCloser, length int64, contentType string, dataContentHeaders map[string]string) {
+	r.dataSource = source
+	r.dataLength = length
+	r.dataContentType = contentType
+	r.dataContentHeaders = dataContentHeaders
+}
+
+func (r *ResponseBase) DataSource() io.ReadCloser {
+	return r.dataSource
+}
+
+func (r *ResponseBase) DataContentType() string {
+	return r.dataContentType
+}
+
+func (r *ResponseBase) DataContentLength() int64 {
+	return r.DataContentLength()
+}
+
+func (r *ResponseBase) DataContentHeaders() map[string]string {
+	return r.dataContentHeaders
 }
