@@ -14,13 +14,29 @@ import (
 )
 
 type FileDataController interface {
+	FileInfoRegistry
 	UploadPart(ctx context.Context) error
 	Fetch(ctx context.Context) error
 }
 
 type FileDataControllerBase struct {
-	FileInfoRegistry
+	FileInfoRegistryBase
 	filestorageManager filestorage.StorageManager
+}
+
+func NewFileDataController(registry filestorage.FileInfoRegistry,
+	urlManager filestorage.UrlManager,
+	filestorageManager filestorage.StorageManager) *FileDataControllerBase {
+
+	f := &FileDataControllerBase{
+		FileInfoRegistryBase: FileInfoRegistryBase{
+			registry:   registry,
+			urlManager: urlManager,
+		},
+		filestorageManager: filestorageManager,
+	}
+
+	return f
 }
 
 func (f *FileDataControllerBase) UploadPart(ctx context.Context) error {

@@ -15,6 +15,8 @@ type FileInfo struct {
 	Size        int64  `json:"size"`
 	FileName    string `json:"fileName"`
 
+	Topic string `json:"topic"`
+
 	NativeId       string `json:"native_id"`
 	UploadPartSize int64  `json:"upload_part_size"`
 }
@@ -42,6 +44,8 @@ type UrlManager interface {
 
 	IdUrlPathParameter() string
 	PartUrlPathParameter() string
+	TopicUrlParameter() string
+	IsTopicEnabled() bool
 }
 
 type StorageManager interface {
@@ -58,6 +62,6 @@ type StorageManager interface {
 }
 
 type FileInfoRegistry interface {
-	FindForUpload(ctx context.Context, id string, part int64) (*FileInfo, error)
-	FindForDownload(ctx context.Context, id string) (*FileInfo, error)
+	FindForUpload(ctx context.Context, id string, part int64, topic ...string) (*FileInfo, error)
+	FindForDownload(ctx context.Context, id string, topic ...string) (*FileInfo, error)
 }

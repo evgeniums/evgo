@@ -26,8 +26,10 @@ type UrlManagerConfig struct {
 	ID_PARAMETER      string `validate:"required,alphanum" default:"id"`
 	PART_PARAMETER    string `validate:"required,alphanum" default:"part"`
 	TENANCY_PARAMETER string `validate:"omitempty,alphanum" default:"tenancy"`
+	TOPIC_PARAMETER   string `validate:"omitempty,alphanum" default:"topic"`
 
 	SHADOW_TENANCY_PATH bool `default:"true"`
+	ENABLE_TOPIC        bool `default:"false"`
 }
 
 type UrlManagerOptions struct {
@@ -112,9 +114,17 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info *FileInfo, from
 		var originalUrl string
 		var err error
 		if tenancyPath == "" {
-			originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+			if info.Topic == "" {
+				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+			} else {
+				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.UPLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.Topic, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+			}
 		} else {
-			originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+			if info.Topic == "" {
+				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+			} else {
+				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.UPLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.Topic, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+			}
 		}
 
 		if err != nil {
@@ -140,9 +150,17 @@ func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info *FileInfo) (st
 	var err error
 
 	if tenancyPath == "" {
-		originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
+		if info.Topic == "" {
+			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
+		} else {
+			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.DOWNLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.Topic, u.ID_PARAMETER, info.GetID())
+		}
 	} else {
-		originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
+		if info.Topic == "" {
+			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
+		} else {
+			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.DOWNLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.Topic, u.ID_PARAMETER, info.GetID())
+		}
 	}
 	if err != nil {
 		return "", err
@@ -157,4 +175,12 @@ func (u *UrlManagerBase) IdUrlPathParameter() string {
 
 func (u *UrlManagerBase) PartUrlPathParameter() string {
 	return u.PART_PARAMETER
+}
+
+func (u *UrlManagerBase) TopicUrlParameter() string {
+	return u.TOPIC_PARAMETER
+}
+
+func (u *UrlManagerBase) IsTopicEnabled() bool {
+	return u.ENABLE_TOPIC
 }

@@ -10,22 +10,35 @@ import (
 	"github.com/evgeniums/evgo/pkg/op_context"
 )
 
-type FileInfoRegistry struct {
+type FileInfoRegistry interface {
+	Registry() filestorage.FileInfoRegistry
+	UrlManager() filestorage.UrlManager
+}
+
+type FileInfoRegistryBase struct {
 	registry   filestorage.FileInfoRegistry
 	urlManager filestorage.UrlManager
 }
 
 func NewFileInfoRegistry(registry filestorage.FileInfoRegistry,
-	urlManager filestorage.UrlManager) *FileInfoRegistry {
+	urlManager filestorage.UrlManager) *FileInfoRegistryBase {
 
-	f := &FileInfoRegistry{
+	f := &FileInfoRegistryBase{
 		registry:   registry,
 		urlManager: urlManager,
 	}
 	return f
 }
 
-func (f *FileInfoRegistry) FindForUpload(sctx context.Context, ids api.ResourceIds) (*filestorage.FileInfo, int64, error) {
+func (f *FileInfoRegistryBase) Registry() filestorage.FileInfoRegistry {
+	return f.registry
+}
+
+func (f *FileInfoRegistryBase) UrlManager() filestorage.UrlManager {
+	return f.urlManager
+}
+
+func (f *FileInfoRegistryBase) FindForUpload(sctx context.Context, ids api.ResourceIds) (*filestorage.FileInfo, int64, error) {
 
 	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("FileInfoRegistry.FindForUpload")
@@ -50,7 +63,12 @@ func (f *FileInfoRegistry) FindForUpload(sctx context.Context, ids api.ResourceI
 		}
 	}
 
-	info, err := f.registry.FindForUpload(sctx, id.Value(), part)
+	var topic string
+	if f.urlManager.IsTopicEnabled() {
+		topic = ids.GetId(f.urlManager.TopicUrlParameter()).Value()
+	}
+
+	info, err := f.registry.FindForUpload(sctx, id.Value(), part, topic)
 	if err != nil {
 		return nil, 0, c.SetError(err)
 	}
@@ -58,7 +76,7 @@ func (f *FileInfoRegistry) FindForUpload(sctx context.Context, ids api.ResourceI
 	return info, part, nil
 }
 
-func (f *FileInfoRegistry) FindForDownload(sctx context.Context, ids api.ResourceIds) (*filestorage.FileInfo, error) {
+func (f *FileInfoRegistryBase) FindForDownload(sctx context.Context, ids api.ResourceIds) (*filestorage.FileInfo, error) {
 
 	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("FileInfoRegistry.FindForDownload")
@@ -71,7 +89,12 @@ func (f *FileInfoRegistry) FindForDownload(sctx context.Context, ids api.Resourc
 		return nil, c.SetError(ctx.GenericError())
 	}
 
-	info, err := f.registry.FindForDownload(sctx, id.Value())
+	var topic string
+	if f.urlManager.IsTopicEnabled() {
+		topic = ids.GetId(f.urlManager.TopicUrlParameter()).Value()
+	}
+
+	info, err := f.registry.FindForDownload(sctx, id.Value(), topic)
 	if err != nil {
 		return nil, c.SetError(err)
 	}

@@ -19,6 +19,7 @@ type FilesystemStorageConfig struct {
 	BASE_DIR          string `validate:"required,dir" vmessage:"Required base_dir missing"`
 	TEMP_DIR          string `validate:"omitempty,dir" vmessage:"Invalid temp_dir"`
 	TENANCY_SUBFOLDER string `default:"tenancy" validate:"omitempty,alphanum" vmessage:"Invalid tenancy_subfolder"`
+	TOPIC_SUBFOLDER   string `default:"topic" validate:"omitempty,alphanum" vmessage:"Invalid topic_subfolder"`
 }
 
 type FilesystemStorage struct {
@@ -68,9 +69,17 @@ func (f *FilesystemStorage) TempPath(ctx context.Context, info *FileInfo, partIn
 
 	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
 	if tenancyCtx != nil {
-		dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
+		if info.Topic == "" {
+			dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
+		} else {
+			dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID(), f.TOPIC_SUBFOLDER, info.Topic)
+		}
 	} else {
-		dir = filepath.Join(f.TEMP_DIR, d.AsNumber())
+		if info.Topic == "" {
+			dir = filepath.Join(f.TEMP_DIR, d.AsNumber())
+		} else {
+			dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TOPIC_SUBFOLDER, info.Topic)
+		}
 	}
 
 	if len(partIndex) != 0 {
@@ -85,9 +94,17 @@ func (f *FilesystemStorage) Path(ctx context.Context, info *FileInfo) string {
 
 	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
 	if tenancyCtx != nil {
-		dir = filepath.Join(f.BASE_DIR, f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
+		if info.Topic == "" {
+			dir = filepath.Join(f.BASE_DIR, f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
+		} else {
+			dir = filepath.Join(f.BASE_DIR, f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID(), f.TOPIC_SUBFOLDER, info.Topic)
+		}
 	} else {
-		dir = f.BASE_DIR
+		if info.Topic == "" {
+			dir = f.BASE_DIR
+		} else {
+			dir = filepath.Join(f.BASE_DIR, f.TOPIC_SUBFOLDER, info.Topic)
+		}
 	}
 
 	return filepath.Join(dir, info.GetID())

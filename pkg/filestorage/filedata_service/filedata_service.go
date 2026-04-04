@@ -12,9 +12,6 @@ const ServiceName = "filedata"
 const FetchName = "fetch"
 const UploadName = "upload"
 
-const IdParameter = "id"
-const PartParameter = "part"
-
 type FileDataService struct {
 	api_server.ServiceBase
 	controller FileDataController
@@ -28,12 +25,22 @@ func NewFileDataService(controller FileDataController, multitenancy ...bool) *Fi
 
 	s.Init(ServiceName, api.PackageName, multitenancy...)
 
+	var fetchResourcesChain []string
+	var uploadResourcesChain []string
+	if controller.UrlManager().IsTopicEnabled() {
+		fetchResourcesChain = []string{controller.UrlManager().TopicUrlParameter(), controller.UrlManager().IdUrlPathParameter()}
+		uploadResourcesChain = []string{controller.UrlManager().TopicUrlParameter(), controller.UrlManager().IdUrlPathParameter(), controller.UrlManager().PartUrlPathParameter()}
+	} else {
+		fetchResourcesChain = []string{controller.UrlManager().IdUrlPathParameter()}
+		uploadResourcesChain = []string{controller.UrlManager().IdUrlPathParameter(), controller.UrlManager().PartUrlPathParameter()}
+	}
+
 	s.fetch = NewFetchEndpoint(s)
-	fetchResource := api.NewIdResourcesChain(s.fetch.Name(), IdParameter)
+	fetchResource := api.NewIdResourcesChain(s.fetch.Name(), fetchResourcesChain...)
 	fetchResource.AddOperation(s.fetch)
 
 	s.upload = NewUploadEndpoint(s)
-	uploadResource := api.NewIdResourcesChain(s.upload.Name(), IdParameter, PartParameter)
+	uploadResource := api.NewIdResourcesChain(s.upload.Name(), uploadResourcesChain...)
 	uploadResource.AddOperation(s.upload)
 
 	s.AddChildren(
