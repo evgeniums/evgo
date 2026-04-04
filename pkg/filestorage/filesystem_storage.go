@@ -8,19 +8,53 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/evgeniums/evgo/pkg/app_context"
+	"github.com/evgeniums/evgo/pkg/config/object_config"
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type FilesystemStorageConfig struct {
 	BASE_DIR string `validate:"required,dir" vmessage:"Required base_dir missing"`
 	TEMP_DIR string `validate:"omitempty,dir" vmessage:"Invalid temp_dir"`
-
-	UPLOAD_PART_SIZE int64 `default:"8388608"`
 }
 
 type FilesystemStorage struct {
 	FilesystemStorageConfig
-	SignedUrlHandler
+	helper UploadPartHelper
+}
+
+func NewFilesystemStorage(helper ...UploadPartHelper) *FilesystemStorage {
+	f := &FilesystemStorage{}
+	if len(helper) > 0 {
+		f.helper = helper[0]
+	}
+	return f
+}
+
+func (u *FilesystemStorage) Config() any {
+	return &u.FilesystemStorageConfig
+}
+
+func (u *FilesystemStorage) Init(app app_context.Context, parentConfigPath string, configPath ...string) error {
+
+	// load config
+	path := object_config.Key(parentConfigPath, utils.OptionalString("filesystem_storage", configPath...))
+	err := object_config.LoadLogValidateApp(app, u, path)
+	if err != nil {
+		return app.Logger().PushFatalStack("failed to load configuration of filesystem storage", err)
+	}
+
+	// init helper
+	if u.helper == nil {
+		helper := NewUploadPartHelper()
+		err = helper.Init(app, path, path)
+		if err != nil {
+			return err
+		}
+	}
+
+	// done
+	return nil
 }
 
 func (f *FilesystemStorage) TempPath(info *FileInfo, partIndex ...int64) string {
@@ -35,20 +69,6 @@ func (f *FilesystemStorage) TempPath(info *FileInfo, partIndex ...int64) string 
 
 func (f *FilesystemStorage) Path(info *FileInfo) string {
 	return filepath.Join(f.BASE_DIR, info.GetID())
-}
-
-func (f *FilesystemStorage) Length(info *FileInfo, partIndex ...int64) int64 {
-
-	if len(partIndex) == 0 {
-		return info.Size
-	}
-
-	l := info.UploadPartSize
-	if l == 0 {
-		l = f.UPLOAD_PART_SIZE
-	}
-
-	return FilePartLength(info.Size, l, partIndex...)
 }
 
 func (f *FilesystemStorage) StartUpload(ctx context.Context, info *FileInfo) error {
@@ -77,7 +97,7 @@ func (f *FilesystemStorage) UploadPart(ctx context.Context, info *FileInfo, sour
 	}()
 
 	// copy data
-	partLength := f.Length(info, partIndex...)
+	partLength := f.helper.UploadPartLength(info, partIndex...)
 	_, err = io.CopyN(dest, source, partLength)
 	if err != nil {
 		return err
@@ -222,30 +242,4 @@ func (f *FilesystemStorage) DeleteTemp(ctx context.Context, toDate utils.Date) e
 	}
 
 	return nil
-}
-
-func FilePartLength(totalSize int64, maxPartSize int64, partIndex ...int64) int64 {
-	// If no index is provided, return the total size
-	if len(partIndex) == 0 {
-		return totalSize
-	}
-
-	index := partIndex[0]
-	start := index * maxPartSize
-
-	// If the requested index starts beyond the file size, length is 0
-	if start >= totalSize {
-		return 0
-	}
-
-	// Calculate remaining bytes from this start point
-	remaining := totalSize - start
-
-	// If remaining bytes are more than a full part, return maxPartSize
-	if remaining > maxPartSize {
-		return maxPartSize
-	}
-
-	// Otherwise, return the last (smaller) part length
-	return remaining
 }
