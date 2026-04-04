@@ -20,6 +20,7 @@ type FilesystemStorageConfig struct {
 
 type FilesystemStorage struct {
 	FilesystemStorageConfig
+	SignedUrlHandler
 }
 
 func (f *FilesystemStorage) TempPath(info *FileInfo, partIndex ...int64) string {
@@ -42,11 +43,12 @@ func (f *FilesystemStorage) Length(info *FileInfo, partIndex ...int64) int64 {
 		return info.Size
 	}
 
-	if info.UploadPartSize != 0 {
-		return info.UploadPartSize
+	l := info.UploadPartSize
+	if l == 0 {
+		l = f.UPLOAD_PART_SIZE
 	}
 
-	return f.UPLOAD_PART_SIZE
+	return FilePartLength(info.Size, l, partIndex...)
 }
 
 func (f *FilesystemStorage) StartUpload(ctx context.Context, info *FileInfo) error {
@@ -220,4 +222,30 @@ func (f *FilesystemStorage) DeleteTemp(ctx context.Context, toDate utils.Date) e
 	}
 
 	return nil
+}
+
+func FilePartLength(totalSize int64, maxPartSize int64, partIndex ...int64) int64 {
+	// If no index is provided, return the total size
+	if len(partIndex) == 0 {
+		return totalSize
+	}
+
+	index := partIndex[0]
+	start := index * maxPartSize
+
+	// If the requested index starts beyond the file size, length is 0
+	if start >= totalSize {
+		return 0
+	}
+
+	// Calculate remaining bytes from this start point
+	remaining := totalSize - start
+
+	// If remaining bytes are more than a full part, return maxPartSize
+	if remaining > maxPartSize {
+		return maxPartSize
+	}
+
+	// Otherwise, return the last (smaller) part length
+	return remaining
 }
