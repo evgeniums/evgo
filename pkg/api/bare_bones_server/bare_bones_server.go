@@ -143,11 +143,11 @@ func (s *BareBonesServerBase) Init(app app_context.Context, tenancyManager multi
 	if s.pimpl.server == nil {
 
 		configPath := s.pimpl.serverConfigPath
-		if s.pimpl.serverBuilder == nil {
+		if s.pimpl.serverBuilder != nil {
+			s.pimpl.server = s.pimpl.serverBuilder()
+		} else {
 			s.pimpl.server = rest_api_gin_server.NewServer()
 			configPath = "rest_api_server"
-		} else {
-			s.pimpl.server = s.pimpl.serverBuilder()
 		}
 
 		err = s.initFromPoolService(app, s.pimpl.server)

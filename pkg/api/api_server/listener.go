@@ -41,7 +41,7 @@ func (l *Listener) Init(ctx app_context.Context, configPath ...string) error {
 
 	err = object_config.LoadLogValidate(ctx.Cfg(), ctx.Logger(), ctx.Validator(), l, "listener", configPath...)
 	if err != nil {
-		return ctx.Logger().PushFatalStack("failed to load listemer configuration", err)
+		return ctx.Logger().PushFatalStack("failed to load listener configuration", err)
 	}
 
 	return nil

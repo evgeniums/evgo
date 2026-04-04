@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"strings"
 	"time"
 
 	"github.com/evgeniums/evgo/pkg/access_control"
@@ -39,8 +38,6 @@ var TenancyParameter string = "tenancy"
 type ServerConfig struct {
 	api_server.ServerBaseConfig
 
-	HOST                       string `validate:"ip" default:"127.0.0.1"`
-	PORT                       uint16 `validate:"required"`
 	PATH_PREFIX                string `default:"/api"`
 	TRUSTED_PROXIES            []string
 	VERBOSE                    bool
@@ -93,8 +90,9 @@ type Server struct {
 
 	crashed bool
 
-	httpServer *http.Server
-	listener   *api_server.Listener
+	httpServer       *http.Server
+	listener         *api_server.Listener
+	externalListener bool
 }
 
 func NewServer() *Server {
@@ -122,6 +120,7 @@ func (s *Server) SetPropagateAuthUser(val bool) {
 
 func (s *Server) SetListener(lis *api_server.Listener) {
 	s.listener = lis
+	s.externalListener = true
 }
 
 func (s *Server) SetConfigFromPoolService(service pool.PoolService, public ...bool) {
@@ -166,13 +165,6 @@ func (s *Server) DynamicTables() api_server.DynamicTables {
 
 func (s *Server) TenancyManager() multitenancy.Multitenancy {
 	return s.tenancies
-}
-
-func (s *Server) address() string {
-	if strings.Contains(s.HOST, "::") {
-		return fmt.Sprintf("[%s]:%d", s.HOST, s.PORT)
-	}
-	return fmt.Sprintf("%s:%d", s.HOST, s.PORT)
 }
 
 func (s *Server) logGinRequest(log logger.Logger, path string, start time.Time, ginCtx *gin.Context, extraFields ...logger.Fields) {
@@ -356,18 +348,12 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 }
 
 func (s *Server) Run(fin background_worker.Finisher) {
-	listener, err := net.Listen("tcp", s.address())
-	if err != nil {
-		msg := "TCP listening failed"
-		s.App().Logger().Fatal(msg, err, logger.Fields{"name": s.Name()})
-		app_context.AbortFatal(s.App(), msg)
-	}
 
-	s.App().Logger().Info("Listening for incoming connections", logger.Fields{"address": listener.Addr().String()})
+	s.listener.Run()
 
-	s.httpServer = &http.Server{Addr: s.address(), Handler: s.ginEngine}
+	s.httpServer = &http.Server{Addr: s.listener.Address(), Handler: s.ginEngine}
 	fin.AddRunner(s.httpServer, &background_worker.RunnerConfig{Name: optional.NewString(s.Name())})
-	s.Serve(listener)
+	s.Serve(s.listener.Listener())
 }
 
 func (s *Server) Serve(listener net.Listener) {

@@ -18,47 +18,73 @@ import (
 )
 
 type MuxApiServerConfig struct {
+	ENABLE_HTTP bool `default:"false"`
+	ENABLE_GRPC bool `default:"true"`
 }
 
 type MuxApiServer struct {
+	MuxApiServerConfig
 	api_server.Listener
 
 	mux cmux.CMux
 
 	grpcServer *grpc_api_server.Server
 	httpServer *rest_api_gin_server.Server
+
+	grpcExtender *grpc_api_server.ServerExtender
 }
 
 func NewMuxServer(grpcExtender ...grpc_api_server.ServerExtender) *MuxApiServer {
 
-	m := &MuxApiServer{
-		grpcServer: grpc_api_server.NewServer(grpcExtender...),
-		httpServer: rest_api_gin_server.NewServer(),
+	m := &MuxApiServer{}
+
+	if len(grpcExtender) != 0 {
+		m.grpcExtender = &grpcExtender[0]
 	}
 
-	m.grpcServer.SetListener(&m.Listener)
-	m.httpServer.SetListener(&m.Listener)
-
 	return m
+}
+
+func (m *MuxApiServer) Config() any {
+	return &m.MuxApiServerConfig
 }
 
 func (m *MuxApiServer) Init(ctx app_context.Context, auth auth.Auth, tenancyManager multitenancy.Multitenancy, parentPath string, configPath ...string) error {
 
 	cfgPath := utils.OptionalString(object_config.Key(parentPath, "api_server"), configPath...)
 
-	err := m.Listener.Init(ctx, cfgPath)
+	err := object_config.LoadLogValidate(ctx.Cfg(), ctx.Logger(), ctx.Validator(), m, cfgPath)
+	if err != nil {
+		return ctx.Logger().PushFatalStack("failed to load mux api server configuration", err)
+	}
+
+	err = m.Listener.Init(ctx, cfgPath)
 	if err != nil {
 		return err
 	}
 
-	err = m.grpcServer.Init(ctx, auth, tenancyManager, object_config.Key(cfgPath, "grpc"))
-	if err != nil {
-		return err
+	if m.ENABLE_GRPC {
+
+		if m.grpcExtender != nil {
+			m.grpcServer = grpc_api_server.NewServer(*m.grpcExtender)
+		}
+		m.grpcServer.SetListener(&m.Listener)
+
+		err = m.grpcServer.Init(ctx, auth, tenancyManager, object_config.Key(cfgPath, "grpc"))
+		if err != nil {
+			return err
+		}
 	}
 
-	err = m.httpServer.Init(ctx, auth, tenancyManager, object_config.Key(cfgPath, "http"))
-	if err != nil {
-		return err
+	if m.ENABLE_HTTP {
+
+		m.httpServer = rest_api_gin_server.NewServer()
+		m.httpServer.SetListener(&m.Listener)
+
+		err = m.httpServer.Init(ctx, auth, tenancyManager, object_config.Key(cfgPath, "http"))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -85,11 +111,15 @@ func (m *MuxApiServer) Run(fin background_worker.Finisher) {
 
 	m.mux = cmux.New(listener)
 
-	grpcL := m.mux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
-	httpL := m.mux.Match(cmux.HTTP1Fast())
+	if m.grpcServer != nil {
+		grpcL := m.mux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+		m.grpcServer.Serve(grpcL)
+	}
 
-	m.grpcServer.Serve(grpcL)
-	m.httpServer.Serve(httpL)
+	if m.httpServer != nil {
+		httpL := m.mux.Match(cmux.HTTP1Fast())
+		m.httpServer.Serve(httpL)
+	}
 
 	fin.AddRunner(m)
 
@@ -102,8 +132,21 @@ func (m *MuxApiServer) Shutdown(ctx context.Context) error {
 
 	m.mux.Close()
 
-	m.grpcServer.Runner().Shutdown(ctx)
-	m.httpServer.Runner().Shutdown(ctx)
+	if m.grpcServer != nil {
+		m.grpcServer.Runner().Shutdown(ctx)
+	}
+
+	if m.httpServer != nil {
+		m.httpServer.Runner().Shutdown(ctx)
+	}
 
 	return nil
+}
+
+func (m *MuxApiServer) GrpcServer() *grpc_api_server.Server {
+	return m.grpcServer
+}
+
+func (m *MuxApiServer) HttpServer() *rest_api_gin_server.Server {
+	return m.httpServer
 }
