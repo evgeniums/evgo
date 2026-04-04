@@ -39,6 +39,9 @@ type UploadPartHelper interface {
 type UrlManager interface {
 	GetUploadUrls(ctx context.Context, info *FileInfo, fromPartIndex ...int64) (*UploadUrlInfo, error)
 	GetDownloadUrl(ctx context.Context, info *FileInfo) (string, error)
+
+	IdUrlPathParameter() string
+	PartUrlPathParameter() string
 }
 
 type StorageManager interface {

@@ -10,12 +10,15 @@ import (
 
 	"github.com/evgeniums/evgo/pkg/app_context"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
+	"github.com/evgeniums/evgo/pkg/multitenancy"
+	"github.com/evgeniums/evgo/pkg/op_context"
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
 type FilesystemStorageConfig struct {
-	BASE_DIR string `validate:"required,dir" vmessage:"Required base_dir missing"`
-	TEMP_DIR string `validate:"omitempty,dir" vmessage:"Invalid temp_dir"`
+	BASE_DIR          string `validate:"required,dir" vmessage:"Required base_dir missing"`
+	TEMP_DIR          string `validate:"omitempty,dir" vmessage:"Invalid temp_dir"`
+	TENANCY_SUBFOLDER string `default:"tenancy" validate:"omitempty,alphanum" vmessage:"Invalid tenancy_subfolder"`
 }
 
 type FilesystemStorage struct {
@@ -57,29 +60,48 @@ func (u *FilesystemStorage) Init(app app_context.Context, parentConfigPath strin
 	return nil
 }
 
-func (f *FilesystemStorage) TempPath(info *FileInfo, partIndex ...int64) string {
+func (f *FilesystemStorage) TempPath(ctx context.Context, info *FileInfo, partIndex ...int64) string {
 
+	var dir string
 	var d utils.Date
 	d.SetTime(info.GetCreatedAt())
-	if len(partIndex) != 0 {
-		return filepath.Join(f.TEMP_DIR, d.AsNumber(), info.GetID(), strconv.FormatInt(partIndex[0], 10))
+
+	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
+	if tenancyCtx != nil {
+		dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
+	} else {
+		dir = filepath.Join(f.TEMP_DIR, d.AsNumber())
 	}
-	return filepath.Join(f.TEMP_DIR, d.AsNumber(), info.GetID())
+
+	if len(partIndex) != 0 {
+		return filepath.Join(dir, d.AsNumber(), info.GetID(), strconv.FormatInt(partIndex[0], 10))
+	}
+	return filepath.Join(dir, d.AsNumber(), info.GetID())
 }
 
-func (f *FilesystemStorage) Path(info *FileInfo) string {
-	return filepath.Join(f.BASE_DIR, info.GetID())
+func (f *FilesystemStorage) Path(ctx context.Context, info *FileInfo) string {
+
+	var dir string
+
+	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
+	if tenancyCtx != nil {
+		dir = filepath.Join(f.BASE_DIR, f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
+	} else {
+		dir = f.BASE_DIR
+	}
+
+	return filepath.Join(dir, info.GetID())
 }
 
 func (f *FilesystemStorage) StartUpload(ctx context.Context, info *FileInfo) error {
-	return os.MkdirAll(f.TempPath(info), 0755)
+	return os.MkdirAll(f.TempPath(ctx, info), 0755)
 }
 
 func (f *FilesystemStorage) UploadPart(ctx context.Context, info *FileInfo, source io.Reader, partIndex ...int64) error {
 
 	// prepare path
 	idx := utils.OptionalArg(0, partIndex...)
-	path := f.TempPath(info, idx)
+	path := f.TempPath(ctx, info, idx)
 	uploadPath := fmt.Sprintf("_%s_%s", path, utils.GenerateID())
 
 	// open target file
@@ -133,7 +155,7 @@ func (f *FilesystemStorage) UploadPart(ctx context.Context, info *FileInfo, sour
 
 func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info *FileInfo, partsCount ...int64) error {
 
-	targetPath := f.Path(info)
+	targetPath := f.Path(ctx, info)
 	tmpTargetPath := fmt.Sprintf("_%s_%s", targetPath, utils.GenerateID())
 
 	// open target file
@@ -153,7 +175,7 @@ func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info *FileInfo, 
 	// copy parts to finel destination
 	count := utils.OptionalArg(1, partsCount...)
 	for i := range count {
-		src, err1 := os.Open(f.TempPath(info, i))
+		src, err1 := os.Open(f.TempPath(ctx, info, i))
 		if err1 != nil {
 			err = err1
 			return err
@@ -176,7 +198,7 @@ func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info *FileInfo, 
 	}
 
 	// remove temporary files
-	os.RemoveAll(f.TempPath(info))
+	os.RemoveAll(f.TempPath(ctx, info))
 
 	// done
 	return nil
@@ -184,7 +206,7 @@ func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info *FileInfo, 
 
 func (f *FilesystemStorage) Fetch(ctx context.Context, info *FileInfo, offset ...int64) (io.ReadCloser, error) {
 
-	path := f.Path(info)
+	path := f.Path(ctx, info)
 
 	// open file
 	src, err := os.Open(path)
