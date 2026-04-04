@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/evgeniums/evgo/pkg/api/api_server"
+	"github.com/evgeniums/evgo/pkg/api/api_server/rest_api_gin_server"
 	"github.com/evgeniums/evgo/pkg/filestorage"
 	"github.com/evgeniums/evgo/pkg/generic_error"
 	"github.com/evgeniums/evgo/pkg/op_context"
@@ -22,11 +23,14 @@ type FileDataController interface {
 type FileDataControllerBase struct {
 	FileInfoRegistryBase
 	filestorageManager filestorage.StorageManager
+	signedUrlHandler   filestorage.SignedUrlHandler
 }
 
 func NewFileDataController(registry filestorage.FileInfoRegistry,
 	urlManager filestorage.UrlManager,
-	filestorageManager filestorage.StorageManager) *FileDataControllerBase {
+	filestorageManager filestorage.StorageManager,
+	signedUrlHandler filestorage.SignedUrlHandler,
+) *FileDataControllerBase {
 
 	f := &FileDataControllerBase{
 		FileInfoRegistryBase: FileInfoRegistryBase{
@@ -34,9 +38,31 @@ func NewFileDataController(registry filestorage.FileInfoRegistry,
 			urlManager: urlManager,
 		},
 		filestorageManager: filestorageManager,
+		signedUrlHandler:   signedUrlHandler,
 	}
 
 	return f
+}
+
+func (f *FileDataControllerBase) checkUrl(ctx context.Context, request api_server.Request, c op_context.CallContext) error {
+
+	r, ok := request.(*rest_api_gin_server.Request)
+	if !ok {
+		return c.SetErrorStr("invalid request type, must be rest_api_gin_server.Request")
+	}
+
+	err := f.signedUrlHandler.CheckUrl(ctx, r.GetGinCtx().Request.URL, r.GetRequestMethod())
+	if err != nil {
+		c.SetMessage("invalid URL")
+		if err.Error() == "expired" {
+			request.SetGenericErrorCode(generic_error.ErrorCodeExpired)
+		} else {
+			request.SetGenericErrorCode(generic_error.ErrorCodeBadRequest)
+		}
+		return c.SetError(err)
+	}
+
+	return nil
 }
 
 func (f *FileDataControllerBase) UploadPart(ctx context.Context) error {
@@ -44,6 +70,11 @@ func (f *FileDataControllerBase) UploadPart(ctx context.Context) error {
 	request := op_context.OpContext[api_server.Request](ctx)
 	c := request.TraceInMethod("FileDataController.UploadPart")
 	defer request.TraceOutMethod()
+
+	err := f.checkUrl(ctx, request, c)
+	if err != nil {
+		return err
+	}
 
 	info, part, err := f.FindForUpload(ctx, request.ResourceIds())
 	if err != nil {
@@ -64,6 +95,11 @@ func (f *FileDataControllerBase) Fetch(ctx context.Context) error {
 	request := op_context.OpContext[api_server.Request](ctx)
 	c := request.TraceInMethod("FileDataController.Fetch")
 	defer request.TraceOutMethod()
+
+	err := f.checkUrl(ctx, request, c)
+	if err != nil {
+		return err
+	}
 
 	info, err := f.FindForDownload(ctx, request.ResourceIds())
 	if err != nil {

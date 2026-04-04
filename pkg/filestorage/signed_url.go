@@ -73,12 +73,18 @@ func (s *SignedUrlHandlerBase) SignUrl(ctx context.Context, originalUrl string, 
 	return u.String(), nil
 }
 
-func (s *SignedUrlHandlerBase) CheckUrl(ctx context.Context, signedUrl string, method string) error {
+func (s *SignedUrlHandlerBase) CheckUrlString(ctx context.Context, signedUrl string, method string) error {
 
 	u, err := url.Parse(signedUrl)
 	if err != nil {
 		return err
 	}
+
+	return s.CheckUrl(ctx, u, method)
+}
+
+func (s *SignedUrlHandlerBase) CheckUrl(ctx context.Context, u *url.URL, method string) error {
+
 	q := u.Query()
 
 	// check expiration
@@ -86,7 +92,7 @@ func (s *SignedUrlHandlerBase) CheckUrl(ctx context.Context, signedUrl string, m
 	if expiryStr != "" {
 		expiry, _ := strconv.ParseInt(expiryStr, 10, 64)
 		if time.Now().Unix() > expiry {
-			return errors.New("URL signature expired")
+			return errors.New("expired")
 		}
 	}
 

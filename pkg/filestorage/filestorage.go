@@ -3,6 +3,7 @@ package filestorage
 import (
 	"context"
 	"io"
+	"net/url"
 
 	"github.com/evgeniums/evgo/pkg/common"
 	"github.com/evgeniums/evgo/pkg/utils"
@@ -23,7 +24,9 @@ type FileInfo struct {
 
 type SignedUrlHandler interface {
 	SignUrl(ctx context.Context, originalUrl string, method string) (string, error)
-	CheckUrl(ctx context.Context, signedUrl string, method string) error
+	CheckUrlString(ctx context.Context, signedUrl string, method string) error
+
+	CheckUrl(ctx context.Context, signedUrl *url.URL, method string) error
 }
 
 type UploadUrlInfo struct {
