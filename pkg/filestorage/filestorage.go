@@ -11,9 +11,9 @@ import (
 type FileInfo struct {
 	common.ObjectBase
 
-	Path        string `json:"path"`
 	ContentType string `json:"content_type"`
 	Size        int64  `json:"size"`
+	FileName    string `json:"fileName"`
 
 	NativeId       string `json:"native_id"`
 	UploadPartSize int64  `json:"upload_part_size"`
@@ -55,4 +55,9 @@ type StorageManager interface {
 	Delete(ctx context.Context, pathPrefix string) error
 
 	DeleteTemp(ctx context.Context, toDate utils.Date) error
+}
+
+type FileInfoRegistry interface {
+	FindForUpload(ctx context.Context, id string, part int64) (*FileInfo, error)
+	FindForDownload(ctx context.Context, id string) (*FileInfo, error)
 }

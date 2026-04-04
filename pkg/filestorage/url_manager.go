@@ -16,11 +16,15 @@ import (
 type UrlManagerConfig struct {
 	BASE_UPLOAD_URL   string `validate:"required,http_url"`
 	BASE_DOWNLOAD_URL string `validate:"required,http_url"`
-	UPLOAD_METHOD     string `validate:"required,one_of=POST PUT" default:"POST"`
-	DOWNLOAD_METHOD   string `validate:"required,one_of=GET" default:"GET"`
+
+	UPLOAD_PATH_PREFIX   string `validate:"required,regexp=^/[a-zA-Z0-9/_-]+$" default:"/filedata/upload"`
+	DOWNLOAD_PATH_PREFIX string `validate:"required,regexp=^/[a-zA-Z0-9/_-]+$" default:"/filedata/fetch"`
+
+	UPLOAD_METHOD   string `validate:"required,one_of=POST PUT" default:"POST"`
+	DOWNLOAD_METHOD string `validate:"required,one_of=GET" default:"GET"`
 
 	ID_PARAMETER      string `validate:"required,alphanum" default:"id"`
-	PART_PARAMETER    string `validate:"required,alphanum" default:"p"`
+	PART_PARAMETER    string `validate:"required,alphanum" default:"part"`
 	TENANCY_PARAMETER string `validate:"omitempty,alphanum" default:"tenancy"`
 
 	SHADOW_TENANCY_PATH bool `default:"true"`
@@ -108,9 +112,9 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info *FileInfo, from
 		var originalUrl string
 		var err error
 		if tenancyPath == "" {
-			originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+			originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
 		} else {
-			originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+			originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
 		}
 
 		if err != nil {
@@ -136,9 +140,9 @@ func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info *FileInfo) (st
 	var err error
 
 	if tenancyPath == "" {
-		originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.ID_PARAMETER, info.GetID())
+		originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
 	} else {
-		originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.ID_PARAMETER, info.GetID())
+		originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
 	}
 	if err != nil {
 		return "", err
