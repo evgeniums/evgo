@@ -93,3 +93,5 @@ func NewHmacCoding(secret string, val utils.StringCoding, digestBuilder ...Diges
 	h.StringCoding = val
 	return h
 }
+
+type HmacBuilder = func(secret string) *Hmac
