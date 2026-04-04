@@ -28,7 +28,7 @@ type SignedUrlHandlerBase struct {
 func NewSignedUrl(hmacBuilder ...crypt_utils.HmacBuilder) *SignedUrlHandlerBase {
 	s := &SignedUrlHandlerBase{}
 
-	if len(hmacBuilder) != 0 {
+	if len(hmacBuilder) != 0 && hmacBuilder[0] != nil {
 		s.hmacBuilder = hmacBuilder[0]
 	} else {
 		s.hmacBuilder = func(secret string) *crypt_utils.Hmac { return crypt_utils.NewHmac(secret) }
