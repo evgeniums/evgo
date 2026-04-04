@@ -24,12 +24,21 @@ type SignedUrlHandler interface {
 	CheckUrl(ctx context.Context, signedUrl string, method string) error
 }
 
-type UrlManager interface {
-	GetUploadUrl(ctx context.Context, info *FileInfo, partIndex ...int64) (string, error)
-	GetDownloadUrl(ctx context.Context, info *FileInfo, partIndex ...int64) (string, error)
+type UploadUrlInfo struct {
+	Urls          []string
+	TotalUrlCount int64
+	Method        string
+	FromPartIndex int64
+}
 
-	IsSingleUploadUrl() bool
-	IsSingleDownloadUrl() bool
+type UploadPartHelper interface {
+	UploadPartLength(info *FileInfo, partIndex ...int64) int64
+	PartCount(info *FileInfo) int64
+}
+
+type UrlManager interface {
+	GetUploadUrls(ctx context.Context, info *FileInfo, fromPartIndex ...int64) (*UploadUrlInfo, error)
+	GetDownloadUrl(ctx context.Context, info *FileInfo) (string, error)
 }
 
 type StorageManager interface {
