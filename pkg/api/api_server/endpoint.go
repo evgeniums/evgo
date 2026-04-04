@@ -2,7 +2,6 @@ package api_server
 
 import (
 	"context"
-	"io"
 
 	"github.com/stoewer/go-strcase"
 
@@ -92,7 +91,6 @@ type Endpoint interface {
 	IsServerStreaming() bool
 
 	IsFileUpload() bool
-	UploadedData() io.ReadCloser
 }
 
 type EndpointHandler = func(sctx context.Context) error
@@ -172,10 +170,6 @@ func (e *EndpointBase) IsServerStreaming() bool {
 
 func (e *EndpointBase) IsFileUpload() bool {
 	return false
-}
-
-func (e *EndpointBase) UploadedData() io.ReadCloser {
-	return nil
 }
 
 type ResourceEndpointI interface {

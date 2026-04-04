@@ -614,10 +614,22 @@ func PrepareCollectionAndNameResource(typeName string) (serviceName string, coll
 	return
 }
 
-func AddChildResource(resource Resource, childName string) Resource {
+func AddChildResource(resource Resource, childName string) *ResourceBase {
 	child := NewResource(childName)
 	resource.AddChild(child)
 	return child
+}
+
+func NewIdResourcesChain(first string, ids ...string) *ResourceBase {
+	r := NewResource(first)
+
+	current := r
+	for _, id := range ids {
+		current = AddChildResource(current, id)
+		current.SetHasId(true)
+	}
+
+	return r
 }
 
 type ResourceIdsBase struct {

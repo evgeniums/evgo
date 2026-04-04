@@ -2,6 +2,7 @@ package api_server
 
 import (
 	"context"
+	"io"
 	"mime/multipart"
 	"time"
 
@@ -99,6 +100,8 @@ type Request interface {
 
 	SetOpId(opId string)
 	OpId() string
+
+	UploadedData() io.ReadCloser
 }
 
 func AuthKey(authProtocol string, key string, directKeyName ...bool) string {
@@ -189,6 +192,10 @@ func (r *RequestBase) SetOpId(opId string) {
 
 func (r *RequestBase) OpId() string {
 	return r.opId
+}
+
+func (e *RequestBase) UploadedData() io.ReadCloser {
+	return nil
 }
 
 func FullRequestPath(r Request) string {
