@@ -130,8 +130,6 @@ func (m *MuxApiServer) Shutdown(ctx context.Context) error {
 
 	m.App().Logger().Info("shutting down server listener...")
 
-	m.mux.Close()
-
 	if m.grpcServer != nil {
 		m.grpcServer.Runner().Shutdown(ctx)
 	}
@@ -139,6 +137,8 @@ func (m *MuxApiServer) Shutdown(ctx context.Context) error {
 	if m.httpServer != nil {
 		m.httpServer.Runner().Shutdown(ctx)
 	}
+
+	m.mux.Close()
 
 	return nil
 }
