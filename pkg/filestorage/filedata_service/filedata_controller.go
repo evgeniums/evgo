@@ -112,16 +112,16 @@ func (f *FileDataControllerBase) Fetch(ctx context.Context) error {
 	var source io.ReadCloser
 	var offset int64
 	var responseHeaders map[string]string
-	length := info.Size
+	length := info.GetSize()
 	if rangeHeader == "" {
 		source, err = f.filestorageManager.Fetch(ctx, info)
 		responseHeaders = map[string]string{
 			"Accept-Ranges":       "bytes",
-			"Content-Disposition": fmt.Sprintf(`attachment; filename="%s`, info.FileName),
+			"Content-Disposition": fmt.Sprintf(`attachment; filename="%s`, info.GetFileName()),
 		}
 	} else {
 
-		offset, length, err = ParseRange(rangeHeader, info.Size)
+		offset, length, err = ParseRange(rangeHeader, info.GetSize())
 		if err != nil {
 			c.SetMessage("invalid range header")
 			request.SetGenericErrorCode(generic_error.ErrorCodeBadRequest)
@@ -132,9 +132,9 @@ func (f *FileDataControllerBase) Fetch(ctx context.Context) error {
 		if err == nil {
 			endByte := offset + length - 1
 			responseHeaders = map[string]string{
-				"Content-Range":       fmt.Sprintf("bytes %d-%d/%d", offset, endByte, info.Size),
+				"Content-Range":       fmt.Sprintf("bytes %d-%d/%d", offset, endByte, info.GetSize()),
 				"Accept-Ranges":       "bytes",
-				"Content-Disposition": fmt.Sprintf(`attachment; filename="%s`, info.FileName),
+				"Content-Disposition": fmt.Sprintf(`attachment; filename="%s`, info.GetFileName()),
 			}
 		}
 	}
@@ -144,7 +144,7 @@ func (f *FileDataControllerBase) Fetch(ctx context.Context) error {
 	}
 
 	// fill response
-	request.Response().SetDataSource(source, length, info.ContentType, responseHeaders)
+	request.Response().SetDataSource(source, length, info.GetContentType(), responseHeaders)
 
 	// done
 	return nil

@@ -38,7 +38,7 @@ func (f *FileInfoRegistryBase) UrlManager() filestorage.UrlManager {
 	return f.urlManager
 }
 
-func (f *FileInfoRegistryBase) FindForUpload(sctx context.Context, ids api.ResourceIds) (*filestorage.FileInfo, int64, error) {
+func (f *FileInfoRegistryBase) FindForUpload(sctx context.Context, ids api.ResourceIds) (filestorage.FileInfo, int64, error) {
 
 	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("FileInfoRegistry.FindForUpload")
@@ -76,7 +76,7 @@ func (f *FileInfoRegistryBase) FindForUpload(sctx context.Context, ids api.Resou
 	return info, part, nil
 }
 
-func (f *FileInfoRegistryBase) FindForDownload(sctx context.Context, ids api.ResourceIds) (*filestorage.FileInfo, error) {
+func (f *FileInfoRegistryBase) FindForDownload(sctx context.Context, ids api.ResourceIds) (filestorage.FileInfo, error) {
 
 	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("FileInfoRegistry.FindForDownload")

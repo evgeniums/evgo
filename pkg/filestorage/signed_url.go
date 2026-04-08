@@ -43,7 +43,7 @@ func (s *SignedUrlHandlerBase) Config() any {
 
 func (s *SignedUrlHandlerBase) Init(app app_context.Context, parentConfigPath string, configPath ...string) error {
 
-	path := object_config.Key(parentConfigPath, utils.OptionalString("signed_url", configPath...))
+	path := utils.OptionalString(object_config.Key(parentConfigPath, "signed_url"), configPath...)
 	err := object_config.LoadLogValidateApp(app, s, path)
 	if err != nil {
 		return app.Logger().PushFatalStack("failed to load configuration of signed URLs handler", err)

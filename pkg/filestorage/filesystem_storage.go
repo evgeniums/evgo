@@ -42,7 +42,7 @@ func (u *FilesystemStorage) Config() any {
 func (u *FilesystemStorage) Init(app app_context.Context, parentConfigPath string, configPath ...string) error {
 
 	// load config
-	path := object_config.Key(parentConfigPath, utils.OptionalString("filesystem_storage", configPath...))
+	path := utils.OptionalString(object_config.Key(parentConfigPath, "filesystem_storage"), configPath...)
 	err := object_config.LoadLogValidateApp(app, u, path)
 	if err != nil {
 		return app.Logger().PushFatalStack("failed to load configuration of filesystem storage", err)
@@ -61,7 +61,7 @@ func (u *FilesystemStorage) Init(app app_context.Context, parentConfigPath strin
 	return nil
 }
 
-func (f *FilesystemStorage) TempPath(ctx context.Context, info *FileInfo, partIndex ...int64) string {
+func (f *FilesystemStorage) TempPath(ctx context.Context, info FileInfo, partIndex ...int64) string {
 
 	var dir string
 	var d utils.Date
@@ -69,16 +69,16 @@ func (f *FilesystemStorage) TempPath(ctx context.Context, info *FileInfo, partIn
 
 	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
 	if tenancyCtx != nil {
-		if info.Topic == "" {
+		if info.GetTopic() == "" {
 			dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
 		} else {
-			dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID(), f.TOPIC_SUBFOLDER, info.Topic)
+			dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID(), f.TOPIC_SUBFOLDER, info.GetTopic())
 		}
 	} else {
-		if info.Topic == "" {
+		if info.GetTopic() == "" {
 			dir = filepath.Join(f.TEMP_DIR, d.AsNumber())
 		} else {
-			dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TOPIC_SUBFOLDER, info.Topic)
+			dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TOPIC_SUBFOLDER, info.GetTopic())
 		}
 	}
 
@@ -88,33 +88,33 @@ func (f *FilesystemStorage) TempPath(ctx context.Context, info *FileInfo, partIn
 	return filepath.Join(dir, d.AsNumber(), info.GetID())
 }
 
-func (f *FilesystemStorage) Path(ctx context.Context, info *FileInfo) string {
+func (f *FilesystemStorage) Path(ctx context.Context, info FileInfo) string {
 
 	var dir string
 
 	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
 	if tenancyCtx != nil {
-		if info.Topic == "" {
+		if info.GetTopic() == "" {
 			dir = filepath.Join(f.BASE_DIR, f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
 		} else {
-			dir = filepath.Join(f.BASE_DIR, f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID(), f.TOPIC_SUBFOLDER, info.Topic)
+			dir = filepath.Join(f.BASE_DIR, f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID(), f.TOPIC_SUBFOLDER, info.GetTopic())
 		}
 	} else {
-		if info.Topic == "" {
+		if info.GetTopic() == "" {
 			dir = f.BASE_DIR
 		} else {
-			dir = filepath.Join(f.BASE_DIR, f.TOPIC_SUBFOLDER, info.Topic)
+			dir = filepath.Join(f.BASE_DIR, f.TOPIC_SUBFOLDER, info.GetTopic())
 		}
 	}
 
 	return filepath.Join(dir, info.GetID())
 }
 
-func (f *FilesystemStorage) StartUpload(ctx context.Context, info *FileInfo) error {
+func (f *FilesystemStorage) StartUpload(ctx context.Context, info FileInfo) error {
 	return os.MkdirAll(f.TempPath(ctx, info), 0755)
 }
 
-func (f *FilesystemStorage) UploadPart(ctx context.Context, info *FileInfo, source io.Reader, partIndex ...int64) error {
+func (f *FilesystemStorage) UploadPart(ctx context.Context, info FileInfo, source io.Reader, partIndex ...int64) error {
 
 	// prepare path
 	idx := utils.OptionalArg(0, partIndex...)
@@ -170,7 +170,7 @@ func (f *FilesystemStorage) UploadPart(ctx context.Context, info *FileInfo, sour
 	return nil
 }
 
-func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info *FileInfo, partsCount ...int64) error {
+func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info FileInfo, partsCount ...int64) error {
 
 	targetPath := f.Path(ctx, info)
 	tmpTargetPath := fmt.Sprintf("_%s_%s", targetPath, utils.GenerateID())
@@ -189,7 +189,7 @@ func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info *FileInfo, 
 		}
 	}()
 
-	// copy parts to finel destination
+	// copy parts to final destination
 	count := utils.OptionalArg(1, partsCount...)
 	for i := range count {
 		src, err1 := os.Open(f.TempPath(ctx, info, i))
@@ -221,7 +221,12 @@ func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info *FileInfo, 
 	return nil
 }
 
-func (f *FilesystemStorage) Fetch(ctx context.Context, info *FileInfo, offset ...int64) (io.ReadCloser, error) {
+func (f *FilesystemStorage) CheckMime(ctx context.Context, info FileInfo) (bool, error) {
+	// TODO security: check actual mime of the file for encrypted and unencrypted files
+	return true, nil
+}
+
+func (f *FilesystemStorage) Fetch(ctx context.Context, info FileInfo, offset ...int64) (io.ReadCloser, error) {
 
 	path := f.Path(ctx, info)
 
@@ -246,7 +251,7 @@ type limitedReadCloser struct {
 	io.Closer
 }
 
-func (f *FilesystemStorage) FetchRange(ctx context.Context, info *FileInfo, offset int64, length int64) (io.ReadCloser, error) {
+func (f *FilesystemStorage) FetchRange(ctx context.Context, info FileInfo, offset int64, length int64) (io.ReadCloser, error) {
 
 	readCloser, err := f.Fetch(ctx, info, offset)
 	if err != nil {

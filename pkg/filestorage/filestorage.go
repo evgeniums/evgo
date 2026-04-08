@@ -9,17 +9,17 @@ import (
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
-type FileInfo struct {
-	common.ObjectBase
+type FileInfo interface {
+	common.Object
 
-	ContentType string `json:"content_type"`
-	Size        int64  `json:"size"`
-	FileName    string `json:"fileName"`
+	GetContentType() string
+	GetSize() int64
+	GetFileName() string
 
-	Topic string `json:"topic"`
+	GetTopic() string
 
-	NativeId       string `json:"native_id"`
-	UploadPartSize int64  `json:"upload_part_size"`
+	GetNativeId() string
+	GetUploadPartSize() int64
 }
 
 type SignedUrlHandler interface {
@@ -30,20 +30,23 @@ type SignedUrlHandler interface {
 }
 
 type UploadUrlInfo struct {
-	Urls          []string
-	TotalUrlCount int64
-	Method        string
-	FromPartIndex int64
+	Urls             []string
+	TotalUrlCount    int64
+	Method           string
+	FromPartIndex    int64
+	CertificateChain string
+	ProxyHeader      string
+	ProxyHeaderName  string
 }
 
 type UploadPartHelper interface {
-	UploadPartLength(info *FileInfo, partIndex ...int64) int64
-	PartCount(info *FileInfo) int64
+	UploadPartLength(info FileInfo, partIndex ...int64) int64
+	PartCount(info FileInfo) int64
 }
 
 type UrlManager interface {
-	GetUploadUrls(ctx context.Context, info *FileInfo, fromPartIndex ...int64) (*UploadUrlInfo, error)
-	GetDownloadUrl(ctx context.Context, info *FileInfo) (string, error)
+	GetUploadUrls(ctx context.Context, info FileInfo, fromPartIndex ...int64) (*UploadUrlInfo, error)
+	GetDownloadUrl(ctx context.Context, info FileInfo) (string, error)
 
 	IdUrlPathParameter() string
 	PartUrlPathParameter() string
@@ -52,12 +55,13 @@ type UrlManager interface {
 }
 
 type StorageManager interface {
-	StartUpload(ctx context.Context, info *FileInfo) error
-	UploadPart(ctx context.Context, info *FileInfo, source io.Reader, partIndex ...int64) error
-	FinalizeUpload(ctx context.Context, info *FileInfo, partsCount ...int64) error
+	StartUpload(ctx context.Context, info FileInfo) error
+	UploadPart(ctx context.Context, info FileInfo, source io.Reader, partIndex ...int64) error
+	FinalizeUpload(ctx context.Context, info FileInfo, partsCount ...int64) error
+	CheckMime(ctx context.Context, info FileInfo) (bool, error)
 
-	Fetch(ctx context.Context, info *FileInfo, offset ...int64) (io.ReadCloser, error)
-	FetchRange(ctx context.Context, info *FileInfo, offset int64, length int64) (io.ReadCloser, error)
+	Fetch(ctx context.Context, info FileInfo, offset ...int64) (io.ReadCloser, error)
+	FetchRange(ctx context.Context, info FileInfo, offset int64, length int64) (io.ReadCloser, error)
 
 	Delete(ctx context.Context, pathPrefix string) error
 
@@ -65,6 +69,6 @@ type StorageManager interface {
 }
 
 type FileInfoRegistry interface {
-	FindForUpload(ctx context.Context, id string, part int64, topic ...string) (*FileInfo, error)
-	FindForDownload(ctx context.Context, id string, topic ...string) (*FileInfo, error)
+	FindForUpload(ctx context.Context, id string, part int64, topic ...string) (FileInfo, error)
+	FindForDownload(ctx context.Context, id string, topic ...string) (FileInfo, error)
 }

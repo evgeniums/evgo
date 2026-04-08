@@ -14,14 +14,14 @@ import (
 )
 
 type UrlManagerConfig struct {
-	BASE_UPLOAD_URL   string `validate:"required,http_url"`
-	BASE_DOWNLOAD_URL string `validate:"required,http_url"`
+	BASE_UPLOAD_URL   string `validate:"required,url"`
+	BASE_DOWNLOAD_URL string `validate:"required,url"`
 
-	UPLOAD_PATH_PREFIX   string `validate:"required,regexp=^/[a-zA-Z0-9/_-]+$" default:"/filedata/upload"`
-	DOWNLOAD_PATH_PREFIX string `validate:"required,regexp=^/[a-zA-Z0-9/_-]+$" default:"/filedata/fetch"`
+	UPLOAD_PATH_PREFIX   string `validate:"required" default:"/filedata/upload"`
+	DOWNLOAD_PATH_PREFIX string `validate:"required" default:"/filedata/fetch"`
 
-	UPLOAD_METHOD   string `validate:"required,one_of=POST PUT" default:"POST"`
-	DOWNLOAD_METHOD string `validate:"required,one_of=GET" default:"GET"`
+	UPLOAD_METHOD   string `validate:"required,oneof=POST PUT" default:"POST"`
+	DOWNLOAD_METHOD string `validate:"required,oneof=GET" default:"GET"`
 
 	ID_PARAMETER      string `validate:"required,alphanum" default:"id"`
 	PART_PARAMETER    string `validate:"required,alphanum" default:"part"`
@@ -56,7 +56,7 @@ func (u *UrlManagerBase) Config() any {
 func (u *UrlManagerBase) Init(app app_context.Context, opt UrlManagerOptions, parentConfigPath string, configPath ...string) error {
 
 	// load config
-	path := object_config.Key(parentConfigPath, utils.OptionalString("url_manager", configPath...))
+	path := utils.OptionalString(object_config.Key(parentConfigPath, "url_manager"), configPath...)
 	err := object_config.LoadLogValidateApp(app, u, path)
 	if err != nil {
 		return app.Logger().PushFatalStack("failed to load configuration of URL manager", err)
@@ -76,7 +76,7 @@ func (u *UrlManagerBase) Init(app app_context.Context, opt UrlManagerOptions, pa
 	u.signedUrlHandler = opt.SignedUrlHandler
 	if u.signedUrlHandler == nil {
 		signedUrlHandler := NewSignedUrl(opt.HmacBuilder)
-		err = signedUrlHandler.Init(app, path)
+		err = signedUrlHandler.Init(app, path, path)
 		if err != nil {
 			return nil
 		}
@@ -97,7 +97,7 @@ func (u *UrlManagerBase) TenancyPath(ctx context.Context) string {
 	return ""
 }
 
-func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info *FileInfo, fromPartIndex ...int64) (*UploadUrlInfo, error) {
+func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, fromPartIndex ...int64) (*UploadUrlInfo, error) {
 
 	// prepare result
 	result := &UploadUrlInfo{
@@ -114,16 +114,16 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info *FileInfo, from
 		var originalUrl string
 		var err error
 		if tenancyPath == "" {
-			if info.Topic == "" {
+			if info.GetTopic() == "" {
 				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
 			} else {
-				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.UPLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.Topic, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.UPLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.GetTopic(), u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
 			}
 		} else {
-			if info.Topic == "" {
+			if info.GetTopic() == "" {
 				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
 			} else {
-				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.UPLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.Topic, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
+				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.UPLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.GetTopic(), u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
 			}
 		}
 
@@ -143,23 +143,27 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info *FileInfo, from
 	return result, nil
 }
 
-func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info *FileInfo) (string, error) {
+func (u *UrlManagerBase) Helper() UploadPartHelper {
+	return u.helper
+}
+
+func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info FileInfo) (string, error) {
 
 	tenancyPath := u.TenancyPath(ctx)
 	var originalUrl string
 	var err error
 
 	if tenancyPath == "" {
-		if info.Topic == "" {
+		if info.GetTopic() == "" {
 			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
 		} else {
-			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.DOWNLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.Topic, u.ID_PARAMETER, info.GetID())
+			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.DOWNLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.GetTopic(), u.ID_PARAMETER, info.GetID())
 		}
 	} else {
-		if info.Topic == "" {
+		if info.GetTopic() == "" {
 			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
 		} else {
-			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.DOWNLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.Topic, u.ID_PARAMETER, info.GetID())
+			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.DOWNLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.GetTopic(), u.ID_PARAMETER, info.GetID())
 		}
 	}
 	if err != nil {

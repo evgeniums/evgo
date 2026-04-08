@@ -25,7 +25,7 @@ func (s *UploadPartHelperBase) Config() any {
 
 func (s *UploadPartHelperBase) Init(app app_context.Context, parentConfigPath string, configPath ...string) error {
 
-	path := object_config.Key(parentConfigPath, utils.OptionalString("upload_part_helper", configPath...))
+	path := utils.OptionalString(object_config.Key(parentConfigPath, "upload_part_helper"), configPath...)
 	err := object_config.LoadLogValidateApp(app, s, path)
 	if err != nil {
 		return app.Logger().PushFatalStack("failed to load configuration of upload part helper", err)
@@ -34,31 +34,31 @@ func (s *UploadPartHelperBase) Init(app app_context.Context, parentConfigPath st
 	return nil
 }
 
-func (w *UploadPartHelperConfig) UploadPartLength(info *FileInfo, partIndex ...int64) int64 {
+func (w *UploadPartHelperConfig) UploadPartLength(info FileInfo, partIndex ...int64) int64 {
 	if len(partIndex) == 0 {
-		return info.Size
+		return info.GetSize()
 	}
 
-	l := info.UploadPartSize
+	l := info.GetUploadPartSize()
 	if l == 0 {
 		l = w.UPLOAD_PART_LENGTH
 	}
 
-	return FilePartLength(info.Size, l, partIndex...)
+	return FilePartLength(info.GetSize(), l, partIndex...)
 }
 
-func (w *UploadPartHelperConfig) PartCount(info *FileInfo) int64 {
+func (w *UploadPartHelperConfig) PartCount(info FileInfo) int64 {
 
-	maxPartSize := info.UploadPartSize
+	maxPartSize := info.GetUploadPartSize()
 	if maxPartSize == 0 {
 		maxPartSize = w.UPLOAD_PART_LENGTH
 	}
 
-	if info.Size <= 0 || maxPartSize <= 0 {
+	if info.GetSize() <= 0 || maxPartSize <= 0 {
 		return 0
 	}
 
-	return (info.Size + maxPartSize - 1) / maxPartSize
+	return (info.GetSize() + maxPartSize - 1) / maxPartSize
 }
 
 func FilePartLength(totalSize int64, maxPartSize int64, partIndex ...int64) int64 {
