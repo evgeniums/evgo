@@ -90,7 +90,7 @@ func NewFetchEndpoint(service *FileDataService) *FetchEndpoint {
 	return ep
 }
 
-var Upload = func() api.Operation { return api.Get(UploadName) }
+var Upload = func() api.Operation { return api.Post(UploadName) }
 
 type UploadEndpoint struct {
 	Endpoint
@@ -120,6 +120,6 @@ func (e *UploadEndpoint) IsFileUpload() bool {
 
 func NewUploadEndpoint(service *FileDataService) *UploadEndpoint {
 	ep := &UploadEndpoint{}
-	ep.Construct(service, Fetch())
+	ep.Construct(service, Upload())
 	return ep
 }

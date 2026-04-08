@@ -15,7 +15,7 @@ import (
 
 type SignedUrlConfig struct {
 	SECRET          string `validate:"required" vmessage:"secret must be defined for signed URLs"`
-	EXPIRATION      uint32
+	EXPIRATION      uint32 `default:"3600"`
 	EXPIRY_PARAM    string `default:"e"`
 	SIGNATURE_PARAM string `default:"s"`
 }

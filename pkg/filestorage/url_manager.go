@@ -76,9 +76,9 @@ func (u *UrlManagerBase) Init(app app_context.Context, opt UrlManagerOptions, pa
 	u.signedUrlHandler = opt.SignedUrlHandler
 	if u.signedUrlHandler == nil {
 		signedUrlHandler := NewSignedUrl(opt.HmacBuilder)
-		err = signedUrlHandler.Init(app, path, path)
+		err = signedUrlHandler.Init(app, path)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 
@@ -145,6 +145,10 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, fromP
 
 func (u *UrlManagerBase) Helper() UploadPartHelper {
 	return u.helper
+}
+
+func (u *UrlManagerBase) SignedUrlHandler() SignedUrlHandler {
+	return u.signedUrlHandler
 }
 
 func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info FileInfo) (string, error) {
