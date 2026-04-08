@@ -435,7 +435,7 @@ func (s *Server) Serve(lis net.Listener) {
 	go func() {
 		s.App().Logger().Info("Running gRPC API server", logger.Fields{"name": s.Name()})
 		err := s.grpcServer.Serve(lis)
-		if err != nil {
+		if err != nil && err.Error() != "mux: server closed" {
 			msg := "failed to run gRPC server"
 			fmt.Printf("%s %s: %s\n", msg, s.Name(), err)
 			s.App().Logger().Fatal(msg, err, logger.Fields{"name": s.Name()})

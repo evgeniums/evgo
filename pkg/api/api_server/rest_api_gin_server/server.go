@@ -2,6 +2,7 @@ package rest_api_gin_server
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -56,6 +57,8 @@ type ServerConfig struct {
 	FORM_SINGLE_FILE_FIELD string `default:"file"`
 
 	MAX_JSON_REQUEST_SIZE int64 `default:"1048576"`
+
+	SHUTDOWN_TIMEOUT int `default:"15"`
 }
 
 type AuthParameterGetter = func(r *Request, key string) string
@@ -93,6 +96,8 @@ type Server struct {
 	httpServer       *http.Server
 	listener         *api_server.Listener
 	externalListener bool
+
+	shutdown chan struct{}
 }
 
 func NewServer() *Server {
@@ -102,6 +107,8 @@ func NewServer() *Server {
 	s.dynamicTables = dynamic_table_gorm.New()
 
 	s.TENANCY_PARAMETER = TenancyParameter
+
+	s.shutdown = make(chan struct{})
 
 	return s
 }
@@ -360,18 +367,59 @@ func (s *Server) Serve(listener net.Listener) {
 
 	go func() {
 		s.App().Logger().Info("Running REST API server", logger.Fields{"name": s.Name()})
+		if s.httpServer == nil {
+			s.httpServer = &http.Server{Addr: s.listener.Address(), Handler: s.ginEngine}
+		}
 		err := s.httpServer.Serve(listener)
-		if err != http.ErrServerClosed {
+		if err != http.ErrServerClosed && err.Error() != "mux: server closed" {
 			msg := "failed to start HTTP server"
 			fmt.Printf("%s %s: %s\n", msg, s.Name(), err)
 			s.App().Logger().Fatal(msg, err, logger.Fields{"name": s.Name()})
 			app_context.AbortFatal(s.App(), msg)
 		}
+		close(s.shutdown)
 	}()
 }
 
-func (s *Server) Runner() *http.Server {
-	return s.httpServer
+type HttpServerRunner struct {
+	*http.Server
+	server *Server
+}
+
+func (h *HttpServerRunner) Shutdown(sctx context.Context) error {
+
+	h.server.App().Logger().Info("shutting down HTTP server...")
+
+	// create a 'hard' deadline for the entire server to vanish
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(h.server.SHUTDOWN_TIMEOUT)*time.Second)
+	defer cancel()
+
+	// start shutdown in a goroutine
+	go func() {
+		h.server.App().Logger().Info("gracefully stopping HTTP server...")
+		h.Server.Shutdown(sctx)
+		<-h.server.shutdown
+		h.server.App().Logger().Info("HTTP server gracefully stopped")
+		cancel() // Signal that we finished early if possible
+	}()
+
+	// wait for either the server to stop OR the timeout to hit
+	<-ctx.Done()
+	if ctx.Err() == context.DeadlineExceeded {
+		h.server.App().Logger().Warn("force stopping gRPC server by timeout")
+		h.Close() // Force kill remaining connections
+	}
+
+	h.server.App().Logger().Info("HTTP server stopped")
+	return nil
+}
+
+func (s *Server) Runner() *HttpServerRunner {
+	r := &HttpServerRunner{
+		Server: s.httpServer,
+		server: s,
+	}
+	return r
 }
 
 const OriginType = "rest_api"

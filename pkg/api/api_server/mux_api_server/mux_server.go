@@ -130,12 +130,12 @@ func (m *MuxApiServer) Shutdown(ctx context.Context) error {
 
 	m.App().Logger().Info("shutting down server listener...")
 
-	if m.grpcServer != nil {
-		m.grpcServer.Runner().Shutdown(ctx)
-	}
-
 	if m.httpServer != nil {
 		m.httpServer.Runner().Shutdown(ctx)
+	}
+
+	if m.grpcServer != nil {
+		m.grpcServer.Runner().Shutdown(ctx)
 	}
 
 	m.mux.Close()
