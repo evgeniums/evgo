@@ -102,6 +102,7 @@ type Request interface {
 	OpId() string
 
 	UploadedData() io.ReadCloser
+	ContentLength() int64
 }
 
 func AuthKey(authProtocol string, key string, directKeyName ...bool) string {
@@ -204,6 +205,10 @@ func FullRequestPath(r Request) string {
 
 func FullRequestServicePath(r Request) string {
 	return r.Endpoint().Resource().BuildActualPath(r.ResourceIds(), true)
+}
+
+func (r *RequestBase) ContentLength() int64 {
+	return 0
 }
 
 func ParseDbQuery(sctx context.Context, model interface{}, queryName string, cmd ...api.Query) (*db.Filter, error) {

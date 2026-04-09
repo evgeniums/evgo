@@ -226,6 +226,10 @@ func (r *Request) GetRequestContent() []byte {
 	return r.Message().BinaryContent()
 }
 
+func (r *Request) ContentLength() int64 {
+	return int64(r.payloadSize)
+}
+
 func (r *Request) SetAuthParameter(authMethodProtocol string, key string, value string, directKeyName ...bool) {
 	r.AppendResponseHeader(api_server.AuthKey(authMethodProtocol, key, directKeyName...), value)
 }

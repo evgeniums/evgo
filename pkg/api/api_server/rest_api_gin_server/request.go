@@ -331,3 +331,7 @@ func (r *Request) GetResponseHeader(name string) string {
 func (r *Request) UploadedData() io.ReadCloser {
 	return r.ginCtx.Request.Body
 }
+
+func (r *Request) ContentLength() int64 {
+	return r.ginCtx.Request.ContentLength
+}
