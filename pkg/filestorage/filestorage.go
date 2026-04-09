@@ -68,8 +68,13 @@ type UploadPartHelper interface {
 	PartCount(info FileInfo) int64
 }
 
+type GetUploadUrlsOptions struct {
+	FromPart int64
+	MaxCount int64
+}
+
 type UrlManager interface {
-	GetUploadUrls(ctx context.Context, info FileInfo, fromPartIndex ...int64) (*UploadUrlInfo, error)
+	GetUploadUrls(ctx context.Context, info FileInfo, opt ...GetUploadUrlsOptions) (*UploadUrlInfo, error)
 	GetDownloadUrl(ctx context.Context, info FileInfo) (*DownloadUrlInfo, error)
 
 	IdUrlPathParameter() string

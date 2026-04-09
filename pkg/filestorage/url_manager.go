@@ -97,12 +97,19 @@ func (u *UrlManagerBase) TenancyPath(ctx context.Context) string {
 	return ""
 }
 
-func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, fromPartIndex ...int64) (*UploadUrlInfo, error) {
+func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, opt ...GetUploadUrlsOptions) (*UploadUrlInfo, error) {
+
+	fromPartIndex := int64(0)
+	maxCount := int64(0)
+	if len(opt) > 0 {
+		fromPartIndex = opt[0].FromPart
+		maxCount = opt[0].MaxCount
+	}
 
 	// prepare result
 	result := &UploadUrlInfo{
 		TotalUrlCount: u.helper.PartCount(info),
-		FromPartIndex: utils.OptionalArg(int64(0), fromPartIndex...),
+		FromPartIndex: fromPartIndex,
 		Method:        u.UPLOAD_METHOD,
 	}
 	result.Urls = make([]string, 0, result.TotalUrlCount)
@@ -111,7 +118,14 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, fromP
 	tenancyPath := u.TenancyPath(ctx)
 
 	// generate urls
-	for i := range result.TotalUrlCount {
+	toPartIndex := result.TotalUrlCount
+	if maxCount != 0 {
+		toPartIndex = fromPartIndex + maxCount
+		if toPartIndex > result.TotalUrlCount {
+			toPartIndex = result.TotalUrlCount
+		}
+	}
+	for i := fromPartIndex; i < toPartIndex; i++ {
 		var originalUrl string
 		var err error
 		if tenancyPath == "" {
