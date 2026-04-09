@@ -22,21 +22,45 @@ type FileInfo interface {
 	GetUploadPartSize() int64
 }
 
-type SignedUrlHandler interface {
-	SignUrl(ctx context.Context, originalUrl string, method string) (string, error)
-	CheckUrlString(ctx context.Context, signedUrl string, method string) error
+type SignUrlParameters interface {
+	Values() []string
+}
 
-	CheckUrl(ctx context.Context, signedUrl *url.URL, method string) error
+type SignUrlValues struct {
+	Method        string
+	ContentLength string
+}
+
+func (s *SignUrlValues) Values() []string {
+	if s.ContentLength == "" {
+		return []string{s.Method}
+	}
+	return []string{s.Method, s.ContentLength}
+}
+
+type SignedUrlHandler interface {
+	SignUrl(ctx context.Context, originalUrl string, parameters SignUrlParameters) (string, error)
+	CheckUrlString(ctx context.Context, signedUrl string, parameters SignUrlParameters) error
+
+	CheckUrl(ctx context.Context, signedUrl *url.URL, parameters SignUrlParameters) error
 }
 
 type UploadUrlInfo struct {
-	Urls             []string
-	TotalUrlCount    int64
-	Method           string
-	FromPartIndex    int64
-	CertificateChain string
-	ProxyHeader      string
-	ProxyHeaderName  string
+	Urls             []string `json:"urls"`
+	TotalUrlCount    int64    `json:"total_url_count"`
+	Method           string   `json:"method"`
+	FromPartIndex    int64    `json:"from_part_index"`
+	CertificateChain string   `json:"certificate_chain"`
+	ProxyHeader      string   `json:"proxy_header"`
+	ProxyHeaderName  string   `json:"proxy_header_name"`
+	MaxPartLength    int64    `json:"max_part_length"`
+}
+
+type DownloadUrlInfo struct {
+	Url              string `json:"url"`
+	CertificateChain string `json:"certificate_chain"`
+	ProxyHeader      string `json:"proxy_header"`
+	ProxyHeaderName  string `json:"proxy_header_name"`
 }
 
 type UploadPartHelper interface {
@@ -46,7 +70,7 @@ type UploadPartHelper interface {
 
 type UrlManager interface {
 	GetUploadUrls(ctx context.Context, info FileInfo, fromPartIndex ...int64) (*UploadUrlInfo, error)
-	GetDownloadUrl(ctx context.Context, info FileInfo) (string, error)
+	GetDownloadUrl(ctx context.Context, info FileInfo) (*DownloadUrlInfo, error)
 
 	IdUrlPathParameter() string
 	PartUrlPathParameter() string
@@ -58,7 +82,6 @@ type StorageManager interface {
 	StartUpload(ctx context.Context, info FileInfo) error
 	UploadPart(ctx context.Context, info FileInfo, source io.Reader, partIndex ...int64) error
 	FinalizeUpload(ctx context.Context, info FileInfo, partsCount ...int64) error
-	CheckMime(ctx context.Context, info FileInfo) (bool, error)
 
 	Fetch(ctx context.Context, info FileInfo, offset ...int64) (io.ReadCloser, error)
 	FetchRange(ctx context.Context, info FileInfo, offset int64, length int64) (io.ReadCloser, error)

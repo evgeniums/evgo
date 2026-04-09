@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/evgeniums/evgo/pkg/app_context"
@@ -52,7 +53,7 @@ func (s *SignedUrlHandlerBase) Init(app app_context.Context, parentConfigPath st
 	return nil
 }
 
-func (s *SignedUrlHandlerBase) SignUrl(ctx context.Context, originalUrl string, method string) (string, error) {
+func (s *SignedUrlHandlerBase) SignUrl(ctx context.Context, originalUrl string, parameters SignUrlParameters) (string, error) {
 
 	u, err := url.Parse(originalUrl)
 	if err != nil {
@@ -66,24 +67,24 @@ func (s *SignedUrlHandlerBase) SignUrl(ctx context.Context, originalUrl string, 
 		q.Set(s.EXPIRY_PARAM, strconv.FormatInt(expireAt.Unix(), 10))
 	}
 
-	h := s.calcHmac(u, method)
+	h := s.calcHmac(u, parameters)
 	q.Set(s.SIGNATURE_PARAM, h)
 
 	u.RawQuery = q.Encode()
 	return u.String(), nil
 }
 
-func (s *SignedUrlHandlerBase) CheckUrlString(ctx context.Context, signedUrl string, method string) error {
+func (s *SignedUrlHandlerBase) CheckUrlString(ctx context.Context, signedUrl string, parameters SignUrlParameters) error {
 
 	u, err := url.Parse(signedUrl)
 	if err != nil {
 		return err
 	}
 
-	return s.CheckUrl(ctx, u, method)
+	return s.CheckUrl(ctx, u, parameters)
 }
 
-func (s *SignedUrlHandlerBase) CheckUrl(ctx context.Context, u *url.URL, method string) error {
+func (s *SignedUrlHandlerBase) CheckUrl(ctx context.Context, u *url.URL, parameters SignUrlParameters) error {
 
 	q := u.Query()
 
@@ -97,21 +98,21 @@ func (s *SignedUrlHandlerBase) CheckUrl(ctx context.Context, u *url.URL, method 
 	}
 
 	signature := q.Get(s.SIGNATURE_PARAM)
-	return s.checkHmac(u, method, expiryStr, signature)
+	return s.checkHmac(u, parameters, expiryStr, signature)
 }
 
-func (s *SignedUrlHandlerBase) calcHmac(u *url.URL, method string) string {
+func (s *SignedUrlHandlerBase) calcHmac(u *url.URL, parameters SignUrlParameters) string {
 
 	query := u.Query()
 	expiryStr := query.Get("expiry")
 
 	hmac := s.hmacBuilder(s.SECRET)
-	h := hmac.CalcStringsStr(method, "\n", expiryStr, "\n", u.Path)
+	h := hmac.CalcStringsStr(strings.Join(parameters.Values(), "\n"), "\n", expiryStr, "\n", u.Path)
 	return h
 }
 
-func (s *SignedUrlHandlerBase) checkHmac(u *url.URL, method string, expiry string, signature string) error {
+func (s *SignedUrlHandlerBase) checkHmac(u *url.URL, parameters SignUrlParameters, expiry string, signature string) error {
 	hmac := s.hmacBuilder(s.SECRET)
-	hmac.CalcStrings(method, "\n", expiry, "\n", u.Path)
+	hmac.CalcStrings(strings.Join(parameters.Values(), "\n"), "\n", expiry, "\n", u.Path)
 	return hmac.CheckStr(signature)
 }

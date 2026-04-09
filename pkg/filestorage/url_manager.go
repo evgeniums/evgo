@@ -106,6 +106,7 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, fromP
 		Method:        u.UPLOAD_METHOD,
 	}
 	result.Urls = make([]string, 0, result.TotalUrlCount)
+	result.MaxPartLength = u.helper.UploadPartLength(info, 0)
 
 	tenancyPath := u.TenancyPath(ctx)
 
@@ -131,7 +132,8 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, fromP
 			return nil, err
 		}
 
-		signedUrl, err := u.signedUrlHandler.SignUrl(ctx, originalUrl, result.Method)
+		v := SignUrlValues{Method: result.Method, ContentLength: strconv.FormatInt(u.helper.UploadPartLength(info, i), 10)}
+		signedUrl, err := u.signedUrlHandler.SignUrl(ctx, originalUrl, &v)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +153,7 @@ func (u *UrlManagerBase) SignedUrlHandler() SignedUrlHandler {
 	return u.signedUrlHandler
 }
 
-func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info FileInfo) (string, error) {
+func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info FileInfo) (*DownloadUrlInfo, error) {
 
 	tenancyPath := u.TenancyPath(ctx)
 	var originalUrl string
@@ -171,10 +173,17 @@ func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info FileInfo) (str
 		}
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return u.signedUrlHandler.SignUrl(ctx, originalUrl, u.DOWNLOAD_METHOD)
+	resp := &DownloadUrlInfo{}
+	v := SignUrlValues{Method: u.DOWNLOAD_METHOD, ContentLength: strconv.FormatInt(info.GetSize(), 10)}
+	resp.Url, err = u.signedUrlHandler.SignUrl(ctx, originalUrl, &v)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (u *UrlManagerBase) IdUrlPathParameter() string {

@@ -44,14 +44,18 @@ func NewFileDataController(registry filestorage.FileInfoRegistry,
 	return f
 }
 
-func (f *FileDataControllerBase) checkUrl(ctx context.Context, request api_server.Request, c op_context.CallContext) error {
+func (f *FileDataControllerBase) checkUrl(ctx context.Context, request api_server.Request, c op_context.CallContext, download bool) error {
 
 	r, ok := request.(*rest_api_gin_server.Request)
 	if !ok {
 		return c.SetErrorStr("invalid request type, must be rest_api_gin_server.Request")
 	}
 
-	err := f.signedUrlHandler.CheckUrl(ctx, r.GetGinCtx().Request.URL, r.GetRequestMethod())
+	v := filestorage.SignUrlValues{Method: r.GetRequestMethod()}
+	if !download {
+		v.ContentLength = strconv.FormatInt(r.ContentLength(), 10)
+	}
+	err := f.signedUrlHandler.CheckUrl(ctx, r.GetGinCtx().Request.URL, &v)
 	if err != nil {
 		c.SetMessage("invalid URL")
 		if err.Error() == "expired" {
@@ -71,7 +75,7 @@ func (f *FileDataControllerBase) UploadPart(ctx context.Context) error {
 	c := request.TraceInMethod("FileDataController.UploadPart")
 	defer request.TraceOutMethod()
 
-	err := f.checkUrl(ctx, request, c)
+	err := f.checkUrl(ctx, request, c, false)
 	if err != nil {
 		return err
 	}
@@ -96,7 +100,7 @@ func (f *FileDataControllerBase) Fetch(ctx context.Context) error {
 	c := request.TraceInMethod("FileDataController.Fetch")
 	defer request.TraceOutMethod()
 
-	err := f.checkUrl(ctx, request, c)
+	err := f.checkUrl(ctx, request, c, true)
 	if err != nil {
 		return err
 	}

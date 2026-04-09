@@ -221,11 +221,6 @@ func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info FileInfo, p
 	return nil
 }
 
-func (f *FilesystemStorage) CheckMime(ctx context.Context, info FileInfo) (bool, error) {
-	// TODO security: check actual mime of the file for encrypted and unencrypted files
-	return true, nil
-}
-
 func (f *FilesystemStorage) Fetch(ctx context.Context, info FileInfo, offset ...int64) (io.ReadCloser, error) {
 
 	path := f.Path(ctx, info)
