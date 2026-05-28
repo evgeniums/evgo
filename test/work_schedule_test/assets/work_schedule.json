@@ -1,0 +1,17 @@
+{
+    "db": {
+        "db_provider": "sqlite",
+        "db_name": "work_schedule.sqlite"
+    },
+    "logger": {
+        "level": "error"
+    },
+    "work_scheduler": {
+        "parallel_jobs": 1,
+        "bucket_size": 16,
+        "period": 1,
+        "invokation_interval_seconds": 300,
+        "hold_work_seconds": 2,
+        "lock_ttl_seconds": 2
+    }
+}

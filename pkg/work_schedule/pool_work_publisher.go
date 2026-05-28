@@ -14,6 +14,7 @@ type PubsubWork[T Work] struct {
 	Work    T        `json:"work"`
 	Mode    PostMode `json:"mode"`
 	Tenancy string   `json:"tenancy"`
+	NoDb    bool     `json:"no_db"`
 }
 
 type PubsubTopic[T Work] struct {
@@ -53,6 +54,7 @@ func (p *PoolWorkPublisher[T]) InvokeWork(sctx context.Context, work T, postMode
 	c.Logger().Debug("publish work to self pool")
 
 	msg := NewPubsubWork(work, postMode, tenancy...)
+	msg.NoDb = work.IsNoDb()
 	err := p.pubsub.PublishSelfPool(p.topicName, msg)
 	if err != nil {
 		return c.SetError(err)

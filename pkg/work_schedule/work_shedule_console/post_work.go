@@ -21,7 +21,7 @@ type PostWorkData struct {
 	ReferenceType string `long:"reference_type" description:"Work reference type" validate:"required" vmessage:"Invalid reference type"`
 	ReferenceId   string `long:"reference_id" description:"Work reference ID" validate:"required,id" vmessage:"Invalid reference ID"`
 	Mode          string `long:"mode" description:"Posting mode: direct | queued | schedule" validate:"oneof=direct queued schedule" vmessage:"Invalid mode"`
-	Delay         int    `long:"delay" description:"Work invokation delay"`
+	InitialDelay  int    `long:"initial_delay" description:"Initial delay in seconds before the work is first invoked"`
 }
 
 type PostWorkHandler[T work_schedule.Work] struct {
@@ -42,7 +42,7 @@ func (a *PostWorkHandler[T]) Execute(args []string) error {
 	defer ctx.Close(sctx)
 
 	work := controller.NewWork(a.ReferenceId, a.ReferenceType)
-	work.SetDelay(a.Delay)
+	work.SetInitialDelay(a.InitialDelay)
 	err = controller.PostWork(sctx, work, work_schedule.Mode(a.Mode), ctx.GetTenancy())
 	if err != nil {
 		return err

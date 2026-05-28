@@ -42,6 +42,11 @@ func Mode(m string) PostMode {
 	return SCHEDULE
 }
 
+// ErrWorkLocked is returned by AcquireWork when the work is already being
+// processed elsewhere. It is an expected condition, not a failure, so callers
+// should skip the work silently rather than logging it as an error.
+var ErrWorkLocked = errors.New("work already locked")
+
 type Work interface {
 	common.Object
 
@@ -55,8 +60,8 @@ type Work interface {
 	SetNextTime(time.Time)
 	ResetNextTime()
 
-	GetDelay() int
-	SetDelay(int)
+	GetInitialDelay() int
+	SetInitialDelay(int)
 
 	SetLock(cache.Lock)
 	GetLock() cache.Lock
@@ -121,7 +126,7 @@ type WorkBase struct {
 	NextTimeSet   bool      `json:"next_time_set" gorm:"index;default:false"`
 
 	lock  cache.Lock `json:"-" gorm:"-:all"`
-	delay int        `json:"-" gorm:"-:all"`
+	initialDelay int `json:"-" gorm:"-:all"`
 	noDb  bool       `json:"-" gorm:"-:all"`
 }
 
@@ -151,7 +156,6 @@ func (w *WorkBase) SetNextTime(nextTime time.Time) {
 
 func (w *WorkBase) ResetNextTime() {
 	w.SetNextTime(time.Time{})
-	w.SetDelay(0)
 }
 
 func (w *WorkBase) GetLock() cache.Lock {
@@ -162,12 +166,12 @@ func (w *WorkBase) SetLock(lock cache.Lock) {
 	w.lock = lock
 }
 
-func (w *WorkBase) GetDelay() int {
-	return w.delay
+func (w *WorkBase) GetInitialDelay() int {
+	return w.initialDelay
 }
 
-func (w *WorkBase) SetDelay(delay int) {
-	w.delay = delay
+func (w *WorkBase) SetInitialDelay(seconds int) {
+	w.initialDelay = seconds
 }
 
 func (w *WorkBase) SetNoDb(enable bool) {
@@ -196,7 +200,7 @@ type WorkScheduleConfig struct {
 	BUCKET_SIZE                 int `default:"32"`
 	INVOKATION_INTERVAL_SECONDS int `default:"300"`
 	HOLD_WORK_SECONDS           int `default:"900"`
-	LOCK_TTL_SECONDS            int `default:"300"`
+	LOCK_TTL_SECONDS            int `default:"900"`
 	PERIOD                      int `default:"5"`
 	LOG_EMPTY_WORKS             bool
 }
@@ -254,7 +258,7 @@ func NewWorkSchedule[T Work](name string, config Config[T], cruds ...crud.CRUD) 
 	}
 
 	s.locker = config.Locker
-	if s.locker != nil {
+	if s.locker == nil {
 		s.locker = inmem_cache.NewLocker()
 	}
 
@@ -309,14 +313,40 @@ func (s *WorkSchedule[T]) AcquireWork(sctx context.Context, work T) error {
 	}
 	if lock == nil {
 		c.SetLoggerField("work_reference_id", work.GetReferenceId())
-		return c.SetErrorStr("work already locked")
+		return ErrWorkLocked
 	}
 	s.runningWorkCount.Add(1)
 	work.SetLock(lock)
 
+	releaseLock := func() {
+		s.runningWorkCount.Add(-1)
+		lock.Release()
+		work.SetLock(nil)
+	}
+
+	// For durable works, verify the row still exists under the lock. Another pool
+	// instance may have claimed, processed, and deleted the same row between
+	// ClaimDueWorks and this point. The cache lock guarantees only one worker
+	// proceeds past here for a given referenceId.
+	if !work.IsNoDb() {
+		probe := s.workBuilder()
+		found, err := s.CRUD().Read(sctx, db.Fields{"id": work.GetID()}, probe)
+		if err != nil {
+			releaseLock()
+			c.SetMessage("failed to check work existence")
+			return c.SetError(err)
+		}
+		if !found {
+			releaseLock()
+			c.SetLoggerField("work_reference_id", work.GetReferenceId())
+			return ErrWorkLocked
+		}
+	}
+
 	// reset next time flag
 	err = s.CRUD().Update(sctx, work, db.Fields{"next_time_set": false})
 	if err != nil {
+		releaseLock()
 		c.SetMessage("failed to save next work time set flag in database")
 		return c.SetError(err)
 	}
@@ -348,10 +378,10 @@ func (s *WorkSchedule[T]) ReleaseWork(sctx context.Context, work T) error {
 
 func (s *WorkSchedule[T]) SetNextWorkTime(work T, reset ...bool) {
 	defaultNextTime := utils.OptionalArg(false, reset...)
-	if defaultNextTime || work.GetDelay() == 0 && work.GetNextTime().IsZero() {
+	if defaultNextTime || work.GetInitialDelay() == 0 && work.GetNextTime().IsZero() {
 		work.SetNextTime(time.Now().Add(time.Second * time.Duration(s.INVOKATION_INTERVAL_SECONDS)))
-	} else if work.GetNextTime().IsZero() && work.GetDelay() != 0 {
-		work.SetNextTime(time.Now().Add(time.Second * time.Duration(work.GetDelay())))
+	} else if work.GetNextTime().IsZero() && work.GetInitialDelay() != 0 {
+		work.SetNextTime(time.Now().Add(time.Second * time.Duration(work.GetInitialDelay())))
 	}
 }
 
@@ -366,12 +396,14 @@ func (s *WorkSchedule[T]) PostWork(sctx context.Context, work T, postMode PostMo
 	// set next time
 	if postMode == SCHEDULE {
 		s.SetNextWorkTime(work)
-	} else {
-		work.SetNextTime(time.Now().Add(time.Second * time.Duration(s.HOLD_WORK_SECONDS)))
+	} else if !work.IsNoDb() {
+		// immediately due so the nudge subscriber can claim it right away;
+		// the hold lease is applied atomically inside ClaimDueWorks
+		work.SetNextTime(time.Now())
 	}
 
 	if work.IsNoDb() {
-		// invoke work
+		// no-db: no DB row; publish the work payload directly to the invoker
 		err = s.invoker(sctx, work, postMode, tenancy...)
 		if err != nil {
 			c.SetMessage("failed to invoke work")
@@ -380,7 +412,7 @@ func (s *WorkSchedule[T]) PostWork(sctx context.Context, work T, postMode PostMo
 		return nil
 	}
 
-	// create work in database
+	// persist durable work
 	_, err = s.CRUD().CreateDup(sctx, work, true)
 	if err != nil {
 		c.SetLoggerField("work_reference_id", work.GetReferenceId())
@@ -395,20 +427,8 @@ func (s *WorkSchedule[T]) PostWork(sctx context.Context, work T, postMode PostMo
 			return nil
 		}
 
-		// read work from database
-		dbWork := s.workBuilder()
-		found, err := s.CRUD().Read(sctx, db.Fields{"reference_id": work.GetReferenceId()}, dbWork)
-		if err != nil {
-			c.SetMessage("failed to read work from database")
-			return c.SetError(err)
-		}
-		if !found {
-			// no work in database
-			return nil
-		}
-
-		// invoke work
-		err = s.invoker(sctx, dbWork, postMode, tenancy...)
+		// nudge: wake the subscriber to call ClaimDueWorks; the DB lease decides ownership
+		err = s.invoker(sctx, work, postMode, tenancy...)
 		if err != nil {
 			c.SetMessage("failed to invoke work")
 			return err
@@ -443,9 +463,99 @@ func (s *WorkSchedule[T]) SetOverrideDb(db db.DB) {
 	s.db = db
 }
 
+// ClaimDueWorks atomically leases the next batch of works that are due for
+// processing (next_time <= now) and returns them. Each returned work has its
+// next_time pushed HOLD_WORK_SECONDS into the future inside the claim
+// transaction, so other schedulers polling the same database will not pick it up
+// until the lease expires or the work is rescheduled/deleted after processing.
+//
+// A work that was claimed by another instance between the initial unlocked read
+// and acquiring its row lock is re-checked for due-ness under the lock and
+// skipped, so a given work is handed out to at most one instance per cycle.
+// Returns an empty slice when nothing is due or the bucket is full.
+func (s *WorkSchedule[T]) ClaimDueWorks(sctx context.Context) ([]T, error) {
+
+	ctx := op_context.OpContext[op_context.Context](sctx)
+	c := ctx.TraceInMethod("WorkSchedule.ClaimDueWorks")
+	defer ctx.TraceOutMethod()
+
+	// prepare filter
+	now := time.Now()
+	filter := db.NewFilter()
+	filter.SetSorting("next_time", db.SORT_ASC)
+	filter.AddInterval("next_time", nil, now)
+
+	// limit the batch to the remaining bucket capacity
+	filter.Limit = s.BUCKET_SIZE - int(s.runningWorkCount.Load()) - int(s.workQueueSize.Load())
+	if filter.Limit <= 0 {
+		c.Logger().Info("all bucket size is used, skipping")
+		return nil, nil
+	}
+
+	// read and lease due works in a single transaction
+	var works []T
+	handler := func() error {
+
+		var works1 []T
+		_, err := s.CRUD().List(sctx, filter, &works1)
+		if err != nil {
+			c.SetMessage("failed to read works from database 1")
+			return err
+		}
+
+		// hold works
+		nextTime := now.Add(time.Second * time.Duration(s.HOLD_WORK_SECONDS))
+		workIds := []string{}
+		for _, w := range works1 {
+			dbWork := s.workBuilder()
+			found, err := s.CRUD().ReadForUpdate(sctx, db.Fields{"id": w.GetID()}, dbWork)
+			if err != nil {
+				c.SetMessage("failed to read work for hold from database")
+				return err
+			}
+			// Re-check due-ness under the row lock: another instance may have
+			// claimed (held) this work between our unlocked List above and
+			// acquiring the row lock here. Skip it if it is no longer due,
+			// otherwise two instances would process the same work concurrently.
+			if found && !dbWork.GetNextTime().After(now) {
+				err = s.CRUD().Update(sctx, dbWork, db.Fields{"next_time": nextTime, "next_time_set": false})
+				if err != nil {
+					c.SetLoggerField("work_reference_id", dbWork.GetReferenceId())
+					c.SetMessage("failed to hold work in database")
+					return err
+				}
+				workIds = append(workIds, dbWork.GetID())
+			}
+		}
+
+		// nothing left to claim (all candidates were taken by other instances)
+		if len(workIds) == 0 {
+			return nil
+		}
+
+		// read updated works
+		f := db.NewFilter()
+		f.AddFieldIn("id", utils.ListInterfaces(workIds...)...)
+		_, err = s.CRUD().List(sctx, f, &works)
+		if err != nil {
+			c.SetMessage("failed to read works from database 2")
+			return err
+		}
+
+		// done
+		return nil
+	}
+	err := op_context.ExecDbTransaction(sctx, handler)
+	if err != nil {
+		return nil, c.SetError(err)
+	}
+
+	return works, nil
+}
+
 func (s *WorkSchedule[T]) readWorks(schedulerCtx context.Context) {
 
-	readWorks := func() bool {
+	readBatch := func() bool {
 
 		ctx, sctx := default_op_context.BackgroundOpContext(s.App(), s.name)
 		if s.db != nil {
@@ -453,67 +563,9 @@ func (s *WorkSchedule[T]) readWorks(schedulerCtx context.Context) {
 		}
 		ctx.SetWriteCloseLog(s.LOG_EMPTY_WORKS)
 		defer ctx.Close(sctx)
-		c := ctx.TraceInMethod("WorkSchedule.readWorks")
 
-		// prepare filter
-		filter := db.NewFilter()
-		filter.SetSorting("next_time", db.SORT_ASC)
-		filter.AddInterval("next_time", nil, time.Now())
-
-		// check number of works currently pending or being processed
-		filter.Limit = s.BUCKET_SIZE - int(s.runningWorkCount.Load()) - int(s.workQueueSize.Load())
-		if filter.Limit <= 0 {
-			c.Logger().Info("all bucket size is used, skipping")
-			return false
-		}
-
-		// read works from database
-		var works []T
-		handler := func() error {
-
-			var works1 []T
-			_, err := s.CRUD().List(sctx, filter, &works1)
-			if err != nil {
-				c.SetMessage("failed to read works from database 1")
-				return err
-			}
-
-			// hold works
-			nextTime := time.Now().Add(time.Second * time.Duration(s.HOLD_WORK_SECONDS))
-			workIds := []string{}
-			for _, w := range works1 {
-				dbWork := s.workBuilder()
-				found, err := s.CRUD().ReadForUpdate(sctx, db.Fields{"id": w.GetID()}, dbWork)
-				if err != nil {
-					c.SetMessage("failed to read work for hold from database")
-					return err
-				}
-				if found {
-					err = s.CRUD().Update(sctx, dbWork, db.Fields{"next_time": nextTime, "next_time_set": false})
-					if err != nil {
-						c.SetLoggerField("work_reference_id", dbWork.GetReferenceId())
-						c.SetMessage("failed to hold work in database")
-						return err
-					}
-					workIds = append(workIds, dbWork.GetID())
-				}
-			}
-
-			// read updated works
-			f := db.NewFilter()
-			f.AddFieldIn("id", utils.ListInterfaces(workIds...)...)
-			_, err = s.CRUD().List(sctx, f, &works)
-			if err != nil {
-				c.SetMessage("failed to read works from database 2")
-				return err
-			}
-
-			// done
-			return nil
-		}
-		err := op_context.ExecDbTransaction(sctx, handler)
+		works, err := s.ClaimDueWorks(sctx)
 		if err != nil {
-			c.SetError(err)
 			return false
 		}
 
@@ -543,7 +595,7 @@ func (s *WorkSchedule[T]) readWorks(schedulerCtx context.Context) {
 			return
 
 		default:
-			if !readWorks() {
+			if !readBatch() {
 				return
 			}
 		}
@@ -557,9 +609,21 @@ func (s *WorkSchedule[T]) Run(ctx context.Context) {
 		go s.worker(ctx)
 	}
 
+	// Poll period for re-scanning the database for works that became due while
+	// the scheduler was idle. Without this the reader is only re-triggered when
+	// a worker finishes an item, so future-scheduled works would never be picked
+	// up once the queue drains.
+	period := s.PERIOD
+	if period <= 0 {
+		period = 5
+	}
+
 	go func() {
 
+		ticker := time.NewTicker(time.Second * time.Duration(period))
+
 		defer func() {
+			ticker.Stop()
 			close(s.queue)
 		}()
 
@@ -570,6 +634,9 @@ func (s *WorkSchedule[T]) Run(ctx context.Context) {
 
 			case <-s.stop:
 				return
+
+			case <-ticker.C:
+				s.readWorks(ctx)
 
 			case _, ok := <-s.readNextWorks:
 				if !ok {
@@ -611,8 +678,12 @@ func (s *WorkSchedule[T]) DoWork(sctx context.Context, work T) error {
 	}
 
 	// acquire work
-	s.AcquireWork(sctx, work)
+	err = s.AcquireWork(sctx, work)
 	if err != nil {
+		if errors.Is(err, ErrWorkLocked) {
+			// work is already being processed elsewhere, skip it silently
+			err = nil
+		}
 		return err
 	}
 	releaseWork = true

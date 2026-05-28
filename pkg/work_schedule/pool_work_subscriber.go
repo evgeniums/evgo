@@ -23,21 +23,36 @@ func (p *PoolWorkNotificationHandler[T]) Handle(sctx context.Context, msg *Pubsu
 	defer ctx.TraceOutMethod()
 
 	ctx.SetLoggerField("pool_work_mode", msg.Mode)
-	ctx.SetLoggerField("pool_work_id", msg.Work.GetReferenceId())
-	ctx.SetLoggerField("pool_work_type", msg.Work.GetReferenceType())
+	ctx.SetLoggerField("pool_work_no_db", msg.NoDb)
 
 	var tenancy multitenancy.Tenancy
 	var err error
-	if msg.Tenancy != "" {
+	if msg.Tenancy != "" && p.tenancies != nil {
 		tenancy, err = p.tenancies.Tenancy(msg.Tenancy)
 		if err != nil {
 			return c.SetError(err)
 		}
 	}
 
-	err = p.controller.InvokeWork(sctx, msg.Work, msg.Mode, tenancy)
+	if msg.NoDb {
+		// no-db path: work payload is in the message; run directly without a DB lease
+		ctx.SetLoggerField("pool_work_id", msg.Work.GetReferenceId())
+		ctx.SetLoggerField("pool_work_type", msg.Work.GetReferenceType())
+		err = p.controller.InvokeWork(sctx, msg.Work, msg.Mode, tenancy)
+		if err != nil {
+			return c.SetError(err)
+		}
+		return nil
+	}
+
+	// durable nudge path: claim due works from the DB (the lease is the authority)
+	// and enqueue each one into the local worker pool
+	works, err := p.controller.ClaimDueWorks(sctx)
 	if err != nil {
 		return c.SetError(err)
+	}
+	for _, work := range works {
+		p.controller.enqueuWork(sctx, work, tenancy)
 	}
 
 	return nil
@@ -57,6 +72,12 @@ func NewPoolSubscriber[T Work](tenancies multitenancy.Multitenancy, controller *
 	p.handler.Init(name)
 	p.topic = &PubsubTopic[T]{}
 	return p
+}
+
+// HandleMessage delivers a PubsubWork message directly to the subscriber's
+// handler, bypassing the pubsub transport. Intended for testing.
+func (p *PoolWorkSubscriber[T]) HandleMessage(sctx context.Context, msg *PubsubWork[T]) error {
+	return p.handler.Handle(sctx, msg)
 }
 
 func (p *PoolWorkSubscriber[T]) Init(sctx context.Context, pubsub pool_pubsub.PoolPubsub, topicName string) error {
