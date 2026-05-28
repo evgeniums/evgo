@@ -70,6 +70,7 @@ func (u *UrlManagerBase) Init(app app_context.Context, opt UrlManagerOptions, pa
 		if err != nil {
 			return err
 		}
+		u.helper = helper
 	}
 
 	// init URL handler
@@ -80,6 +81,7 @@ func (u *UrlManagerBase) Init(app app_context.Context, opt UrlManagerOptions, pa
 		if err != nil {
 			return err
 		}
+		u.signedUrlHandler = signedUrlHandler
 	}
 
 	// done
@@ -88,7 +90,7 @@ func (u *UrlManagerBase) Init(app app_context.Context, opt UrlManagerOptions, pa
 
 func (u *UrlManagerBase) TenancyPath(ctx context.Context) string {
 	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
-	if tenancyCtx != nil {
+	if tenancyCtx != nil && tenancyCtx.GetTenancy() != nil {
 		if u.SHADOW_TENANCY_PATH {
 			return tenancyCtx.GetTenancy().ShadowPath()
 		}
