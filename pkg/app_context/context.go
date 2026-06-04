@@ -13,10 +13,11 @@ import (
 )
 
 type BuildConfig struct {
-	Version  string
-	Time     string
-	Revision string
-	Label    string
+	Version    string
+	Time       string
+	Revision   string
+	Label      string
+	ConfigFile string // path to the config file used to initialise the application
 }
 
 type Context interface {

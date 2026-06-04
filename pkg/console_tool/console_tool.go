@@ -120,6 +120,10 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) (multi
 		}
 	}
 
+	// Store the resolved config file path so downstream code (e.g. crypt_bridge) can
+	// pass it to external tools that need to re-open the same config.
+	c.BuildConfig.ConfigFile = c.Opts.ConfigFile
+
 	if c.App.Cfg().GetString("logger.destination") != "stdout" {
 		c.App.Cfg().Set("logger.destination", "stdout")
 		consoleLogger := logger_logrus.New()
