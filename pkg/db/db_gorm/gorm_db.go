@@ -212,6 +212,15 @@ func (g *GormDB) AutoMigrate(sctx context.Context, models []interface{}) error {
 	return nil
 }
 
+func (g *GormDB) Exec(sctx context.Context, sql string, values ...interface{}) error {
+	err := g.db_().Exec(sql, values...).Error
+	if err != nil {
+		ctx := logger.LoggerContext(sctx)
+		return ctx.Logger().PushFatalStack("failed to execute sql", err)
+	}
+	return nil
+}
+
 func (g *GormDB) MigrateDropIndex(sctx context.Context, model interface{}, indexName string) error {
 	if g.db_().Migrator().HasIndex(model, indexName) {
 		err := g.db_().Migrator().DropIndex(model, indexName)

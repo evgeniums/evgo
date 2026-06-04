@@ -103,6 +103,7 @@ type DB interface {
 
 	AutoMigrate(sctx context.Context, models []interface{}) error
 	MigrateDropIndex(sctx context.Context, model interface{}, indexName string) error
+	Exec(sctx context.Context, sql string, values ...interface{}) error
 
 	PartitionedMonthAutoMigrate(sctx context.Context, models []interface{}) error
 	PartitionedMonthsDetach(sctx context.Context, table string, months []utils.Month) error
