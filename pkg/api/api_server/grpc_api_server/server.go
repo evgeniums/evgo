@@ -80,7 +80,11 @@ type ServerConfig struct {
 	KEEP_ALIVE_PERIOD  int `default:"60"` // Ping the client if it is idle for KEEP_ALIVE_PERIOD
 	KEEP_ALIVE_TIMEOUT int `default:"20"` // Wait KEEP_ALIVE_TIMEOUT for a ping response
 
-	KEEP_ALIVE_MIN_TIME             int  `default:"50"`   // Minimum time between client pings
+	// Must be <= the smallest client keep_alive_period (currently 8 s desktop / 13 s mobile).
+	// If this is larger than the client's ping period, the server counts ping strikes and sends
+	// GOAWAY too_many_pings on idle connections, causing the very disconnects we want to avoid.
+	// 5 s matches the client's min_sent_ping_interval_without_data and leaves margin under 8 s.
+	KEEP_ALIVE_MIN_TIME             int  `default:"5"`    // Minimum time between client pings
 	KEEP_ALIVE_ALLOW_WITHOUT_STREAM bool `default:"true"` // Allow pings even if no active RPCs
 }
 
@@ -93,26 +97,31 @@ func (g *GrpcServerRunner) Shutdown(sctx context.Context) error {
 
 	g.server.App().Logger().Info("shutting down gRPC server...")
 
+	// Signal all active streaming handlers to exit their select loops.
 	close(g.server.shutdown)
 
-	// create a 'hard' deadline for the entire server to vanish
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(g.server.SHUTDOWN_TIMEOUT)*time.Second)
-	defer cancel()
+	// Schedule a forced Stop() after the grace period. Running GracefulStop
+	// synchronously here (rather than in a goroutine) ensures only one
+	// grpc.stop() call is ever in flight at a time. The previous goroutine
+	// approach caused a deadlock: stop(true) held s.mu inside
+	// handlersWG.Wait() while stop(false) blocked trying to acquire that same
+	// lock to call closeServerTransportsLocked.
+	timer := time.AfterFunc(
+		time.Duration(g.server.SHUTDOWN_TIMEOUT)*time.Second,
+		func() {
+			g.server.App().Logger().Warn("force stopping gRPC server by timeout")
+			g.Stop()
+		},
+	)
+	defer timer.Stop()
 
-	// start GracefulStop in a goroutine
-	go func() {
-		g.server.App().Logger().Info("gracefully stopping gRPC server...")
-		g.GracefulStop()
-		g.server.App().Logger().Info("gRPC server gracefully stopped")
-		cancel() // Signal that we finished early if possible
-	}()
-
-	// wait for either the server to stop OR the timeout to hit
-	<-ctx.Done()
-	if ctx.Err() == context.DeadlineExceeded {
-		g.server.App().Logger().Warn("force stopping gRPC server by timeout")
-		g.Stop() // Force kill remaining connections
-	}
+	// GracefulStop runs synchronously. It blocks until either:
+	//   (a) all existing connections drain naturally (happy path), or
+	//   (b) Stop() fires from the timer above, which closes all transports,
+	//       cancels stream contexts, unblocks handlersWG.Wait(), and lets
+	//       GracefulStop return cleanly.
+	g.server.App().Logger().Info("gracefully stopping gRPC server...")
+	g.GracefulStop()
 
 	g.server.App().Logger().Info("gRPC server stopped")
 	return nil
