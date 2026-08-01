@@ -296,6 +296,19 @@ func (s *WorkSchedule[T]) SetRunner(runner WorkRunner[T]) {
 	s.workRunner = runner
 }
 
+// Wake nudges the scheduler to rescan the DB for due works immediately,
+// instead of waiting for the next PERIOD tick. Non-blocking and idempotent:
+// if the scheduler is sleeping it wakes it; if a scan is already pending or
+// in progress it is a no-op. Safe to call before Run / after Shutdown (the
+// select default fires) and inside a DB transaction (it only triggers a
+// rescan of committed rows — it never touches the in-memory work object).
+func (s *WorkSchedule[T]) Wake() {
+	select {
+	case s.readNextWorks <- struct{}{}:
+	default:
+	}
+}
+
 func (s *WorkSchedule[T]) AcquireWork(sctx context.Context, work T) error {
 
 	// setup
@@ -412,6 +425,17 @@ func (s *WorkSchedule[T]) PostWork(sctx context.Context, work T, postMode PostMo
 		return nil
 	}
 
+	// Works built directly as struct literals (not via NewWork) may have an empty
+	// primary key. CRUD.Update later keys the WHERE clause off obj.GetID(); if the
+	// id is "" GORM emits an UPDATE with no WHERE and returns ErrMissingWhereClause.
+	// InitObject is idempotent for already-initialised works (it regenerates id and
+	// timestamps, but the unique constraint on reference_id/reference_type prevents
+	// duplicate durable rows regardless). When the id is already set, skip to avoid
+	// altering created_at on a work that was constructed intentionally via NewWork.
+	if work.GetID() == "" {
+		work.InitObject()
+	}
+
 	// persist durable work
 	_, err = s.CRUD().CreateDup(sctx, work, true)
 	if err != nil {
@@ -433,6 +457,12 @@ func (s *WorkSchedule[T]) PostWork(sctx context.Context, work T, postMode PostMo
 			c.SetMessage("failed to invoke work")
 			return err
 		}
+	} else {
+		// For SCHEDULE mode, wake the scan goroutine so it picks up the row on the
+		// next ClaimDueWorks pass rather than waiting the full PERIOD interval.
+		// Safe inside a DB transaction: Wake only signals the rescan channel; it
+		// does not touch the work object and ClaimDueWorks reads only committed rows.
+		s.Wake()
 	}
 
 	// done
@@ -548,6 +578,18 @@ func (s *WorkSchedule[T]) ClaimDueWorks(sctx context.Context) ([]T, error) {
 	err := op_context.ExecDbTransaction(sctx, handler)
 	if err != nil {
 		return nil, c.SetError(err)
+	}
+
+	if len(works) > 0 {
+		ids := make([]string, 0, len(works))
+		for _, w := range works {
+			ids = append(ids, w.GetReferenceType()+":"+w.GetReferenceId())
+		}
+		ctx.Logger().Debug("WorkSchedule: claimed due works", map[string]interface{}{
+			"scheduler": s.name,
+			"count":     len(works),
+			"works":     ids,
+		})
 	}
 
 	return works, nil
