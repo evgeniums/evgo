@@ -66,6 +66,11 @@ func (s *SignedUrlHandlerBase) SignUrl(ctx context.Context, originalUrl string, 
 		expireAt := now.Add(time.Duration(s.EXPIRATION) * time.Second)
 		q.Set(s.EXPIRY_PARAM, strconv.FormatInt(expireAt.Unix(), 10))
 	}
+	// Write the expiry into u.RawQuery *before* computing the HMAC: calcHmac reads the
+	// expiry back out of u.Query(), so the signature must be computed over the same
+	// RawQuery that CheckUrl will later parse - otherwise the expiry is always signed as
+	// empty while CheckUrl verifies against the real value, and every signed URL fails.
+	u.RawQuery = q.Encode()
 
 	h := s.calcHmac(u, parameters)
 	q.Set(s.SIGNATURE_PARAM, h)
@@ -104,7 +109,7 @@ func (s *SignedUrlHandlerBase) CheckUrl(ctx context.Context, u *url.URL, paramet
 func (s *SignedUrlHandlerBase) calcHmac(u *url.URL, parameters SignUrlParameters) string {
 
 	query := u.Query()
-	expiryStr := query.Get("expiry")
+	expiryStr := query.Get(s.EXPIRY_PARAM)
 
 	hmac := s.hmacBuilder(s.SECRET)
 	h := hmac.CalcStringsStr(strings.Join(parameters.Values(), "\n"), "\n", expiryStr, "\n", u.Path)

@@ -193,7 +193,15 @@ func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info FileInfo) (*Do
 	}
 
 	resp := &DownloadUrlInfo{}
-	v := SignUrlValues{Method: u.DOWNLOAD_METHOD, ContentLength: strconv.FormatInt(info.GetSize(), 10)}
+	// ContentLength is deliberately omitted here: FileDataControllerBase.checkUrl()
+	// (filedata_service/filedata_controller.go) only sets it in the verification
+	// SignUrlValues for uploads (`if !download {...}`) - a download's byte count isn't
+	// chosen by the client the way an upload part's is, so there is nothing to commit
+	// to. Signing with it anyway meant SignUrl and CheckUrl always disagreed on the
+	// value set whenever EXPIRATION!=0 (the shipped default), so every signed download
+	// URL failed verification unconditionally - found while implementing the files2
+	// client download queue (task 5).
+	v := SignUrlValues{Method: u.DOWNLOAD_METHOD}
 	resp.Url, err = u.signedUrlHandler.SignUrl(ctx, originalUrl, &v)
 	if err != nil {
 		return nil, err
