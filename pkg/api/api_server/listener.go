@@ -1,6 +1,7 @@
 package api_server
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -49,7 +50,12 @@ func (l *Listener) Init(ctx app_context.Context, configPath ...string) error {
 
 func (l *Listener) Run(protocol ...string) {
 	var err error
-	l.listener, err = net.Listen(utils.OptionalString("tcp", protocol...), l.Address())
+	if strings.Contains(l.HOST, "::") {
+		lc := net.ListenConfig{Control: dualStackControl}
+		l.listener, err = lc.Listen(context.Background(), utils.OptionalString("tcp", protocol...), l.Address())
+	} else {
+		l.listener, err = net.Listen(utils.OptionalString("tcp", protocol...), l.Address())
+	}
 	if err != nil {
 		msg := "TCP listening failed"
 		l.App().Logger().Fatal(msg, err, logger.Fields{"name": l.Name()})

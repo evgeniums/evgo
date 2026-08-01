@@ -80,12 +80,22 @@ type ServerConfig struct {
 	KEEP_ALIVE_PERIOD  int `default:"60"` // Ping the client if it is idle for KEEP_ALIVE_PERIOD
 	KEEP_ALIVE_TIMEOUT int `default:"20"` // Wait KEEP_ALIVE_TIMEOUT for a ping response
 
-	// Must be <= the smallest client keep_alive_period (currently 8 s desktop / 13 s mobile).
+	// Must be <= the smallest client keep_alive_period (15 s on both desktop and mobile).
 	// If this is larger than the client's ping period, the server counts ping strikes and sends
 	// GOAWAY too_many_pings on idle connections, causing the very disconnects we want to avoid.
-	// 5 s matches the client's min_sent_ping_interval_without_data and leaves margin under 8 s.
+	// 5 s matches the client's min_sent_ping_interval_without_data and leaves ample margin.
 	KEEP_ALIVE_MIN_TIME             int  `default:"5"`    // Minimum time between client pings
 	KEEP_ALIVE_ALLOW_WITHOUT_STREAM bool `default:"true"` // Allow pings even if no active RPCs
+
+	// Application-level stream heartbeat: on server-streaming calls, send a
+	// StreamHeartbeatMessageType message every STREAM_HEARTBEAT_PERIOD seconds to clients
+	// that request it via the STREAM_HEARTBEAT_HEADER request metadata (the header value is
+	// the client's own requested period in seconds; the server uses min(this, the hint)).
+	// 0 disables heartbeats entirely. This is transport-liveness only: it does not touch the
+	// auth timer or the message queue, and clients that don't send the header get nothing,
+	// so older clients see no behavior change.
+	STREAM_HEARTBEAT_PERIOD int    `default:"20"`
+	STREAM_HEARTBEAT_HEADER string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-hatn-stream-hb"`
 }
 
 type GrpcServerRunner struct {

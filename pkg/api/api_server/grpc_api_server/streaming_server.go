@@ -18,7 +18,13 @@ const (
 	StreamingMessage      StreamingMessageType = 0
 	StreamingError        StreamingMessageType = 1
 	StreamingInitResponse StreamingMessageType = 2
+	StreamingHeartbeat    StreamingMessageType = 3
 )
+
+// StreamHeartbeatMessageType is the StreamResponse.MessageType used for application-level
+// stream heartbeats (see ServerConfig.STREAM_HEARTBEAT_PERIOD). It is liveness-only: it
+// carries no payload and must never be confused with a real proto message name.
+const StreamHeartbeatMessageType = "hatn.stream.heartbeat"
 
 func packResponse(input any) (proto.Message, string, error) {
 	protoMsg, ok := input.(proto.Message)
@@ -56,7 +62,27 @@ func SendStreamingResponse(request *Request, stream grpc.ServerStream, m any, ms
 		MessageType: name,
 	}
 
-	err = stream.SendMsg(resp)
+	if err := sendStreamMsg(request, stream, resp, msgType); err != nil {
+		return c.SetError(err)
+	}
+	return nil
+}
+
+// SendStreamHeartbeat sends a zero-payload liveness message on a server stream. It is not
+// traced like a real response (heartbeats fire on a timer independent of application
+// events, so a trace record per heartbeat would be noise) but a failed send is treated the
+// same as any other stream write failure: it terminates the handler, which is the desired
+// early detection of a dead client.
+func SendStreamHeartbeat(request *Request, stream grpc.ServerStream) error {
+	resp := &StreamResponse{
+		MessageType: StreamHeartbeatMessageType,
+	}
+	return sendStreamMsg(request, stream, resp, StreamingHeartbeat)
+}
+
+func sendStreamMsg(request *Request, stream grpc.ServerStream, resp *StreamResponse, msgType StreamingMessageType) error {
+
+	err := stream.SendMsg(resp)
 	if err != nil {
 
 		st, ok := status.FromError(err)
@@ -73,9 +99,9 @@ func SendStreamingResponse(request *Request, stream grpc.ServerStream, m any, ms
 		}
 		fillResponseStatus(request, err)
 
-		c.Logger().Warn("failed to send message", logger.Fields{"response_type": msgType})
+		request.Logger().Warn("failed to send message", logger.Fields{"response_type": msgType})
 
-		return c.SetError(err)
+		return err
 	}
 
 	return nil

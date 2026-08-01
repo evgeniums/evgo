@@ -235,6 +235,30 @@ func (h *sizeStatsHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo)
 }
 func (h *sizeStatsHandler) HandleConn(ctx context.Context, s stats.ConnStats) {}
 
+// streamHeartbeatPeriod returns the heartbeat period (seconds) to use for this stream, or 0
+// to disable heartbeats. Heartbeats are opt-in: a client must request them via
+// STREAM_HEARTBEAT_HEADER, so older clients that never send the header see no behavior
+// change. When present, the header value is a hint for the client's own requested period;
+// the server never exceeds its own configured period and never goes below a 5 s floor
+// (guards against a misbehaving or malicious hint).
+func (u *Handler) streamHeartbeatPeriod(request *Request) int {
+	period := u.server.STREAM_HEARTBEAT_PERIOD
+	if period <= 0 {
+		return 0
+	}
+	hint := request.GetRequestHeader(u.server.STREAM_HEARTBEAT_HEADER)
+	if hint == "" {
+		return 0
+	}
+	if v, err := strconv.Atoi(hint); err == nil && v > 0 && v < period {
+		period = v
+	}
+	if period < 5 {
+		period = 5
+	}
+	return period
+}
+
 func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) error {
 
 	ctx := stream.Context()
@@ -332,6 +356,15 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 		authTimerChan = authTimer.C
 	}
 
+	// application-level heartbeat: only for clients that opted in via header. A nil channel
+	// blocks forever in the select below, which is the idiomatic way to disable a case.
+	var heartbeatChan <-chan time.Time
+	if period := u.streamHeartbeatPeriod(request); period > 0 {
+		heartbeatTicker := time.NewTicker(time.Duration(period) * time.Second)
+		defer heartbeatTicker.Stop()
+		heartbeatChan = heartbeatTicker.C
+	}
+
 	for {
 		select {
 		// SIGNAL 1: Client disconnected or timeout
@@ -348,6 +381,14 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 		case <-authTimerChan:
 			streamClosed = true
 			return status.Error(codes.Aborted, "auth timer triggered")
+
+		// SIGNAL 5: application heartbeat (transport liveness only; does not touch the
+		// auth timer or the mq flow)
+		case <-heartbeatChan:
+			if err = SendStreamHeartbeat(request, stream); err != nil {
+				streamClosed = true
+				return err
+			}
 
 		// SIGNAL 3: Data from mq (using 'ok' to detect closure)
 		case message, ok := <-mq.Channel():
