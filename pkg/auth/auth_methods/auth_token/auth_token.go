@@ -404,6 +404,12 @@ func (a *AuthTokenHandler) SetAuthManager(manager auth.AuthManager) {
 	manager.Schemas().AddHandler(a)
 }
 
+// Cipher exposes the token handler's encryption backend for out-of-band token minting
+// (e.g. call-scoped tokens sent in VOIP push payloads).
+func (a *AuthTokenHandler) Cipher() auth.AuthParameterEncryption {
+	return a.encryption
+}
+
 type TokenSchema struct {
 	auth.AuthSchema
 

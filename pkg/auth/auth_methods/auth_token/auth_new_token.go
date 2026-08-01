@@ -2,6 +2,7 @@ package auth_token
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/evgeniums/evgo/pkg/auth"
@@ -122,6 +123,11 @@ func GenManualToken(sctx context.Context, cipher auth.AuthParameterEncryption,
 	ctx := op_context.OpContext[op_context.Context](sctx)
 	c := ctx.TraceInMethod("GenManualToken")
 	defer ctx.TraceOutMethod()
+
+	if cipher == nil {
+		c.SetMessage("token cipher is not initialized")
+		return "", c.SetError(errors.New("nil cipher passed to GenManualToken"))
+	}
 
 	token := &Token{}
 	token.Id = utils.GenerateRand64()
