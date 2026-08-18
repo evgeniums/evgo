@@ -3,6 +3,7 @@ package filestorage
 import (
 	"context"
 	"net/url"
+	"os"
 	"strconv"
 
 	"github.com/evgeniums/evgo/pkg/app_context"
@@ -30,6 +31,17 @@ type UrlManagerConfig struct {
 
 	SHADOW_TENANCY_PATH bool `default:"true"`
 	ENABLE_TOPIC        bool `default:"false"`
+
+	// CERTIFICATE_CHAIN is an optional PEM file for the storage endpoint's own CA - needed only
+	// when BASE_UPLOAD_URL/BASE_DOWNLOAD_URL point at a host (CDN, separate storage node) using a
+	// different certificate than the gRPC route host. When unset, callers fall back to the route
+	// host certificate (see file_controller.ControllerBase.applyTlsPolicy).
+	CERTIFICATE_CHAIN string `validate:"omitempty,file" vmessage:"Invalid file path"`
+	// USE_SYSTEM_CA and SKIP_HOST_NAME_VERIFICATION are published to clients verbatim as
+	// UploadUrlInfo/DownloadUrlInfo TLS policy - see those types' doc comments for the
+	// false-by-default rationale.
+	USE_SYSTEM_CA               bool
+	SKIP_HOST_NAME_VERIFICATION bool
 }
 
 type UrlManagerOptions struct {
@@ -42,6 +54,7 @@ type UrlManagerBase struct {
 	UrlManagerConfig
 	helper           UploadPartHelper
 	signedUrlHandler SignedUrlHandler
+	certificateChain []byte
 }
 
 func NewUrlManager() *UrlManagerBase {
@@ -60,6 +73,13 @@ func (u *UrlManagerBase) Init(app app_context.Context, opt UrlManagerOptions, pa
 	err := object_config.LoadLogValidateApp(app, u, path)
 	if err != nil {
 		return app.Logger().PushFatalStack("failed to load configuration of URL manager", err)
+	}
+
+	if u.CERTIFICATE_CHAIN != "" {
+		u.certificateChain, err = os.ReadFile(u.CERTIFICATE_CHAIN)
+		if err != nil {
+			return app.Logger().PushFatalStack("failed to read url manager certificate chain file", err)
+		}
 	}
 
 	// init helper
@@ -110,9 +130,12 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, opt .
 
 	// prepare result
 	result := &UploadUrlInfo{
-		TotalUrlCount: u.helper.PartCount(info),
-		FromPartIndex: fromPartIndex,
-		Method:        u.UPLOAD_METHOD,
+		TotalUrlCount:            u.helper.PartCount(info),
+		FromPartIndex:            fromPartIndex,
+		Method:                   u.UPLOAD_METHOD,
+		CertificateChain:         string(u.certificateChain),
+		UseSystemCa:              u.USE_SYSTEM_CA,
+		SkipHostNameVerification: u.SKIP_HOST_NAME_VERIFICATION,
 	}
 	result.Urls = make([]string, 0, result.TotalUrlCount)
 	result.MaxPartLength = u.helper.UploadPartLength(info, 0)
@@ -205,7 +228,11 @@ func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info FileInfo) (*Do
 		return nil, err
 	}
 
-	resp := &DownloadUrlInfo{}
+	resp := &DownloadUrlInfo{
+		CertificateChain:         string(u.certificateChain),
+		UseSystemCa:              u.USE_SYSTEM_CA,
+		SkipHostNameVerification: u.SKIP_HOST_NAME_VERIFICATION,
+	}
 	// ContentLength is deliberately omitted here: FileDataControllerBase.checkUrl()
 	// (filedata_service/filedata_controller.go) only sets it in the verification
 	// SignUrlValues for uploads (`if !download {...}`) - a download's byte count isn't

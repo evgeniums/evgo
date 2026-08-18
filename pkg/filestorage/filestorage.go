@@ -54,6 +54,13 @@ type UploadUrlInfo struct {
 	ProxyHeader      string   `json:"proxy_header"`
 	ProxyHeaderName  string   `json:"proxy_header_name"`
 	MaxPartLength    int64    `json:"max_part_length"`
+
+	// UseSystemCa and SkipHostNameVerification are server-declared TLS policy for the file
+	// transfer endpoint - see UrlManagerConfig.USE_SYSTEM_CA/SKIP_HOST_NAME_VERIFICATION.
+	// Both default false: a client trusts only CertificateChain and always verifies the peer
+	// name against the URL host unless the server explicitly relaxes either check.
+	UseSystemCa              bool `json:"use_system_ca"`
+	SkipHostNameVerification bool `json:"skip_host_name_verification"`
 }
 
 type DownloadUrlInfo struct {
@@ -61,6 +68,10 @@ type DownloadUrlInfo struct {
 	CertificateChain string `json:"certificate_chain"`
 	ProxyHeader      string `json:"proxy_header"`
 	ProxyHeaderName  string `json:"proxy_header_name"`
+
+	// See UploadUrlInfo.UseSystemCa/SkipHostNameVerification - same meaning and defaults.
+	UseSystemCa              bool `json:"use_system_ca"`
+	SkipHostNameVerification bool `json:"skip_host_name_verification"`
 }
 
 type UploadPartHelper interface {
