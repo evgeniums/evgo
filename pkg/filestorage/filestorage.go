@@ -43,6 +43,12 @@ type SignedUrlHandler interface {
 	CheckUrlString(ctx context.Context, signedUrl string, parameters SignUrlParameters) error
 
 	CheckUrl(ctx context.Context, signedUrl *url.URL, parameters SignUrlParameters) error
+
+	// Expiration is the lifetime in seconds a URL signed by this handler is granted, or 0 if
+	// signed URLs never expire. Exposed so UrlManager can publish an absolute expiry to the
+	// client (UploadUrlInfo.UrlExpiresAt) instead of leaving the client to parse it back out
+	// of the signed URL - see that field's doc comment for why the client must not infer it.
+	Expiration() uint32
 }
 
 type UploadUrlInfo struct {
@@ -61,6 +67,11 @@ type UploadUrlInfo struct {
 	// name against the URL host unless the server explicitly relaxes either check.
 	UseSystemCa              bool `json:"use_system_ca"`
 	SkipHostNameVerification bool `json:"skip_host_name_verification"`
+
+	// UrlExpiresAt is the absolute unix time (seconds) at which Urls stop being accepted, or 0
+	// if they never expire. Stated by the server so the client never has to parse expiry out of
+	// the URL - see the proto field's doc comment for the full rationale.
+	UrlExpiresAt int64 `json:"url_expires_at"`
 }
 
 type DownloadUrlInfo struct {
@@ -72,6 +83,9 @@ type DownloadUrlInfo struct {
 	// See UploadUrlInfo.UseSystemCa/SkipHostNameVerification - same meaning and defaults.
 	UseSystemCa              bool `json:"use_system_ca"`
 	SkipHostNameVerification bool `json:"skip_host_name_verification"`
+
+	// See UploadUrlInfo.UrlExpiresAt - same meaning, for the single Url above.
+	UrlExpiresAt int64 `json:"url_expires_at"`
 }
 
 type UploadPartHelper interface {

@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/evgeniums/evgo/pkg/app_context"
 	"github.com/evgeniums/evgo/pkg/config/object_config"
@@ -108,6 +109,17 @@ func (u *UrlManagerBase) Init(app app_context.Context, opt UrlManagerOptions, pa
 	return nil
 }
 
+// urlExpiresAt is the absolute unix time at which URLs signed right now stop being accepted, or
+// 0 when signed URLs never expire. Published to the client as UploadUrlInfo/DownloadUrlInfo's
+// UrlExpiresAt so the client never has to parse expiry back out of the signed URL itself.
+func (u *UrlManagerBase) urlExpiresAt() int64 {
+	expiration := u.signedUrlHandler.Expiration()
+	if expiration == 0 {
+		return 0
+	}
+	return time.Now().Add(time.Duration(expiration) * time.Second).Unix()
+}
+
 func (u *UrlManagerBase) TenancyPath(ctx context.Context) string {
 	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
 	if tenancyCtx != nil && tenancyCtx.GetTenancy() != nil {
@@ -136,6 +148,12 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, opt .
 		CertificateChain:         string(u.certificateChain),
 		UseSystemCa:              u.USE_SYSTEM_CA,
 		SkipHostNameVerification: u.SKIP_HOST_NAME_VERIFICATION,
+		// Computed BEFORE the signing loop below, so the published expiry is never later than
+		// the earliest URL's real one: SignUrl() takes its own time.Now() per call, so the last
+		// part signed expires a hair after the first. Erring early is the safe direction - the
+		// client refreshes marginally sooner than strictly necessary, rather than trusting a
+		// URL that has already lapsed.
+		UrlExpiresAt: u.urlExpiresAt(),
 	}
 	result.Urls = make([]string, 0, result.TotalUrlCount)
 	result.MaxPartLength = u.helper.UploadPartLength(info, 0)
@@ -232,6 +250,8 @@ func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info FileInfo) (*Do
 		CertificateChain:         string(u.certificateChain),
 		UseSystemCa:              u.USE_SYSTEM_CA,
 		SkipHostNameVerification: u.SKIP_HOST_NAME_VERIFICATION,
+		// See GetUploadUrls()'s identical comment on computing this before signing.
+		UrlExpiresAt: u.urlExpiresAt(),
 	}
 	// ContentLength is deliberately omitted here: FileDataControllerBase.checkUrl()
 	// (filedata_service/filedata_controller.go) only sets it in the verification

@@ -42,6 +42,13 @@ func (s *SignedUrlHandlerBase) Config() any {
 	return &s.SignedUrlConfig
 }
 
+// Expiration implements SignedUrlHandler - see that interface's doc comment. Mirrors the
+// `if s.EXPIRATION != 0` guard in SignUrl(): 0 means no expiry parameter is written into the
+// signed URL at all, so there is no absolute expiry to publish either.
+func (s *SignedUrlHandlerBase) Expiration() uint32 {
+	return s.EXPIRATION
+}
+
 func (s *SignedUrlHandlerBase) Init(app app_context.Context, parentConfigPath string, configPath ...string) error {
 
 	path := utils.OptionalString(object_config.Key(parentConfigPath, "signed_url"), configPath...)
