@@ -2,6 +2,7 @@ package filestorage
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/evgeniums/evgo/pkg/common"
@@ -32,6 +33,79 @@ func newTestUrlManager(t *testing.T, h *SignedUrlHandlerBase) *UrlManagerBase {
 	u.SHADOW_TENANCY_PATH = true
 	u.signedUrlHandler = h
 	return u
+}
+
+type testUploadPartHelper struct{}
+
+func (h *testUploadPartHelper) UploadPartLength(info FileInfo, partIndex ...int64) int64 {
+	return info.GetSize()
+}
+func (h *testUploadPartHelper) PartCount(info FileInfo) int64 { return 1 }
+
+func newTestUploadUrlManager(t *testing.T, h *SignedUrlHandlerBase, enableTopic bool) *UrlManagerBase {
+	t.Helper()
+	u := newTestUrlManager(t, h)
+	u.BASE_UPLOAD_URL = "https://example.com"
+	u.UPLOAD_PATH_PREFIX = "/filedata/upload"
+	u.UPLOAD_METHOD = "POST"
+	u.PART_PARAMETER = "part"
+	u.ENABLE_TOPIC = enableTopic
+	u.helper = &testUploadPartHelper{}
+	return u
+}
+
+// Task debug-sending-files-to-optimized-music (server stage 2, C): regression
+// test for the topic-gating asymmetry - URL generation used to add a /topic/
+// segment whenever info.GetTopic()!="" regardless of ENABLE_TOPIC, while the
+// route itself (filedata_service.go) only ever had that segment when
+// ENABLE_TOPIC was true. Whenever a caller supplied a topic with
+// ENABLE_TOPIC left at its default (false), the client was handed a URL the
+// server had never registered a route for - the exact 404 this whole task
+// started from.
+func TestTopicSegmentGatedByEnableTopic(t *testing.T) {
+
+	ctx := context.Background()
+	info := &testFileInfo{size: 100, topic: "topic1"}
+	info.InitObject()
+
+	cases := []struct {
+		name        string
+		enableTopic bool
+		wantTopic   bool
+	}{
+		{"enabled_with_topic", true, true},
+		{"disabled_with_topic", false, false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newTestHandler(t)
+
+			uu := newTestUploadUrlManager(t, h, c.enableTopic)
+			uploadResp, err := uu.GetUploadUrls(ctx, info)
+			if err != nil {
+				t.Fatalf("GetUploadUrls failed: %v", err)
+			}
+			if len(uploadResp.Urls) != 1 {
+				t.Fatalf("expected exactly 1 upload url, got %d", len(uploadResp.Urls))
+			}
+			gotUpload := strings.Contains(uploadResp.Urls[0], "/topic/topic1/")
+			if gotUpload != c.wantTopic {
+				t.Fatalf("upload url topic segment presence = %v, want %v (url: %s)", gotUpload, c.wantTopic, uploadResp.Urls[0])
+			}
+
+			du := newTestUrlManager(t, h)
+			du.ENABLE_TOPIC = c.enableTopic
+			downloadResp, err := du.GetDownloadUrl(ctx, info)
+			if err != nil {
+				t.Fatalf("GetDownloadUrl failed: %v", err)
+			}
+			gotDownload := strings.Contains(downloadResp.Url, "/topic/topic1/")
+			if gotDownload != c.wantTopic {
+				t.Fatalf("download url topic segment presence = %v, want %v (url: %s)", gotDownload, c.wantTopic, downloadResp.Url)
+			}
+		})
+	}
 }
 
 // Regression test for the second signed-download-URL bug (url_manager.go's

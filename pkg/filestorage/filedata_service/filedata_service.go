@@ -36,16 +36,16 @@ func NewFileDataService(controller FileDataController, multitenancy ...bool) *Fi
 	}
 
 	s.fetch = NewFetchEndpoint(s)
-	fetchResource := api.NewIdResourcesChain(s.fetch.Name(), fetchResourcesChain...)
-	fetchResource.AddOperation(s.fetch)
+	fetchHead, fetchLeaf := api.NewIdResourcesChain(s.fetch.Name(), fetchResourcesChain...)
+	fetchLeaf.AddOperation(s.fetch)
 
 	s.upload = NewUploadEndpoint(s)
-	uploadResource := api.NewIdResourcesChain(s.upload.Name(), uploadResourcesChain...)
-	uploadResource.AddOperation(s.upload)
+	uploadHead, uploadLeaf := api.NewIdResourcesChain(s.upload.Name(), uploadResourcesChain...)
+	uploadLeaf.AddOperation(s.upload)
 
 	s.AddChildren(
-		fetchResource,
-		uploadResource,
+		fetchHead,
+		uploadHead,
 	)
 	return s
 }

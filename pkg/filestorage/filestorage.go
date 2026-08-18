@@ -93,6 +93,11 @@ type StorageManager interface {
 
 	Delete(ctx context.Context, pathPrefix string) error
 
+	// DeleteFile removes the finalized content of info, addressed the same way Path()/Fetch()
+	// resolve it (tenancy/topic aware). A no-op (not an error) if the content was never
+	// finalized or was already removed, so callers can use it idempotently.
+	DeleteFile(ctx context.Context, info FileInfo) error
+
 	DeleteTemp(ctx context.Context, toDate utils.Date) error
 }
 

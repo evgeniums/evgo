@@ -67,8 +67,16 @@ func (f *FilesystemStorage) TempPath(ctx context.Context, info FileInfo, partInd
 	var d utils.Date
 	d.SetTime(info.GetCreatedAt())
 
+	// Task debug-sending-files-to-optimized-music (server stage 2, follow-up):
+	// tenancyCtx being non-nil does not mean tenancyCtx.GetTenancy() is - see
+	// UrlManagerBase.TenancyPath()'s identical guard (url_manager.go). With
+	// multitenancy disabled GetTenancy() is always nil, so the bare
+	// `tenancyCtx != nil` check here paniced on .GetID() the first time this
+	// code path was ever actually exercised (the upload route 404'd before
+	// stage 2's routing fix, so UploadPart() had never really run in this
+	// deployment until now).
 	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
-	if tenancyCtx != nil {
+	if tenancyCtx != nil && tenancyCtx.GetTenancy() != nil {
 		if info.GetTopic() == "" {
 			dir = filepath.Join(f.TEMP_DIR, d.AsNumber(), f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
 		} else {
@@ -92,8 +100,10 @@ func (f *FilesystemStorage) Path(ctx context.Context, info FileInfo) string {
 
 	var dir string
 
+	// See TempPath()'s identical comment - tenancyCtx != nil alone does not
+	// guarantee tenancyCtx.GetTenancy() != nil.
 	tenancyCtx := op_context.OpContext[multitenancy.TenancyContext](ctx)
-	if tenancyCtx != nil {
+	if tenancyCtx != nil && tenancyCtx.GetTenancy() != nil {
 		if info.GetTopic() == "" {
 			dir = filepath.Join(f.BASE_DIR, f.TENANCY_SUBFOLDER, tenancyCtx.GetTenancy().GetID())
 		} else {
@@ -114,12 +124,31 @@ func (f *FilesystemStorage) StartUpload(ctx context.Context, info FileInfo) erro
 	return os.MkdirAll(f.TempPath(ctx, info), 0755)
 }
 
+// tempSiblingPath builds a same-directory scratch path for writing-then-renaming into path,
+// e.g. ".../<id>/0" -> ".../<id>/_0_<random>". Previously this was built as
+// fmt.Sprintf("_%s_%s", path, id), which prepends "_" to the *whole* path string - turning
+// ".../<id>/0" into "_.../<id>/0_<random>", a completely different (and never-created)
+// directory tree, not a hidden sibling file. That made every UploadPart/FinalizeUpload rename
+// fail with ENOENT - found while adding files2 session 11a's round-trip test.
+func tempSiblingPath(path string) string {
+	dir, base := filepath.Split(path)
+	return filepath.Join(dir, fmt.Sprintf("_%s_%s", base, utils.GenerateID()))
+}
+
 func (f *FilesystemStorage) UploadPart(ctx context.Context, info FileInfo, source io.Reader, partIndex ...int64) error {
 
 	// prepare path
 	idx := utils.OptionalArg(0, partIndex...)
 	path := f.TempPath(ctx, info, idx)
-	uploadPath := fmt.Sprintf("_%s_%s", path, utils.GenerateID())
+	uploadPath := tempSiblingPath(path)
+
+	// ensure the part's parent directory exists. StartUpload is meant to do this once per
+	// upload, but nothing calls it (see files2-status.md session 11a); MkdirAll is idempotent
+	// so doing it here per part is a safe, self-contained fix.
+	err := os.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		return err
+	}
 
 	// open target file
 	dest, err := os.Create(uploadPath)
@@ -173,7 +202,15 @@ func (f *FilesystemStorage) UploadPart(ctx context.Context, info FileInfo, sourc
 func (f *FilesystemStorage) FinalizeUpload(ctx context.Context, info FileInfo, partsCount ...int64) error {
 
 	targetPath := f.Path(ctx, info)
-	tmpTargetPath := fmt.Sprintf("_%s_%s", targetPath, utils.GenerateID())
+	tmpTargetPath := tempSiblingPath(targetPath)
+
+	// ensure the destination directory (BASE_DIR, optionally + tenancy/topic subfolders)
+	// exists - nothing else creates it (BASE_DIR itself is required to pre-exist by config
+	// validation, but its tenancy/topic subfolders are not).
+	err := os.MkdirAll(filepath.Dir(targetPath), 0755)
+	if err != nil {
+		return err
+	}
 
 	// open target file
 	dst, err := os.Create(tmpTargetPath)
@@ -262,6 +299,12 @@ func (f *FilesystemStorage) FetchRange(ctx context.Context, info FileInfo, offse
 func (f *FilesystemStorage) Delete(ctx context.Context, pathPrefix string) error {
 	path := filepath.Join(f.BASE_DIR, pathPrefix)
 	return os.RemoveAll(path)
+}
+
+func (f *FilesystemStorage) DeleteFile(ctx context.Context, info FileInfo) error {
+	// os.RemoveAll on a path that does not exist returns nil, so this is safe to call for
+	// content that was never finalized (e.g. a TTL firing on an abandoned upload).
+	return os.RemoveAll(f.Path(ctx, info))
 }
 
 func (f *FilesystemStorage) DeleteTemp(ctx context.Context, toDate utils.Date) error {

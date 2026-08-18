@@ -127,17 +127,26 @@ func (u *UrlManagerBase) GetUploadUrls(ctx context.Context, info FileInfo, opt .
 			toPartIndex = result.TotalUrlCount
 		}
 	}
+	// Task debug-sending-files-to-optimized-music (server stage 2, C): the
+	// topic segment must be gated on u.ENABLE_TOPIC, the SAME switch
+	// filedata_service.go uses to decide whether the route itself has a
+	// /topic/:topic segment - gating on info.GetTopic()!="" alone (the
+	// previous condition) generated a URL with a topic segment regardless of
+	// ENABLE_TOPIC, 404ing against a route that was never registered to
+	// expect one.
+	includeTopic := u.ENABLE_TOPIC && info.GetTopic() != ""
+
 	for i := fromPartIndex; i < toPartIndex; i++ {
 		var originalUrl string
 		var err error
 		if tenancyPath == "" {
-			if info.GetTopic() == "" {
+			if !includeTopic {
 				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
 			} else {
 				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.UPLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.GetTopic(), u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
 			}
 		} else {
-			if info.GetTopic() == "" {
+			if !includeTopic {
 				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.UPLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
 			} else {
 				originalUrl, err = url.JoinPath(u.BASE_UPLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.UPLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.GetTopic(), u.ID_PARAMETER, info.GetID(), u.PART_PARAMETER, strconv.FormatInt(i, 10))
@@ -175,14 +184,18 @@ func (u *UrlManagerBase) GetDownloadUrl(ctx context.Context, info FileInfo) (*Do
 	var originalUrl string
 	var err error
 
+	// See GetUploadUrls()'s identical comment on why ENABLE_TOPIC, not just
+	// info.GetTopic()!="", gates the topic segment.
+	includeTopic := u.ENABLE_TOPIC && info.GetTopic() != ""
+
 	if tenancyPath == "" {
-		if info.GetTopic() == "" {
+		if !includeTopic {
 			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
 		} else {
 			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.DOWNLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.GetTopic(), u.ID_PARAMETER, info.GetID())
 		}
 	} else {
-		if info.GetTopic() == "" {
+		if !includeTopic {
 			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.DOWNLOAD_PATH_PREFIX, u.ID_PARAMETER, info.GetID())
 		} else {
 			originalUrl, err = url.JoinPath(u.BASE_DOWNLOAD_URL, u.TENANCY_PARAMETER, tenancyPath, u.DOWNLOAD_PATH_PREFIX, u.TOPIC_PARAMETER, info.GetTopic(), u.ID_PARAMETER, info.GetID())
