@@ -620,16 +620,29 @@ func AddChildResource(resource Resource, childName string) *ResourceBase {
 	return child
 }
 
-func NewIdResourcesChain(first string, ids ...string) *ResourceBase {
-	r := NewResource(first)
+// NewIdResourcesChain builds /first/id0/:id0/id1/:id1/... - a literal
+// resource followed by literal+param pairs, one pair per entry in ids
+// (mirrors the shape NamedResource() already uses for a single id, e.g.
+// /topic/:topic). Returns both ends: head is what goes into the service's
+// resource tree, leaf is what an operation must be attached to so the
+// service's full nested path is actually routed - a plain HasId resource
+// (the previous single-return-value version of this function) renders as
+// /:<type>, REPLACING the literal segment rather than following it, and
+// AddOperation on the head left every id/param child without an operation
+// at all, so ResourceBase.EachOperation never registered a route deeper
+// than the head's own literal path.
+func NewIdResourcesChain(first string, ids ...string) (head *ResourceBase, leaf *ResourceBase) {
+	head = NewResource(first)
 
-	current := r
+	leaf = head
 	for _, id := range ids {
-		current = AddChildResource(current, id)
-		current.SetHasId(true)
+		group := AddChildResource(leaf, id)
+		param := NewResource(id, ResourceConfig{HasId: true})
+		group.AddChild(param)
+		leaf = param
 	}
 
-	return r
+	return head, leaf
 }
 
 type ResourceIdsBase struct {
