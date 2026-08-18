@@ -126,7 +126,7 @@ func (r *ResponseBase) DataContentType() string {
 }
 
 func (r *ResponseBase) DataContentLength() int64 {
-	return r.DataContentLength()
+	return r.dataLength
 }
 
 func (r *ResponseBase) DataContentHeaders() map[string]string {
