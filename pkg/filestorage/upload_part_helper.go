@@ -7,7 +7,7 @@ import (
 )
 
 type UploadPartHelperConfig struct {
-	UPLOAD_PART_LENGTH int64 `default:"8388608"`
+	UPLOAD_PART_LENGTH int64 `default:"4194304"`
 }
 
 type UploadPartHelperBase struct {
