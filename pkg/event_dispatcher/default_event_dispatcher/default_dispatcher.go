@@ -106,14 +106,10 @@ func (d *DispatcherBase) Init(app app_context.Context, parentConfigPath string, 
 	}
 
 	if consumers == nil && d.INMEM_LEVEL_TRIE {
-		consumers = message_queue.NewSelectorTrie[event_dispatcher.EventConsumer](event_dispatcher.MaxSelectors)
+		consumers = message_queue.NewLevelTrie[event_dispatcher.EventConsumer](event_dispatcher.MaxSelectors)
 	}
 
-	if consumers != nil {
-		d.mq = message_queue.NewInmemMq[event_dispatcher.EventKey, event_dispatcher.EventWrapper](event_dispatcher.MaxSelectors)
-	} else {
-		d.mq = message_queue.NewInmemMq(event_dispatcher.MaxSelectors, consumers)
-	}
+	d.mq = message_queue.NewInmemMq(event_dispatcher.MaxSelectors, consumers)
 
 	return nil
 }
@@ -139,14 +135,10 @@ func (d *DispatcherBase) InitWithCtx(sctx context.Context, cfg DispatcherBaseCon
 	}
 
 	if consumers == nil && d.INMEM_LEVEL_TRIE {
-		consumers = message_queue.NewSelectorTrie[event_dispatcher.EventConsumer](event_dispatcher.MaxSelectors)
+		consumers = message_queue.NewLevelTrie[event_dispatcher.EventConsumer](event_dispatcher.MaxSelectors)
 	}
 
-	if consumers != nil {
-		d.mq = message_queue.NewInmemMq[event_dispatcher.EventKey, event_dispatcher.EventWrapper](event_dispatcher.MaxSelectors)
-	} else {
-		d.mq = message_queue.NewInmemMq(event_dispatcher.MaxSelectors, consumers)
-	}
+	d.mq = message_queue.NewInmemMq(event_dispatcher.MaxSelectors, consumers)
 
 	return nil
 }
