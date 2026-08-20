@@ -28,7 +28,7 @@ func (k *EventKey) SetSelector(i int, selector string) {
 	k.selectors[i] = utils.Opt(selector)
 }
 
-func (k *EventKey) UnsetSelector(i int, selector string) {
+func (k *EventKey) UnsetSelector(i int) {
 	k.selectors[i] = utils.NullString()
 }
 
@@ -37,7 +37,7 @@ func (k EventKey) Length() int {
 }
 
 func (k EventKey) GetSelector(i int) (string, bool) {
-	if i >= k.Length() {
+	if i < 0 || i >= k.Length() {
 		return "", false
 	}
 	v := k.selectors[i]

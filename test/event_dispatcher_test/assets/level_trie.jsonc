@@ -1,0 +1,6 @@
+{
+    // event_dispatcher config with the branching LevelTrie registry
+    "event_dispatcher": {
+        "inmem_level_trie": true
+    }
+}

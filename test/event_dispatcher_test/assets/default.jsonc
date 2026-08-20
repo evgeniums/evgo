@@ -1,0 +1,6 @@
+{
+    // event_dispatcher config with the SelectorTrie (default, non-branching) registry
+    "event_dispatcher": {
+        "inmem_level_trie": false
+    }
+}
