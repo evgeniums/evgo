@@ -10,8 +10,9 @@ type entry[K comparable, V any] struct {
 	value V
 }
 
-// ReplacingQueue is a thread-safe, generic, random-access queue.
+// ReplacingQueue is a generic, random-access queue implementing RandomAccessQueue interface.
 // It keeps map of enqueued items and replaces existing item on conflict.
+// Not therad safe - extarnal synchronization required.
 type ReplacingQueue[K comparable, V any] struct {
 	list  *list.List
 	table map[K]*list.Element

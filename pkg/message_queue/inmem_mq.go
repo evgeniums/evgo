@@ -8,7 +8,9 @@ type InmemMq[K comparable, M Message[K]] struct {
 
 func NewInmemMq[K comparable, M Message[K]](maxSelectors int, consumers ...AttributeRegistry[Consumer[K, M]]) *InmemMq[K, M] {
 	m := &InmemMq[K, M]{}
-	if len(consumers) == 0 || consumers[0] == nil {
+	if len(consumers) != 0 && consumers[0] != nil {
+		m.consumers = consumers[0]
+	} else {
 		m.consumers = NewSelectorTrie[Consumer[K, M]](maxSelectors)
 	}
 	return m
@@ -28,6 +30,9 @@ func (p *InmemMq[K, M]) Subscribe(ctx context.Context, consumerSelectors Matchab
 }
 
 func (p *InmemMq[K, M]) Unsubscribe(ctx context.Context, subscription *RegistrySubscription) {
+	if subscription == nil {
+		return
+	}
 	existing := p.consumers.Unregister(subscription)
 	if existing != nil {
 		existing.Close(ctx)

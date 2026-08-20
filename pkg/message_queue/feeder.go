@@ -1,5 +1,7 @@
 package message_queue
 
+import "sync"
+
 const DEFAULT_FEEDER_CHANNEL_DEPTH = 10
 
 type MessageProvider interface {
@@ -23,6 +25,8 @@ type FeederBase[V any] struct {
 	ch       chan any
 	chV      chan V
 	provider MessageProvider
+
+	closeOnce sync.Once
 }
 
 func NewFeeder[V any](provider MessageProvider, config ...*FeederConfig) *FeederBase[V] {
@@ -72,8 +76,17 @@ func (p *FeederBase[V]) Push(object V) bool {
 	return false
 }
 
+// Close closes whichever channel is in use (untyped or typed, depending on
+// FEEDER_TYPED_CHANNEL) and is idempotent/safe to call more than once.
 func (p *FeederBase[V]) Close() {
-	close(p.ch)
+	p.closeOnce.Do(func() {
+		if p.ch != nil {
+			close(p.ch)
+		}
+		if p.chV != nil {
+			close(p.chV)
+		}
+	})
 }
 
 func (p *FeederBase[V]) Next() {

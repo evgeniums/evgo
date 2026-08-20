@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+// FanIn merges an arbitrary, dynamically changing set of input channels into
+// a single output channel.
 type FanIn[T any] interface {
 	Run(ctx context.Context)
 	AddInput(ch <-chan T)
@@ -12,19 +14,36 @@ type FanIn[T any] interface {
 	Close()
 
 	Output() chan T
+	Done() <-chan struct{}
 }
 
+// FanInBase implements FanIn. Its input set (workers) is small and mutated
+// rarely relative to how often values flow through it, so it is protected by
+// a plain mutex rather than owned by a command-channel run loop: that removes
+// an entire class of shutdown-ordering bugs (see message_queue's test suite
+// for the regressions this replaced) at the cost of nothing a mutex over a
+// small map can't do essentially for free.
 type FanInBase[T any] struct {
-	out         chan T
-	addInput    chan (<-chan T)
-	removeInput chan (<-chan T)
+	out  chan T
+	done chan struct{} // closed once out has been closed
 
-	workers map[<-chan T]context.CancelFunc
+	mu      sync.Mutex
+	workers map[<-chan T]workerHandle
+	ctx     context.Context
+	cancel  context.CancelFunc
+	started bool
+	closed  bool
 
-	stopAll  chan struct{}
-	stopOnce sync.Once
+	wg        sync.WaitGroup
+	closeOnce sync.Once
+}
 
-	wg sync.WaitGroup
+// workerHandle lets RemoveInput wait for a specific worker to actually exit
+// (not just be told to), so that once RemoveInput returns, nothing more from
+// that input can reach Output() - see RemoveInput's doc comment.
+type workerHandle struct {
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 func NewFanIn[T any]() *FanInBase[T] {
@@ -35,79 +54,118 @@ func NewFanIn[T any]() *FanInBase[T] {
 
 func (f *FanInBase[T]) construct() {
 	f.out = make(chan T, 1)
-	f.addInput = make(chan (<-chan T))
-	f.removeInput = make(chan (<-chan T))
-	f.stopAll = make(chan struct{})
-	f.workers = make(map[<-chan T]context.CancelFunc)
+	f.done = make(chan struct{})
+	f.workers = make(map[<-chan T]workerHandle)
 }
 
+// Run starts the fan-in. Unlike a command-channel run loop, this does not
+// block: it just arms the base with a context and returns. External
+// cancellation of ctx triggers the same shutdown as an explicit Close().
 func (f *FanInBase[T]) Run(ctx context.Context) {
+	f.mu.Lock()
+	if f.started || f.closed {
+		f.mu.Unlock()
+		return
+	}
+	f.started = true
+	f.ctx, f.cancel = context.WithCancel(ctx)
+	f.mu.Unlock()
 
-	// unified Shutdown Logic
 	go func() {
-		select {
-		case <-ctx.Done(): // External cancellation (timeout/cancel)
-		case <-f.stopAll: // Internal manual stop
-		}
-
-		// cancel all individual workers via their child contexts
-		for _, cancel := range f.workers {
-			cancel()
-		}
-
-		f.wg.Wait()
-		close(f.out)
+		<-f.ctx.Done()
+		f.Close()
 	}()
+}
 
+// AddInput starts merging ch into Output(). It is a no-op if the fan-in has
+// not been started yet or has already been closed - it never blocks.
+func (f *FanInBase[T]) AddInput(ch <-chan T) {
+	f.mu.Lock()
+	if !f.started || f.closed {
+		f.mu.Unlock()
+		return
+	}
+	if _, exists := f.workers[ch]; exists {
+		f.mu.Unlock()
+		return
+	}
+
+	wCtx, wCancel := context.WithCancel(f.ctx)
+	workerDone := make(chan struct{})
+	f.workers[ch] = workerHandle{cancel: wCancel, done: workerDone}
+	f.wg.Add(1)
+	f.mu.Unlock()
+
+	go f.worker(ch, wCtx, workerDone)
+}
+
+func (f *FanInBase[T]) worker(c <-chan T, workerCtx context.Context, done chan struct{}) {
+	defer f.wg.Done()
+	defer close(done)
 	for {
 		select {
-
-		case <-ctx.Done():
+		case <-workerCtx.Done():
 			return
-
-		case <-f.stopAll:
-			return
-
-		case newInput := <-f.addInput:
-			{
-				// add input channel
-				wCtx, wCancel := context.WithCancel(ctx)
-				f.workers[newInput] = wCancel
-				f.wg.Add(1)
-
-				// run worker for this specific channel
-				go func(c <-chan T, workerCtx context.Context) {
-					defer f.wg.Done()
-					for {
-						select {
-						case <-workerCtx.Done():
-						case v, ok := <-c:
-							if !ok {
-								return
-							}
-							f.out <- v
-						}
-					}
-				}(newInput, wCtx)
+		case v, ok := <-c:
+			if !ok {
+				return
 			}
-
-		case oldCh := <-f.removeInput:
-			if cancel, ok := f.workers[oldCh]; ok {
-				cancel()
-				delete(f.workers, oldCh)
+			select {
+			case f.out <- v:
+			case <-workerCtx.Done():
+				return
 			}
 		}
 	}
 }
 
-func (f *FanInBase[T]) AddInput(ch <-chan T) {
-	f.addInput <- ch
-}
-
+// RemoveInput stops merging ch and waits for that specific worker to
+// actually exit before returning, so that once RemoveInput returns, no value
+// read from ch (even one already sitting in the worker's in-flight select)
+// can reach Output(). It never blocks indefinitely: a worker only ever waits
+// on its own cancellation or a (non-blocking-forever, ctx-guarded) send, so
+// this wait is bounded by how fast the runtime schedules that goroutine.
+// It is a no-op, returning immediately, if ch was never added (or was
+// already removed, or the fan-in has been closed - Close clears the worker
+// set under the same lock this looks up).
 func (f *FanInBase[T]) RemoveInput(ch <-chan T) {
-	f.removeInput <- ch
+	f.mu.Lock()
+	handle, ok := f.workers[ch]
+	if ok {
+		delete(f.workers, ch)
+	}
+	f.mu.Unlock()
+
+	if !ok {
+		return
+	}
+	handle.cancel()
+	<-handle.done
 }
 
+// Close stops every worker and closes Output(). It is idempotent and
+// synchronous: once it returns, Output() is closed and Done() is closed.
 func (f *FanInBase[T]) Close() {
-	f.stopOnce.Do(func() { close(f.stopAll) })
+	f.closeOnce.Do(func() {
+		f.mu.Lock()
+		f.closed = true
+		cancel := f.cancel
+		f.workers = make(map[<-chan T]workerHandle)
+		f.mu.Unlock()
+
+		if cancel != nil {
+			cancel()
+		}
+		f.wg.Wait()
+		close(f.out)
+		close(f.done)
+	})
+}
+
+func (f *FanInBase[T]) Output() chan T {
+	return f.out
+}
+
+func (f *FanInBase[T]) Done() <-chan struct{} {
+	return f.done
 }

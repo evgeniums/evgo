@@ -1,24 +1,24 @@
 package message_queue
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 type FeederFanIn[T any] interface {
-	FanIn[T]
+	FanIn[any]
 	AddFeeder(feeder Feeder[T])
 	RemoveFeeder(feeder Feeder[T])
 
-	Channel() chan any
+	Channel() <-chan any
 	Next()
 }
 
 type FeederFanInBase[T any] struct {
 	FanInBase[any]
 
-	feeders      map[Feeder[T]]struct{}
-	addFeeder    chan Feeder[T]
-	removeFeeder chan Feeder[T]
-
-	invokeNext chan struct{}
+	feedersMu sync.Mutex
+	feeders   map[Feeder[T]]struct{}
 }
 
 func NewFeederFanIn[T any]() *FeederFanInBase[T] {
@@ -29,62 +29,53 @@ func NewFeederFanIn[T any]() *FeederFanInBase[T] {
 
 func (f *FeederFanInBase[T]) construct() {
 	f.FanInBase.construct()
-
 	f.feeders = make(map[Feeder[T]]struct{})
-	f.addFeeder = make(chan Feeder[T])
-	f.removeFeeder = make(chan Feeder[T])
-	f.invokeNext = make(chan struct{}, 1)
 }
 
 func (f *FeederFanInBase[T]) Run(ctx context.Context) {
-
-	go f.FanInBase.Run(ctx)
-
-	go func() {
-		for {
-			select {
-
-			case <-ctx.Done():
-				return
-
-			case <-f.stopAll:
-				return
-
-			case feeder := <-f.addFeeder:
-				{
-					f.feeders[feeder] = struct{}{}
-					f.FanInBase.AddInput(feeder.Channel())
-				}
-
-			case feeder := <-f.removeFeeder:
-				{
-					delete(f.feeders, feeder)
-					f.FanInBase.RemoveInput(feeder.Channel())
-				}
-
-			case <-f.invokeNext:
-				{
-					for feeder := range f.feeders {
-						feeder.Next()
-					}
-				}
-			}
-		}
-	}()
+	f.FanInBase.Run(ctx)
 }
 
-func (f *FeederFanInBase[T]) Channel() chan any {
+func (f *FeederFanInBase[T]) Channel() <-chan any {
 	return f.out
 }
 
+// AddFeeder starts merging feeder's channel into Channel(). Never blocks.
 func (f *FeederFanInBase[T]) AddFeeder(feeder Feeder[T]) {
-	f.addFeeder <- feeder
+	f.feedersMu.Lock()
+	if _, exists := f.feeders[feeder]; exists {
+		f.feedersMu.Unlock()
+		return
+	}
+	f.feeders[feeder] = struct{}{}
+	f.feedersMu.Unlock()
+
+	f.FanInBase.AddInput(feeder.Channel())
 }
 
+// RemoveFeeder stops merging feeder's channel. Never blocks.
 func (f *FeederFanInBase[T]) RemoveFeeder(feeder Feeder[T]) {
-	f.removeFeeder <- feeder
+	f.feedersMu.Lock()
+	delete(f.feeders, feeder)
+	f.feedersMu.Unlock()
+
+	f.FanInBase.RemoveInput(feeder.Channel())
 }
 
+// Next asks every current feeder for its next message. The feeder set is
+// snapshotted under feedersMu and released before calling out - Feeder.Next()
+// can block (it forwards to ConsumerBase.tryNext, which may block on a full
+// work channel), so it must never run while feedersMu is held or one slow
+// feeder would stall every other Add/Remove/Next call.
 func (f *FeederFanInBase[T]) Next() {
-	f.invokeNext <- struct{}{}
+	f.feedersMu.Lock()
+	snapshot := make([]Feeder[T], 0, len(f.feeders))
+	for feeder := range f.feeders {
+		snapshot = append(snapshot, feeder)
+	}
+	f.feedersMu.Unlock()
+
+	for _, feeder := range snapshot {
+		feeder.Next()
+	}
 }

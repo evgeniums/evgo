@@ -72,7 +72,10 @@ func NewSubscriber[K comparable, M Message[K]](consumer ...Consumer[K, M]) *Subs
 }
 
 func (s *SubscriberBase[K, M]) Subscribe(ctx context.Context, mq MessageQueue[K, M], selectors Matchable) error {
-	s.SubscriberExtBase.Subscribe(ctx, mq, selectors)
+	err := s.SubscriberExtBase.Subscribe(ctx, mq, selectors)
+	if err != nil {
+		return err
+	}
 	s.mq = mq
 	return nil
 }

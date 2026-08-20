@@ -1,6 +1,6 @@
 package message_queue
 
-// RandomAccessQueue defines the behavior for a thread-safe,
+// RandomAccessQueue defines the behavior for
 // key-addressable FIFO storage.
 type RandomAccessQueue[K comparable, V any] interface {
 	// Enqueue adds an item to the back.

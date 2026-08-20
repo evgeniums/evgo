@@ -8,6 +8,7 @@ import (
 
 const DEFAULT_MAX_QUEUE_DEPTH int = 0
 const DEFAULT_WORK_CHANNEL_DEPTH int = 100
+const DEFAULT_SHUTDOWN_TIMEOUT int = 1
 
 type Message[K comparable] interface {
 	Key() K
@@ -38,6 +39,7 @@ func DefaultConsumerConfig() ConsumerConfig {
 	return ConsumerConfig{
 		MAX_QUEUE_DEPTH:    DEFAULT_MAX_QUEUE_DEPTH,
 		WORK_CHANNEL_DEPTH: DEFAULT_WORK_CHANNEL_DEPTH,
+		SHUTDOWN_TIMEOUT:   DEFAULT_SHUTDOWN_TIMEOUT,
 		FeederConfig: FeederConfig{
 			FEEDER_CHANNEL_DEPTH: DEFAULT_FEEDER_CHANNEL_DEPTH,
 		},
@@ -51,6 +53,7 @@ type ConsumerBase[K comparable, M Message[K]] struct {
 
 	workChannel  chan messageWrapper[K, M]
 	closeChannel chan struct{}
+	doneChannel  chan struct{}
 
 	closed atomic.Bool
 	ctx    context.Context
@@ -65,7 +68,12 @@ func NewConsumer[K comparable, M Message[K]](config ...ConsumerConfig) *Consumer
 	}
 
 	s.workChannel = make(chan messageWrapper[K, M], s.WORK_CHANNEL_DEPTH)
-	s.closeChannel = make(chan struct{}, 1)
+	s.closeChannel = make(chan struct{}, 0)
+	s.doneChannel = make(chan struct{}, 0)
+	// A live, already-cancelled-free context so that Consume/Next/Close called
+	// before Run (or Feeder() called before Run) do not panic on a nil s.ctx;
+	// Run replaces it with the real context once the consumer actually starts.
+	s.ctx = context.Background()
 	return s
 }
 
@@ -73,7 +81,12 @@ func (s *ConsumerBase[K, M]) SetFeeder(feeder Feeder[M]) {
 	s.feeder = feeder
 }
 
+// Feeder returns the consumer's feeder, lazily creating the default one if
+// neither SetFeeder nor Run has run yet, so it is always safe to call.
 func (s *ConsumerBase[K, M]) Feeder() Feeder[M] {
+	if s.feeder == nil {
+		s.feeder = NewFeeder[M](s, &s.ConsumerConfig.FeederConfig)
+	}
 	return s.feeder
 }
 
@@ -83,9 +96,9 @@ func (s *ConsumerBase[K, M]) SetQueue(queue RandomAccessQueue[K, M]) {
 
 func (s *ConsumerBase[K, M]) Run(ctx context.Context) {
 
-	if s.feeder == nil {
-		s.feeder = NewFeeder[M](s, &s.ConsumerConfig.FeederConfig)
-	}
+	// Reuses the same lazy-creation path as Feeder() so that a feeder handed
+	// out before Run (e.g. via Subscriber.Channel()) is the same one Run uses.
+	_ = s.Feeder()
 
 	if s.queue == nil {
 		s.queue = NewReplacingQueue[K, M]()
@@ -109,41 +122,51 @@ func (s *ConsumerBase[K, M]) process() {
 	defer func() {
 		s.queue.Clear()
 		s.feeder.Close()
+		close(s.doneChannel)
 	}()
 
 	tryNext := func(wrapper messageWrapper[K, M]) {
 
-		// try to push messages from queue
-		readyToPush := true
-
-		// read queue
-		message, read := s.queue.Front()
-		for read && readyToPush && !s.closed.Load() {
-			// push dequeued message
-			readyToPush = s.feeder.Push(message)
-			if readyToPush {
-				s.queue.DropFront()
-				// read queue again
-				message, read = s.queue.Dequeue()
+		// Drain as much of the backlog into the feeder as it will accept.
+		// feederReady tracks whether the feeder has room right now: false
+		// means the last Push failed (feeder full), in which case the
+		// message that failed to push is left at Front() - Front() only
+		// peeks, DropFront() removes an item once it is actually pushed, so
+		// a backlog message is never skipped or double-consumed.
+		feederReady := true
+		for !s.closed.Load() {
+			message, read := s.queue.Front()
+			if !read {
+				break
 			}
+			feederReady = s.feeder.Push(message)
+			if !feederReady {
+				break
+			}
+			s.queue.DropFront()
 		}
 
-		if readyToPush && wrapper.hasMessage && !s.closed.Load() {
+		if !wrapper.hasMessage || s.closed.Load() {
+			return
+		}
 
-			// try to push new message
-			readyToPush = s.feeder.Push(wrapper.message)
-			if !readyToPush {
-				// cannot push, then enqueue
-
-				// drop oldest message if queue is full
-				depth := s.queue.Depth()
-				if s.MAX_QUEUE_DEPTH != 0 && (depth+1) > s.MAX_QUEUE_DEPTH {
-					s.queue.DropFront()
-				}
-
-				// enqueue message
-				s.queue.Enqueue(message.Key(), wrapper.message)
+		if feederReady {
+			// Backlog is fully drained and the feeder just accepted
+			// everything - try the new message directly.
+			feederReady = s.feeder.Push(wrapper.message)
+		}
+		if !feederReady {
+			// Feeder had no room (either for a backlog message above, or for
+			// the new one just now) - append the new message to the backlog
+			// under its own key instead of dropping it. Using the stale
+			// drain-loop "message" var here (rather than wrapper.message)
+			// was a bug: it is the zero value whenever the backlog was
+			// empty, filing the entry under the wrong key at best and
+			// panicking on Key() for pointer-backed message types at worst.
+			if s.MAX_QUEUE_DEPTH != 0 && s.queue.Depth() >= s.MAX_QUEUE_DEPTH {
+				s.queue.DropFront()
 			}
+			s.queue.Enqueue(wrapper.message.Key(), wrapper.message)
 		}
 	}
 
@@ -198,17 +221,23 @@ func (s *ConsumerBase[K, M]) Handle(ctx context.Context, message M) error {
 }
 
 func (s *ConsumerBase[K, M]) Close(ctx context.Context) {
+
+	// check if called once, if it was already true, the second caller skips this and exits immediately
 	if !s.closed.CompareAndSwap(false, true) {
-		s.closed.Store(true)
+		return
+	}
 
-		deadlineCtx, cancel := context.WithTimeout(ctx, time.Duration(s.SHUTDOWN_TIMEOUT)*time.Second)
-		defer cancel()
+	// this unblocks ANY select statement listening to <-s.closeChannel instantly
+	close(s.closeChannel)
 
-		go func() {
-			s.closeChannel <- struct{}{}
-			cancel()
-		}()
+	// wait for the consumer goroutine to finish processing
+	deadlineCtx, cancel := context.WithTimeout(ctx, time.Duration(s.SHUTDOWN_TIMEOUT)*time.Second)
+	defer cancel()
 
-		<-deadlineCtx.Done()
+	select {
+	case <-s.doneChannel:
+		// consumer exited cleanly within the timeout window
+	case <-deadlineCtx.Done():
+		// timeout reached before consumer could finish draining its queue
 	}
 }

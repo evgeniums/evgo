@@ -48,7 +48,9 @@ func (st *SelectorTrie[T]) Register(item Matchable, obj T) (*RegistrySubscriptio
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
-	subscription := &RegistrySubscription{index: st.indexCounter.Add(1), path: make([]Optional[string], len(selectors))}
+	// path records only the prefix actually descended, so that Unregister can
+	// retrace exactly the same nodes Register visited.
+	subscription := &RegistrySubscription{index: st.indexCounter.Add(1)}
 
 	curr := st.root
 	for i := 0; i < st.maxSelectors && i < len(selectors); i++ {
@@ -56,53 +58,66 @@ func (st *SelectorTrie[T]) Register(item Matchable, obj T) (*RegistrySubscriptio
 			break
 		}
 		s := selectors[i]
-		subscription.path[i] = s
-		if _, ok := curr.children[s]; !ok {
-			child := newNode[T]()
+		subscription.path = append(subscription.path, s)
+		child, ok := curr.children[s]
+		if !ok {
+			child = newNode[T]()
 			curr.children[s] = child
 		}
-		curr = curr.children[s]
+		curr = child
 	}
 
 	curr.objects[subscription.index] = obj
 	return subscription, nil
 }
 
-type reverseNode[T any] struct {
+// pathStep records the parent node and the selector used to descend from it,
+// so that Unregister can prune the exact nodes it walked through.
+type pathStep[T any] struct {
+	parent   *node[T]
 	selector Optional[string]
-	current  *node[T]
 }
 
-// Register adds an object to the trie. It stops at the last 'Some' selector for efficiency.
+// Unregister removes a previously registered object from the trie and returns it
+// (the zero value of T if the subscription is nil, unknown, or already removed).
+// It retraces exactly the path Register descended (see pathStep) and then prunes
+// bottom-up any node left with no objects and no children.
 func (st *SelectorTrie[T]) Unregister(subscription *RegistrySubscription) T {
+	var zero T
+	if subscription == nil {
+		return zero
+	}
+
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
-	depth := min(len(subscription.path), st.maxSelectors)
-	depth++
-	reversePath := make([]reverseNode[T], depth)
-
+	path := make([]pathStep[T], 0, len(subscription.path))
 	curr := st.root
-	reversePath[0] = reverseNode[T]{Optional[string]{}, curr}
-	for i, selector := range subscription.path {
-		if i == st.maxSelectors {
-			break
-		}
-
-		reversePath[i+1] = reverseNode[T]{selector, curr}
+	for _, selector := range subscription.path {
 		next, ok := curr.children[selector]
-		if ok {
-			curr = next
+		if !ok {
+			// Path diverges from what Register created - nothing to remove.
+			return zero
 		}
+		path = append(path, pathStep[T]{parent: curr, selector: selector})
+		curr = next
 	}
 
-	found, _ := curr.objects[subscription.index]
+	found, ok := curr.objects[subscription.index]
+	if !ok {
+		return zero
+	}
 	delete(curr.objects, subscription.index)
 
-	for i := len(reversePath) - 1; i > 0; i-- {
-		if len(reversePath[i].current.objects) == 0 {
-			delete(reversePath[i-1].current.children, reversePath[i].selector)
+	// Prune bottom-up: a node is removed from its parent only while it is
+	// completely empty (no objects of its own and no remaining children).
+	for i := len(path) - 1; i >= 0; i-- {
+		if len(curr.objects) != 0 || len(curr.children) != 0 {
+			break
 		}
+		parent := path[i].parent
+		delete(parent.children, path[i].selector)
+		curr = parent
 	}
 
 	return found
