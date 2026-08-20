@@ -516,12 +516,16 @@ func (t *TenancyManager) CreateTenancy(sctx context.Context, data *multitenancy.
 			err = errors.New("unsupported type of  app event dispatcher")
 			return nil, err
 		}
-		eventDispatcher := default_event_dispatcher.New()
-		err = eventDispatcher.InitWithCtx(sctx, defaultAppEventDispatcher.DispatcherBaseConfig, defaultAppEventDispatcher.DispatcherOptions)
+		defaultEventDispatcher := default_event_dispatcher.New()
+		err = defaultEventDispatcher.InitWithCtx(sctx, defaultAppEventDispatcher.DispatcherBaseConfig, defaultAppEventDispatcher.DispatcherOptions)
 		if err != nil {
 			c.SetMessage("failed to init default event dispatcher for tenancy")
 			return nil, err
 		}
+		// Assign to the outer eventDispatcher (not ":="): the shadowed local
+		// this used to create meant TenancyBaseData.EventDispatcher was always
+		// left nil below.
+		eventDispatcher = defaultEventDispatcher
 	}
 	tenancy.TenancyBaseData.EventDispatcher = eventDispatcher
 
