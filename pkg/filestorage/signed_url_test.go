@@ -2,6 +2,7 @@ package filestorage
 
 import (
 	"context"
+	"net/url"
 	"testing"
 )
 
@@ -73,5 +74,54 @@ func TestSignedUrlRejectsExpired(t *testing.T) {
 
 	if err := h.CheckUrlString(ctx, signed, params); err == nil {
 		t.Fatalf("expected CheckUrl to reject an expired URL")
+	}
+}
+
+// TestSignedUrlRejectsTamperedPath locks down that the URL path itself participates in the HMAC
+// (calcHmac/checkHmac both fold in u.Path) - swapping the path after signing must invalidate the
+// signature, even though the query string (where the signature lives) is untouched.
+func TestSignedUrlRejectsTamperedPath(t *testing.T) {
+	ctx := context.Background()
+	h := newTestHandler(t)
+	params := &testSignParams{values: []string{"PUT", "12345"}}
+
+	signed, err := h.SignUrl(ctx, "https://example.com/upload/part1", params)
+	if err != nil {
+		t.Fatalf("SignUrl failed: %v", err)
+	}
+
+	u, err := url.Parse(signed)
+	if err != nil {
+		t.Fatalf("failed to parse signed URL: %v", err)
+	}
+	u.Path = "/upload/part2"
+
+	if err := h.CheckUrl(ctx, u, params); err == nil {
+		t.Fatalf("expected CheckUrl to reject a signed URL whose path was changed after signing")
+	}
+}
+
+// TestSignedUrlNoExpirationParamNeverExpires documents that EXPIRATION=0 means SignUrl never
+// writes an expiry parameter at all (see the `if s.EXPIRATION != 0` guard), so CheckUrl's
+// expiry check - gated on the parameter being present - never rejects such a URL for being old.
+func TestSignedUrlNoExpirationParamNeverExpires(t *testing.T) {
+	ctx := context.Background()
+	h := newTestHandler(t)
+	h.EXPIRATION = 0
+
+	params := &testSignParams{values: []string{"GET"}}
+	signed, err := h.SignUrl(ctx, "https://example.com/fetch/id1", params)
+	if err != nil {
+		t.Fatalf("SignUrl failed: %v", err)
+	}
+	parsed, err := url.Parse(signed)
+	if err != nil {
+		t.Fatalf("failed to parse signed URL: %v", err)
+	}
+	if parsed.Query().Get(h.EXPIRY_PARAM) != "" {
+		t.Fatalf("expected no expiry parameter in a URL signed with EXPIRATION=0, got %s", signed)
+	}
+	if err := h.CheckUrlString(ctx, signed, params); err != nil {
+		t.Fatalf("expected a non-expiring signed URL to always pass CheckUrl, got %v", err)
 	}
 }

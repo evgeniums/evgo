@@ -55,6 +55,7 @@ func (u *FilesystemStorage) Init(app app_context.Context, parentConfigPath strin
 		if err != nil {
 			return err
 		}
+		u.helper = helper
 	}
 
 	// done

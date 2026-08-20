@@ -10,8 +10,9 @@ import (
 
 type testFileInfo struct {
 	common.ObjectBase
-	size  int64
-	topic string
+	size           int64
+	topic          string
+	uploadPartSize int64
 }
 
 func (f *testFileInfo) GetContentType() string   { return "application/octet-stream" }
@@ -19,7 +20,7 @@ func (f *testFileInfo) GetSize() int64           { return f.size }
 func (f *testFileInfo) GetFileName() string      { return "test.bin" }
 func (f *testFileInfo) GetTopic() string         { return f.topic }
 func (f *testFileInfo) GetNativeId() string      { return "" }
-func (f *testFileInfo) GetUploadPartSize() int64 { return 0 }
+func (f *testFileInfo) GetUploadPartSize() int64 { return f.uploadPartSize }
 
 func newTestUrlManager(t *testing.T, h *SignedUrlHandlerBase) *UrlManagerBase {
 	t.Helper()
@@ -105,6 +106,95 @@ func TestTopicSegmentGatedByEnableTopic(t *testing.T) {
 				t.Fatalf("download url topic segment presence = %v, want %v (url: %s)", gotDownload, c.wantTopic, downloadResp.Url)
 			}
 		})
+	}
+}
+
+// TestGetUploadUrlsPagination locks down GetUploadUrlsOptions{FromPart,MaxCount}: the returned
+// Urls slice is windowed to [FromPart, FromPart+MaxCount), but TotalUrlCount always reports the
+// full part count for the file regardless of the window.
+func TestGetUploadUrlsPagination(t *testing.T) {
+	ctx := context.Background()
+	h := newTestHandler(t)
+	// testUploadPartHelper.PartCount always returns 1, so use the real helper here to get more
+	// than one part to paginate over.
+	u := newTestUploadUrlManager(t, h, false)
+	u.helper = &UploadPartHelperConfig{UPLOAD_PART_LENGTH: 10}
+
+	info := &testFileInfo{size: 35} // 4 parts of size 10,10,10,5
+	info.InitObject()
+
+	resp, err := u.GetUploadUrls(ctx, info, GetUploadUrlsOptions{FromPart: 1, MaxCount: 2})
+	if err != nil {
+		t.Fatalf("GetUploadUrls failed: %v", err)
+	}
+	if resp.TotalUrlCount != 4 {
+		t.Fatalf("TotalUrlCount = %d, want 4 (full part count, independent of the window)", resp.TotalUrlCount)
+	}
+	if resp.FromPartIndex != 1 {
+		t.Fatalf("FromPartIndex = %d, want 1", resp.FromPartIndex)
+	}
+	if len(resp.Urls) != 2 {
+		t.Fatalf("len(Urls) = %d, want 2 (the requested window)", len(resp.Urls))
+	}
+	if !strings.Contains(resp.Urls[0], "/part/1") {
+		t.Fatalf("first windowed URL should target part 1: %s", resp.Urls[0])
+	}
+	if !strings.Contains(resp.Urls[1], "/part/2") {
+		t.Fatalf("second windowed URL should target part 2: %s", resp.Urls[1])
+	}
+}
+
+// TestGetUploadUrlsWindowClampedToTotal ensures a MaxCount that overruns the file's real part
+// count is clamped rather than producing out-of-range part indexes.
+func TestGetUploadUrlsWindowClampedToTotal(t *testing.T) {
+	ctx := context.Background()
+	h := newTestHandler(t)
+	u := newTestUploadUrlManager(t, h, false)
+	u.helper = &UploadPartHelperConfig{UPLOAD_PART_LENGTH: 10}
+
+	info := &testFileInfo{size: 25} // 3 parts: 10,10,5
+	info.InitObject()
+
+	resp, err := u.GetUploadUrls(ctx, info, GetUploadUrlsOptions{FromPart: 2, MaxCount: 10})
+	if err != nil {
+		t.Fatalf("GetUploadUrls failed: %v", err)
+	}
+	if len(resp.Urls) != 1 {
+		t.Fatalf("len(Urls) = %d, want 1 (only part 2 remains, clamped to TotalUrlCount=3)", len(resp.Urls))
+	}
+}
+
+// TestUrlManagerPublishesTlsPolicy confirms the TLS-policy config fields flow through verbatim
+// into both UploadUrlInfo and DownloadUrlInfo - these are trusted client-facing signals with no
+// other validation between config and wire type.
+func TestUrlManagerPublishesTlsPolicy(t *testing.T) {
+	ctx := context.Background()
+	h := newTestHandler(t)
+
+	uu := newTestUploadUrlManager(t, h, false)
+	uu.USE_SYSTEM_CA = true
+	uu.SKIP_HOST_NAME_VERIFICATION = true
+
+	info := &testFileInfo{size: 10}
+	info.InitObject()
+
+	uploadResp, err := uu.GetUploadUrls(ctx, info)
+	if err != nil {
+		t.Fatalf("GetUploadUrls failed: %v", err)
+	}
+	if !uploadResp.UseSystemCa || !uploadResp.SkipHostNameVerification {
+		t.Fatalf("expected TLS policy flags to propagate into UploadUrlInfo, got %+v", uploadResp)
+	}
+
+	du := newTestUrlManager(t, h)
+	du.USE_SYSTEM_CA = true
+	du.SKIP_HOST_NAME_VERIFICATION = true
+	downloadResp, err := du.GetDownloadUrl(ctx, info)
+	if err != nil {
+		t.Fatalf("GetDownloadUrl failed: %v", err)
+	}
+	if !downloadResp.UseSystemCa || !downloadResp.SkipHostNameVerification {
+		t.Fatalf("expected TLS policy flags to propagate into DownloadUrlInfo, got %+v", downloadResp)
 	}
 }
 
