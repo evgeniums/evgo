@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -144,6 +145,9 @@ func (f *FileDataControllerBase) Fetch(ctx context.Context) error {
 	}
 	if err != nil {
 		c.SetMessage("failed to fetch data")
+		if os.IsNotExist(err) {
+			request.SetGenericErrorCode(generic_error.ErrorCodeNotFound)
+		}
 		return c.SetError(err)
 	}
 
