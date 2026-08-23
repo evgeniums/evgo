@@ -279,6 +279,21 @@ func (f *FilesystemStorage) Fetch(ctx context.Context, info FileInfo, offset ...
 	return src, nil
 }
 
+// Exists implements StorageManager.Exists via a plain os.Stat on the same Path() every other
+// content-addressing method resolves through - tenancy/topic aware for free. !st.IsDir() guards
+// against a stray leftover TempPath() directory (a different path shape, but belt-and-braces)
+// reading as "present".
+func (f *FilesystemStorage) Exists(ctx context.Context, info FileInfo) (bool, error) {
+	st, err := os.Stat(f.Path(ctx, info))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return !st.IsDir(), nil
+}
+
 type limitedReadCloser struct {
 	io.Reader
 	io.Closer

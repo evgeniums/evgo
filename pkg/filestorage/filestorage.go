@@ -116,6 +116,12 @@ type StorageManager interface {
 	Fetch(ctx context.Context, info FileInfo, offset ...int64) (io.ReadCloser, error)
 	FetchRange(ctx context.Context, info FileInfo, offset int64, length int64) (io.ReadCloser, error)
 
+	// Exists reports whether the FINALIZED content of info is present, addressed exactly the
+	// way Path()/Fetch()/DeleteFile() resolve it (tenancy/topic aware). false with a nil error
+	// means "definitely not there"; a non-nil error means the backend could not answer and the
+	// caller must not treat that as absence.
+	Exists(ctx context.Context, info FileInfo) (bool, error)
+
 	Delete(ctx context.Context, pathPrefix string) error
 
 	// DeleteFile removes the finalized content of info, addressed the same way Path()/Fetch()
