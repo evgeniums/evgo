@@ -190,3 +190,95 @@ func TestObjectConfig(t *testing.T) {
 		t.Fatalf("Failed to load s3 configuration: %s", err)
 	}
 }
+
+// sliceElemConfig mirrors the shape that first exposed the bug this test guards against:
+// whitemservergo's turn.IceServer (repeated URLs plus scalar fields), loaded as an array
+// element of turn.CredentialConfig.SERVERS.
+type sliceElemConfig struct {
+	URLS       []string
+	USERNAME   string
+	CREDENTIAL string
+}
+
+type configSliceOfStructs struct {
+	NAME    string
+	SERVERS []sliceElemConfig
+}
+
+type sampleSliceOfStructs struct {
+	configSliceOfStructs
+}
+
+func (s *sampleSliceOfStructs) Config() interface{} {
+	return &s.configSliceOfStructs
+}
+
+// TestObjectConfigSliceOfStructs guards against a real panic: loadValue's reflect.Slice case
+// used to assume every non-[]int slice was []string and called GetStringSlice() unconditionally,
+// then fieldValue.Set() on the result -- a type-mismatched reflect.Value.Set that panics for any
+// []SomeStruct field. This was latent until whitemservergo's call.turn.servers ([]turn.IceServer)
+// config section was first enabled, which crashed the app server at startup.
+func TestObjectConfigSliceOfStructs(t *testing.T) {
+
+	sampleConfig := `
+	{
+		"name": "test",
+		"servers": [
+			{"urls": ["turn:a.example.com:3478","turn:a.example.com:3479"], "username": "user1", "credential": "cred1"},
+			{"urls": ["turn:b.example.com:3478"], "username": "user2", "credential": "cred2"}
+		]
+	}
+	`
+	cfg := config_viper.New()
+	err := cfg.LoadString(sampleConfig)
+	if err != nil {
+		t.Fatalf("failed to load configuration from string: %s", err)
+	}
+
+	s := &sampleSliceOfStructs{}
+	err = object_config.Load(cfg, s, "")
+	if err != nil {
+		t.Fatalf("failed to load object configuration: %s", err)
+	}
+
+	if s.NAME != "test" {
+		t.Errorf("invalid name: expected %s, got %s", "test", s.NAME)
+	}
+	if len(s.SERVERS) != 2 {
+		t.Fatalf("invalid servers length: expected 2, got %d", len(s.SERVERS))
+	}
+	if !reflect.DeepEqual(s.SERVERS[0].URLS, []string{"turn:a.example.com:3478", "turn:a.example.com:3479"}) {
+		t.Errorf("invalid servers[0].urls: got %v", s.SERVERS[0].URLS)
+	}
+	if s.SERVERS[0].USERNAME != "user1" {
+		t.Errorf("invalid servers[0].username: expected %s, got %s", "user1", s.SERVERS[0].USERNAME)
+	}
+	if s.SERVERS[0].CREDENTIAL != "cred1" {
+		t.Errorf("invalid servers[0].credential: expected %s, got %s", "cred1", s.SERVERS[0].CREDENTIAL)
+	}
+	if !reflect.DeepEqual(s.SERVERS[1].URLS, []string{"turn:b.example.com:3478"}) {
+		t.Errorf("invalid servers[1].urls: got %v", s.SERVERS[1].URLS)
+	}
+	if s.SERVERS[1].USERNAME != "user2" {
+		t.Errorf("invalid servers[1].username: expected %s, got %s", "user2", s.SERVERS[1].USERNAME)
+	}
+	if s.SERVERS[1].CREDENTIAL != "cred2" {
+		t.Errorf("invalid servers[1].credential: expected %s, got %s", "cred2", s.SERVERS[1].CREDENTIAL)
+	}
+
+	// Absent array: must not panic, and the field must stay at its zero value.
+	emptyConfig := `{"name":"empty"}`
+	cfgEmpty := config_viper.New()
+	err = cfgEmpty.LoadString(emptyConfig)
+	if err != nil {
+		t.Fatalf("failed to load empty configuration from string: %s", err)
+	}
+	sEmpty := &sampleSliceOfStructs{}
+	err = object_config.Load(cfgEmpty, sEmpty, "")
+	if err != nil {
+		t.Fatalf("failed to load empty object configuration: %s", err)
+	}
+	if len(sEmpty.SERVERS) != 0 {
+		t.Errorf("expected empty servers, got %v", sEmpty.SERVERS)
+	}
+}

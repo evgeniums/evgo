@@ -152,10 +152,33 @@ func loadValue(cfg config.Config, configPath string, objectValue reflect.Value) 
 			}
 		case reflect.Slice:
 			if cfg.IsSet(fieldConfigPath) {
-				if field.Type.Elem().Kind() == reflect.Int {
+				switch field.Type.Elem().Kind() {
+				case reflect.Int:
 					slice := cfg.GetIntSlice(fieldConfigPath)
 					fieldValue.Set(reflect.ValueOf(slice))
-				} else {
+				case reflect.Struct:
+					// A slice of struct cannot be read via GetStringSlice/GetIntSlice (that
+					// previously fell through to the string branch below and panicked in
+					// fieldValue.Set with a type mismatch). Decode each array element by
+					// recursing into loadValue against its own numeric-indexed sub-path,
+					// same as the field.Anonymous case above does for embedded structs.
+					rawSlice, ok := cfg.Get(fieldConfigPath).([]interface{})
+					if !ok {
+						return nil, fmt.Errorf("invalid array configuration at %s: expected an array of objects", fieldConfigPath)
+					}
+					elemType := field.Type.Elem()
+					newSlice := reflect.MakeSlice(field.Type, 0, len(rawSlice))
+					for idx := range rawSlice {
+						elemPtr := reflect.New(elemType)
+						elemSkipped, err := loadValue(cfg, KeyInt(fieldConfigPath, idx), elemPtr)
+						if err != nil {
+							return nil, err
+						}
+						skippedKeys = append(skippedKeys, elemSkipped...)
+						newSlice = reflect.Append(newSlice, elemPtr.Elem())
+					}
+					fieldValue.Set(newSlice)
+				default:
 					slice := cfg.GetStringSlice(fieldConfigPath)
 					fieldValue.Set(reflect.ValueOf(slice))
 				}
