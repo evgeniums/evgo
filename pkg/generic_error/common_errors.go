@@ -51,6 +51,18 @@ var CommonErrorDescriptions = map[string]string{
 	ErrorCodeUnavailable:                "Service or operation unavailable",
 }
 
+// CommonErrorDispositions holds the explicit disposition overrides that ErrorDisposition's
+// derivation rule (see error_manager.go) cannot get right from a code's registered HTTP status
+// alone. Every other code in this file lands on the correct disposition through that derivation;
+// see whitemdesktop/docs/error-contract.md for the audit that established this.
+var CommonErrorDispositions = map[string]Disposition{
+	// ErrorCodeExpired has no registered HTTP status below (it falls to the manager's silent
+	// 400 default), so without this override it would derive to DispositionUnknown. It means
+	// "the signed URL aged out, ask for a fresh one" (and also DeadlineExceeded via
+	// GRPCToGeneric) - always safe to retry.
+	ErrorCodeExpired: DispositionRetry,
+}
+
 var CommonErrorHttpCodes = map[string]int{
 	ErrorCodeUnknown:                    http.StatusInternalServerError,
 	ErrorCodeInternalServerError:        http.StatusInternalServerError,
