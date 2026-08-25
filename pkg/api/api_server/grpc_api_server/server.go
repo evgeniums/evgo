@@ -66,6 +66,10 @@ type ServerConfig struct {
 	ERROR_FAMILY_HEADER       string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-hatn-efamily"`
 	ERROR_DESCRIPTION_HEADER  string `default:"x-hatn-edescription"`
 	ERROR_DETAILS_HEADER      string `default:"x-hatn-edetails"`
+	// See whitemdesktop/docs/error-contract.md - the terminal/retryable disposition and,
+	// for DispositionRetryAfter, the delay in seconds.
+	ERROR_DISPOSITION_HEADER  string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-hatn-edisposition"`
+	ERROR_RETRY_AFTER_HEADER  string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-hatn-eretry-after"`
 	RESOURCE_ID_HEADER_PREFIX string `default:"x-hatn-rid"`
 	GRPC_CODE_HEADER          string `validate:"omitempty,hostname_rfc1123|alphanum" default:"x-grpc-code"`
 

@@ -24,6 +24,17 @@ func CheckGenericError(t *testing.T, err error, expectedCode string, expectedMes
 	}
 }
 
+// CheckGenericErrorTaxonomy asserts the family/disposition half of the error contract in
+// whitemdesktop/docs/error-contract.md, on top of CheckGenericError's code/message check - i.e.
+// that the code was registered with the family it claims to belong to and derives (or was
+// explicitly overridden to) the expected disposition, not just that its bare code string matches.
+func CheckGenericErrorTaxonomy(t *testing.T, err error, expectedCode string, expectedFamily string, expectedDisposition generic_error.Disposition) {
+	CheckGenericError(t, err, expectedCode)
+	gErr := err.(generic_error.Error)
+	assert.Equal(t, expectedFamily, gErr.Family())
+	assert.Equal(t, expectedDisposition, gErr.Disposition())
+}
+
 func DumpError(t *testing.T, err error, message ...string) {
 	if err == nil {
 		t.Logf("%s: no error", utils.OptionalArg("Dump error", message...))

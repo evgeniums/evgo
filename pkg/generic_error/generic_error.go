@@ -6,6 +6,43 @@ import (
 	"github.com/evgeniums/evgo/pkg/utils"
 )
 
+// Disposition states what a client should do about an error - the terminal/retryable
+// distinction that used to be inferred client-side from message text or HTTP status. See
+// whitemdesktop/docs/error-contract.md for the full contract this implements.
+type Disposition string
+
+const (
+	// DispositionUnknown means the server did not state a disposition - either because the
+	// code has no registered HTTP status to derive one from, or because the peer predates
+	// this contract. It is the zero value: a client must fall back to its own heuristics,
+	// exactly as if this field did not exist.
+	DispositionUnknown Disposition = ""
+	// DispositionPermanent means this request will never succeed as issued.
+	DispositionPermanent Disposition = "permanent"
+	// DispositionUnsupported means the server does not implement this call, or the API
+	// version is too old. Terminal like DispositionPermanent, but distinct: a client should
+	// stop offering the feature, not just fail this one call.
+	DispositionUnsupported Disposition = "unsupported"
+	// DispositionRetry means the failure is transient; retry with backoff.
+	DispositionRetry Disposition = "retry"
+	// DispositionRetryAfter means retryable, but not yet - RetryAfter carries the delay in
+	// seconds.
+	DispositionRetryAfter Disposition = "retry_after"
+	// DispositionUserAction means retryable only after the user does something: re-auth,
+	// free storage, raise a quota.
+	DispositionUserAction Disposition = "user_action"
+)
+
+// IsTerminal reports whether a client must not retry automatically.
+func (d Disposition) IsTerminal() bool {
+	return d == DispositionPermanent || d == DispositionUnsupported
+}
+
+// IsStated reports whether the server expressed an opinion at all.
+func (d Disposition) IsStated() bool {
+	return d != DispositionUnknown
+}
+
 // Generic error that can be forwarded from place of arising to place of user reporting.
 type Error interface {
 	error
@@ -13,24 +50,30 @@ type Error interface {
 	Message() string
 	Details() string
 	Family() string
+	Disposition() Disposition
+	RetryAfter() int
 	Original() error
 	Data() interface{}
 
 	SetMessage(msg string)
 	SetDetails(details string)
 	SetFamily(value string)
+	SetDisposition(value Disposition)
+	SetRetryAfter(seconds int)
 	SetOriginal(err error)
 
 	SetData(data interface{})
 }
 
 type ErrorHolder struct {
-	Code     string      `json:"code" validate:"omitempty,alphanum_,max=64" vmessage:"Invalid error code"`
-	Message  string      `json:"message"`
-	Details  string      `json:"details,omitempty"`
-	Family   string      `json:"family,omitempty"`
-	Original error       `json:"-"`
-	Data     interface{} `json:"data,omitempty"`
+	Code        string      `json:"code" validate:"omitempty,alphanum_,max=64" vmessage:"Invalid error code"`
+	Message     string      `json:"message"`
+	Details     string      `json:"details,omitempty"`
+	Family      string      `json:"family,omitempty"`
+	Disposition Disposition `json:"disposition,omitempty"`
+	RetryAfter  int         `json:"retry_after,omitempty"`
+	Original    error       `json:"-"`
+	Data        interface{} `json:"data,omitempty"`
 }
 
 type ErrorBase struct {
@@ -103,6 +146,22 @@ func (e *ErrorBase) Family() string {
 	return e.ErrorHolder.Family
 }
 
+func (e *ErrorBase) SetDisposition(value Disposition) {
+	e.ErrorHolder.Disposition = value
+}
+
+func (e *ErrorBase) Disposition() Disposition {
+	return e.ErrorHolder.Disposition
+}
+
+func (e *ErrorBase) SetRetryAfter(seconds int) {
+	e.ErrorHolder.RetryAfter = seconds
+}
+
+func (e *ErrorBase) RetryAfter() int {
+	return e.ErrorHolder.RetryAfter
+}
+
 // Set error details.
 func (e *ErrorBase) SetDetails(details string) {
 	e.ErrorHolder.Details = details
@@ -161,7 +220,7 @@ func Original(e error) error {
 	}
 	err, ok := e.(Error)
 	if !ok {
-		return err
+		return e
 	}
 	return err.Original()
 }

@@ -405,7 +405,13 @@ func (u *Handler) handleServerStream(srv interface{}, stream grpc.ServerStream) 
 			if err != nil {
 				fillResponseStatus(request, err)
 				callCtx.SetMessage("failed convert logic to transport")
-				return status.Error(codes.Internal, "internal data error")
+				// Headers were already flushed by the stream's initial response, so the
+				// classified status/family/disposition can only reach the client as a
+				// trailer at this point - fillResponse(...,trailing=true) is what makes
+				// that possible; previously this returned a bare codes.Internal and
+				// discarded everything fillResponseStatus had just computed.
+				u.fillResponse(request, callCtx, true)
+				return status.Error(request.statusCode, request.statusMessage)
 			}
 
 			err = SendStreamingResponse(request, stream, msgContent.TransportMessage(), StreamingMessage)
@@ -529,6 +535,12 @@ func (u *Handler) fillResponse(request *Request, callCtx op_context.CallContext,
 		errFamily := err.Family()
 		if errFamily != "" {
 			md.Append(u.server.ERROR_FAMILY_HEADER, errFamily)
+		}
+		if disposition := err.Disposition(); disposition.IsStated() {
+			md.Append(u.server.ERROR_DISPOSITION_HEADER, string(disposition))
+			if disposition == generic_error.DispositionRetryAfter && err.RetryAfter() > 0 {
+				md.Append(u.server.ERROR_RETRY_AFTER_HEADER, strconv.Itoa(err.RetryAfter()))
+			}
 		}
 
 		if err.Data() != nil {
