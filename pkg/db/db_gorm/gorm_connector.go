@@ -33,7 +33,14 @@ func DbDsnBuilder(config *db.DBConfig) (string, error) {
 		if config.DB_DSN != "" {
 			return config.DB_DSN, nil
 		}
-		dsn := fmt.Sprintf("%s?_txlock=immediate", config.DB_NAME)
+		// _busy_timeout makes a writer wait for a concurrent writer to finish instead of failing
+		// immediately with "database is locked" -- SQLite's default (0) fails instantly on any
+		// lock conflict, which single-connection-pool call sites rarely hit but which a
+		// multi-goroutine writer (a background work scheduler racing an API request's own
+		// transaction, e.g.) can hit routinely. Purely additive: a lock that would have succeeded
+		// immediately still does, this only changes what happens when two writers genuinely
+		// overlap.
+		dsn := fmt.Sprintf("%s?_txlock=immediate&_busy_timeout=5000", config.DB_NAME)
 		return dsn, nil
 	}
 
