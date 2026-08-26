@@ -381,6 +381,137 @@ func (x *Repeated) GetVbytes() [][]byte {
 	return nil
 }
 
+// Round-trips hatn's TYPE_OBJECT_ID through a genuine protobuf peer. Declared as
+// `repeated string` because that is what an ObjectId is on the wire -- a 25-char id.
+//
+// Protobuf allows packed encoding only for numeric scalars; repeated string/bytes MUST be
+// unpacked (one tag per element). This message exists to assert the client encodes it that
+// way: a packed encoding arrives here as ONE string holding both ids concatenated, each
+// preceded by a stray length byte, instead of two clean 25-char entries.
+type RepeatedOid struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Voids         []string               `protobuf:"bytes,1,rep,name=voids,proto3" json:"voids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RepeatedOid) Reset() {
+	*x = RepeatedOid{}
+	mi := &file_grpctest_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RepeatedOid) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RepeatedOid) ProtoMessage() {}
+
+func (x *RepeatedOid) ProtoReflect() protoreflect.Message {
+	mi := &file_grpctest_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RepeatedOid.ProtoReflect.Descriptor instead.
+func (*RepeatedOid) Descriptor() ([]byte, []int) {
+	return file_grpctest_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RepeatedOid) GetVoids() []string {
+	if x != nil {
+		return x.Voids
+	}
+	return nil
+}
+
+// Round-trips hatn's remaining custom field types. Unlike ObjectId (length-delimited, and so
+// necessarily unpacked), all four of these serialize as plain varints, which makes packed
+// encoding correct for them -- this message exists to keep that asserted rather than assumed.
+//
+// Wire encodings, all varint:
+//
+//	datetimes  int64  - hatn DateTime::toNumber(); use utils.FromHatnProtoDatetime /
+//	                    ToHatnProtoDatetime on the Go side, it is a packed millis+timezone
+//	                    value, NOT a plain unix timestamp.
+//	dates      uint32 - year*10000 + month*100 + day
+//	times      uint64 - hour*10000000 + minute*100000 + second*1000 + millisecond
+//	dateranges uint32 - opaque DateRange::value()
+type CustomTypes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Datetimes     []int64                `protobuf:"varint,1,rep,packed,name=datetimes,proto3" json:"datetimes,omitempty"`
+	Dates         []uint32               `protobuf:"varint,2,rep,packed,name=dates,proto3" json:"dates,omitempty"`
+	Times         []uint64               `protobuf:"varint,3,rep,packed,name=times,proto3" json:"times,omitempty"`
+	Dateranges    []uint32               `protobuf:"varint,4,rep,packed,name=dateranges,proto3" json:"dateranges,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomTypes) Reset() {
+	*x = CustomTypes{}
+	mi := &file_grpctest_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomTypes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomTypes) ProtoMessage() {}
+
+func (x *CustomTypes) ProtoReflect() protoreflect.Message {
+	mi := &file_grpctest_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomTypes.ProtoReflect.Descriptor instead.
+func (*CustomTypes) Descriptor() ([]byte, []int) {
+	return file_grpctest_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CustomTypes) GetDatetimes() []int64 {
+	if x != nil {
+		return x.Datetimes
+	}
+	return nil
+}
+
+func (x *CustomTypes) GetDates() []uint32 {
+	if x != nil {
+		return x.Dates
+	}
+	return nil
+}
+
+func (x *CustomTypes) GetTimes() []uint64 {
+	if x != nil {
+		return x.Times
+	}
+	return nil
+}
+
+func (x *CustomTypes) GetDateranges() []uint32 {
+	if x != nil {
+		return x.Dateranges
+	}
+	return nil
+}
+
 type Embedded struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	F1            *Basic                 `protobuf:"bytes,1,opt,name=f1,proto3" json:"f1,omitempty"`
@@ -392,7 +523,7 @@ type Embedded struct {
 
 func (x *Embedded) Reset() {
 	*x = Embedded{}
-	mi := &file_grpctest_proto_msgTypes[2]
+	mi := &file_grpctest_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -404,7 +535,7 @@ func (x *Embedded) String() string {
 func (*Embedded) ProtoMessage() {}
 
 func (x *Embedded) ProtoReflect() protoreflect.Message {
-	mi := &file_grpctest_proto_msgTypes[2]
+	mi := &file_grpctest_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -417,7 +548,7 @@ func (x *Embedded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Embedded.ProtoReflect.Descriptor instead.
 func (*Embedded) Descriptor() ([]byte, []int) {
-	return file_grpctest_proto_rawDescGZIP(), []int{2}
+	return file_grpctest_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Embedded) GetF1() *Basic {
@@ -450,7 +581,7 @@ type Map struct {
 
 func (x *Map) Reset() {
 	*x = Map{}
-	mi := &file_grpctest_proto_msgTypes[3]
+	mi := &file_grpctest_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -462,7 +593,7 @@ func (x *Map) String() string {
 func (*Map) ProtoMessage() {}
 
 func (x *Map) ProtoReflect() protoreflect.Message {
-	mi := &file_grpctest_proto_msgTypes[3]
+	mi := &file_grpctest_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -475,7 +606,7 @@ func (x *Map) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Map.ProtoReflect.Descriptor instead.
 func (*Map) Descriptor() ([]byte, []int) {
-	return file_grpctest_proto_rawDescGZIP(), []int{3}
+	return file_grpctest_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Map) GetF3() map[string]string {
@@ -531,7 +662,16 @@ const file_grpctest_proto_rawDesc = "" +
 	"\x06vboolt\x18\v \x03(\bR\x06vboolt\x12\x16\n" +
 	"\x06vboolf\x18\f \x03(\bR\x06vboolf\x12\x18\n" +
 	"\avstring\x18\r \x03(\tR\avstring\x12\x16\n" +
-	"\x06vbytes\x18\x0e \x03(\fR\x06vbytes\"p\n" +
+	"\x06vbytes\x18\x0e \x03(\fR\x06vbytes\"#\n" +
+	"\vRepeatedOid\x12\x14\n" +
+	"\x05voids\x18\x01 \x03(\tR\x05voids\"w\n" +
+	"\vCustomTypes\x12\x1c\n" +
+	"\tdatetimes\x18\x01 \x03(\x03R\tdatetimes\x12\x14\n" +
+	"\x05dates\x18\x02 \x03(\rR\x05dates\x12\x14\n" +
+	"\x05times\x18\x03 \x03(\x04R\x05times\x12\x1e\n" +
+	"\n" +
+	"dateranges\x18\x04 \x03(\rR\n" +
+	"dateranges\"p\n" +
 	"\bEmbedded\x12\x1f\n" +
 	"\x02f1\x18\x01 \x01(\v2\x0f.grpc_api.BasicR\x02f1\x12\"\n" +
 	"\x02f2\x18\x02 \x01(\v2\x12.grpc_api.RepeatedR\x02f2\x12\x1f\n" +
@@ -554,19 +694,21 @@ func file_grpctest_proto_rawDescGZIP() []byte {
 	return file_grpctest_proto_rawDescData
 }
 
-var file_grpctest_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_grpctest_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_grpctest_proto_goTypes = []any{
-	(*Basic)(nil),    // 0: grpc_api.Basic
-	(*Repeated)(nil), // 1: grpc_api.Repeated
-	(*Embedded)(nil), // 2: grpc_api.Embedded
-	(*Map)(nil),      // 3: grpc_api.Map
-	nil,              // 4: grpc_api.Map.F3Entry
+	(*Basic)(nil),       // 0: grpc_api.Basic
+	(*Repeated)(nil),    // 1: grpc_api.Repeated
+	(*RepeatedOid)(nil), // 2: grpc_api.RepeatedOid
+	(*CustomTypes)(nil), // 3: grpc_api.CustomTypes
+	(*Embedded)(nil),    // 4: grpc_api.Embedded
+	(*Map)(nil),         // 5: grpc_api.Map
+	nil,                 // 6: grpc_api.Map.F3Entry
 }
 var file_grpctest_proto_depIdxs = []int32{
 	0, // 0: grpc_api.Embedded.f1:type_name -> grpc_api.Basic
 	1, // 1: grpc_api.Embedded.f2:type_name -> grpc_api.Repeated
 	0, // 2: grpc_api.Embedded.f3:type_name -> grpc_api.Basic
-	4, // 3: grpc_api.Map.f3:type_name -> grpc_api.Map.F3Entry
+	6, // 3: grpc_api.Map.f3:type_name -> grpc_api.Map.F3Entry
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
@@ -585,7 +727,7 @@ func file_grpctest_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grpctest_proto_rawDesc), len(file_grpctest_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

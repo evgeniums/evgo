@@ -24,6 +24,14 @@ func NewGrpcTestService(multitenancy ...bool) *GrpcTestService {
 	repeated.AddOperation(NewRepeatedEndpoint())
 	s.AddChild(repeated)
 
+	repeatedOid := api.NewResource("repeated-oid")
+	repeatedOid.AddOperation(NewRepeatedOidEndpoint())
+	s.AddChild(repeatedOid)
+
+	customTypes := api.NewResource("custom-types")
+	customTypes.AddOperation(NewCustomTypesEndpoint())
+	s.AddChild(customTypes)
+
 	embedded := api.NewResource("embedded")
 	embedded.AddOperation(NewEmbeddedEndpoint())
 	s.AddChild(embedded)

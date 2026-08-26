@@ -46,6 +46,35 @@ message Repeated {
   repeated bytes vbytes=14;
 }
 
+// Round-trips hatn's TYPE_OBJECT_ID through a genuine protobuf peer. Declared as
+// `repeated string` because that is what an ObjectId is on the wire -- a 25-char id.
+//
+// Protobuf allows packed encoding only for numeric scalars; repeated string/bytes MUST be
+// unpacked (one tag per element). This message exists to assert the client encodes it that
+// way: a packed encoding arrives here as ONE string holding both ids concatenated, each
+// preceded by a stray length byte, instead of two clean 25-char entries.
+message RepeatedOid {
+  repeated string voids=1;
+}
+
+// Round-trips hatn's remaining custom field types. Unlike ObjectId (length-delimited, and so
+// necessarily unpacked), all four of these serialize as plain varints, which makes packed
+// encoding correct for them -- this message exists to keep that asserted rather than assumed.
+//
+// Wire encodings, all varint:
+//   datetimes  int64  - hatn DateTime::toNumber(); use utils.FromHatnProtoDatetime /
+//                       ToHatnProtoDatetime on the Go side, it is a packed millis+timezone
+//                       value, NOT a plain unix timestamp.
+//   dates      uint32 - year*10000 + month*100 + day
+//   times      uint64 - hour*10000000 + minute*100000 + second*1000 + millisecond
+//   dateranges uint32 - opaque DateRange::value()
+message CustomTypes {
+  repeated int64 datetimes=1;
+  repeated uint32 dates=2;
+  repeated uint64 times=3;
+  repeated uint32 dateranges=4;
+}
+
 message Embedded {
     grpc_api.Basic f1=1;
     grpc_api.Repeated f2=2;

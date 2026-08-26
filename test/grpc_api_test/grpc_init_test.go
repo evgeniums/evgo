@@ -10,7 +10,7 @@ import (
 
 func TestInitServer(t *testing.T) {
 
-	t.Skip("skipping gRPC test")
+	// t.Skip("skipping gRPC test")
 
 	app, _, server := InitServer(t)
 
