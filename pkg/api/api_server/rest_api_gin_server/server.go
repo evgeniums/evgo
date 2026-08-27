@@ -202,6 +202,10 @@ func (s *Server) logGinRequest(log logger.Logger, path string, start time.Time, 
 		fields["referer"] = referer
 	}
 	logger.AppendFields(fields, extraFields...)
+	// "stack" is only meaningful while pinpointing an error/debug record deep inside a call
+	// chain; on the request-completion summary line it is redundant with the endpoint/method
+	// fields above, so it is dropped here regardless of what extraFields carried.
+	delete(fields, "stack")
 
 	if len(ginCtx.Errors) > 0 {
 		log.Error(s.logPrefix, errors.New(ginCtx.Errors.ByType(gin.ErrorTypePrivate).String()), fields)
@@ -437,7 +441,7 @@ func requestHandler(s *Server, ep api_server.Endpoint) gin.HandlerFunc {
 		request.SetLoggerField("endpoint", ep.Resource().ServicePathPrototype())
 		sctx := op_context.MakeOpContext(request)
 
-		c := request.TraceInMethod("Server.RequestHandler")
+		c := request.TraceInFrameworkMethod("Server.RequestHandler")
 
 		// dum request in verbose mode
 		if s.VERBOSE {

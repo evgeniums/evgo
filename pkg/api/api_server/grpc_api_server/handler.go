@@ -41,7 +41,7 @@ func (c *RequestCodec) Unmarshal(data mem.BufferSlice, v any) (err error) {
 
 	if w, ok := v.(*RequestWrapper); ok {
 
-		callCtx := w.request.TraceInMethod("Unmarshal")
+		callCtx := w.request.TraceInFrameworkMethod("Unmarshal")
 		var err error
 		defer func() {
 			if r := recover(); r != nil {
@@ -191,7 +191,9 @@ func (u *Handler) handleUnary(srv interface{}, ctx context.Context, dec func(int
 	// create request
 	request, callCtx, err := newRequest(ctx, u.server, u.endpoint)
 	if err != nil {
+		callCtx.SetError(err)
 		resp := u.fillResponse(request, callCtx)
+		request.Close(request.sctx)
 		return resp, status.Error(request.statusCode, request.statusMessage)
 	}
 
@@ -442,7 +444,7 @@ func (u *Handler) handleRequest(sctx context.Context, transportRequest any) (any
 	request := op_context.OpContext[*Request](sctx)
 	request.sctx = sctx
 
-	c := request.TraceInMethod("handleRequest")
+	c := request.TraceInFrameworkMethod("handleRequest")
 	defer request.TraceOutMethod()
 
 	// dump headers

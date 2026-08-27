@@ -23,7 +23,17 @@ type CallContextBase struct {
 	error_  error
 	message string
 
+	frameworkFrame bool
+
 	proxyLogger *logger.ProxyLogger
+}
+
+func (c *CallContextBase) SetFrameworkFrame(enable bool) {
+	c.frameworkFrame = enable
+}
+
+func (c *CallContextBase) IsFrameworkFrame() bool {
+	return c.frameworkFrame
 }
 
 func (c *CallContextBase) SetLogger(logger.Logger) {}
@@ -237,7 +247,22 @@ func stackPath(stack []op_context.CallContext) string {
 	return path
 }
 
-func (c *ContextBase) TraceInMethod(methodName string, fields ...logger.Fields) op_context.CallContext {
+// displayStackPath renders the stack for log output. The leading run of framework frames
+// (transport, auth, interceptors) repeats on every request and carries no information, so it
+// is trimmed. When the whole path consists of framework frames the record originates inside
+// framework code itself and the full path is rendered.
+func displayStackPath(stack []op_context.CallContext) string {
+	trimmed := stack
+	for len(trimmed) != 0 && trimmed[0].IsFrameworkFrame() {
+		trimmed = trimmed[1:]
+	}
+	if len(trimmed) == 0 {
+		return stackPath(stack)
+	}
+	return stackPath(trimmed)
+}
+
+func (c *ContextBase) traceIn(methodName string, framework bool, fields ...logger.Fields) op_context.CallContext {
 
 	var deepestLogger logger.Logger
 	deepestLogger = c.proxyLogger
@@ -245,13 +270,22 @@ func (c *ContextBase) TraceInMethod(methodName string, fields ...logger.Fields) 
 		deepestLogger = c.stack[len(c.stack)-1].Logger()
 	}
 	ctx := c.callContextBuilder(methodName, deepestLogger, fields...)
+	ctx.SetFrameworkFrame(framework)
 
 	c.stack = append(c.stack, ctx)
 
-	c.SetLoggerField("stack", stackPath(c.stack))
+	c.SetLoggerField("stack", displayStackPath(c.stack))
 	c.Logger().Trace("callin")
 
 	return ctx
+}
+
+func (c *ContextBase) TraceInMethod(methodName string, fields ...logger.Fields) op_context.CallContext {
+	return c.traceIn(methodName, false, fields...)
+}
+
+func (c *ContextBase) TraceInFrameworkMethod(methodName string, fields ...logger.Fields) op_context.CallContext {
+	return c.traceIn(methodName, true, fields...)
 }
 
 func (c *ContextBase) Logger() logger.Logger {
@@ -282,7 +316,7 @@ func (c *ContextBase) TraceOutMethod() {
 	if len(c.stack) == 0 {
 		c.UnsetLoggerField("stack")
 	} else {
-		c.SetLoggerField("stack", stackPath(c.stack))
+		c.SetLoggerField("stack", displayStackPath(c.stack))
 	}
 }
 
@@ -317,7 +351,7 @@ func (c *ContextBase) DumpLog(successMessage ...string) {
 			}
 			deepestLogger = item.Logger()
 		}
-		loggerFields := logger.Fields{"stack": stackPath(c.errorStack)}
+		loggerFields := logger.Fields{"stack": displayStackPath(c.errorStack)}
 		if !c.errorAsWarn {
 			deepestLogger.Error(msg, err, loggerFields)
 		} else {
@@ -340,6 +374,14 @@ func (c *ContextBase) DumpLog(successMessage ...string) {
 }
 
 func (c *ContextBase) Close(sctx context.Context, successMessage ...string) {
+
+	// Pop any frames a handler forgot to close (e.g. the transport-level "Server.Handle" frame,
+	// which is never explicitly popped on the unary request path) so the request-completion log
+	// line never carries a stale "stack" field. TraceOutMethod still snapshots errorStack for an
+	// errored frame along the way, so DumpLog below is unaffected.
+	for len(c.stack) != 0 {
+		c.TraceOutMethod()
+	}
 
 	// write oplog
 	if len(c.oplogs) != 0 {
@@ -427,6 +469,7 @@ func (c *ContextBase) Reset() {
 	c.errorStack = nil
 	c.genericError = nil
 	c.oplogs = make([]oplog.Oplog, 0)
+	c.UnsetLoggerField("stack")
 }
 
 func (c *ContextBase) ClearError() {

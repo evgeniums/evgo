@@ -202,7 +202,11 @@ func (r *Request) OnStreamIntialized(sctx context.Context, logPrefix ...string) 
 		mem.DefaultBufferPool().Put(&content)
 		r.Message().SetBinaryContent(nil)
 	}
-	r.server.logRequest(sctx, r.Logger(), r.start, r, r.LoggerFields(), logPrefix...)
+	// Use MainLogger(), not Logger(): Logger() returns the deepest still-open trace frame's
+	// proxy (e.g. "Server.Handle" is legitimately open here for STREAM OPEN), which would
+	// re-inject a stale "stack" static field into this summary line after logRequest strips it
+	// from the explicit field map below.
+	r.server.logRequest(sctx, r.MainLogger(), r.start, r, r.LoggerFields(), logPrefix...)
 }
 
 func (r *Request) Close(sctx context.Context, logPrefix ...string) {
@@ -215,7 +219,9 @@ func (r *Request) Close(sctx context.Context, logPrefix ...string) {
 		r.Message().SetBinaryContent(nil)
 	}
 	r.RequestBase.Close(sctx, "")
-	r.server.logRequest(sctx, r.Logger(), r.start, r, r.LoggerFields(), logPrefix...)
+	// See OnStreamIntialized above: use MainLogger() so the request-completion line never
+	// re-inherits a "stack" field from an open (or, pre-Close-fix, leaked) trace frame.
+	r.server.logRequest(sctx, r.MainLogger(), r.start, r, r.LoggerFields(), logPrefix...)
 	r.sctx = nil
 }
 
@@ -378,7 +384,7 @@ func newRequest(ctx context.Context, s *Server, ep api_server.Endpoint) (*Reques
 	origin.SetUserType(s.OPLOG_USER_TYPE)
 	request.SetOrigin(origin)
 
-	c := request.TraceInMethod("Server.Handle")
+	c := request.TraceInFrameworkMethod("Server.Handle")
 
 	opId := request.GetRequestHeader(s.ID_HEADER)
 	if opId != "" {
