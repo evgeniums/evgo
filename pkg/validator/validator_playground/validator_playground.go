@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/evgeniums/evgo/pkg/common"
-	"github.com/evgeniums/evgo/pkg/utils"
 	"github.com/evgeniums/evgo/pkg/validator"
 	playground "github.com/go-playground/validator/v10"
 )
@@ -54,16 +53,42 @@ func (v *PlaygroundValdator) ValidatePartial(s interface{}, fields ...string) *v
 	return nil
 }
 
-func (v *PlaygroundValdator) validationSubfield(structField reflect.StructField, typenames []string) (reflect.StructField, bool) {
+// concreteStructValue resolves value through any number of pointer/interface indirections down to
+// the underlying struct's type and value. go-playground validates a nested struct found behind an
+// interface{}/any-typed field using that value's DYNAMIC type (it doesn't require "dive" for a
+// plain struct field, only for slice/map/array elements) -- so resolving a validation error's
+// field path back to a *reflect.StructField afterwards must follow the same dynamic type, not the
+// field's statically declared type, which is `interface{}` itself (Kind() == Interface) and
+// therefore not something reflect.Type.FieldByName can be called on at all.
+func concreteStructValue(value reflect.Value) (reflect.Value, bool) {
+	for {
+		switch value.Kind() {
+		case reflect.Ptr, reflect.Interface:
+			if value.IsNil() {
+				return reflect.Value{}, false
+			}
+			value = value.Elem()
+		case reflect.Struct:
+			return value, true
+		default:
+			return reflect.Value{}, false
+		}
+	}
+}
 
-	first := utils.OptionalArg("", typenames...)
+func (v *PlaygroundValdator) validationSubfield(parentValue reflect.Value, typenames []string) (reflect.StructField, bool) {
 
-	t := structField.Type
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
+	if len(typenames) == 0 {
+		return reflect.StructField{}, false
+	}
+	first := typenames[0]
+
+	structValue, ok := concreteStructValue(parentValue)
+	if !ok {
+		return reflect.StructField{}, false
 	}
 
-	field, ok := t.FieldByName(first)
+	field, ok := structValue.Type().FieldByName(first)
 	if !ok {
 		return reflect.StructField{}, false
 	}
@@ -72,7 +97,7 @@ func (v *PlaygroundValdator) validationSubfield(structField reflect.StructField,
 		return field, true
 	}
 
-	return v.validationSubfield(field, typenames[1:])
+	return v.validationSubfield(structValue.FieldByName(first), typenames[1:])
 }
 
 func (v *PlaygroundValdator) doValidation(s interface{}, fields ...string) (string, string, error) {
@@ -87,10 +112,11 @@ func (v *PlaygroundValdator) doValidation(s interface{}, fields ...string) (stri
 		errs := err.(playground.ValidationErrors)
 		if len(errs) > 0 {
 			fieldErr := errs[0]
-			t := reflect.TypeOf(s)
-			if reflect.ValueOf(s).Kind() == reflect.Ptr {
-				t = t.Elem()
+			sv, ok := concreteStructValue(reflect.ValueOf(s))
+			if !ok {
+				return fieldErr.Field(), "", err
 			}
+			t := sv.Type()
 
 			names := strings.Split(fieldErr.StructNamespace(), ".")
 			f1, found := t.FieldByName(names[1])
@@ -99,7 +125,7 @@ func (v *PlaygroundValdator) doValidation(s interface{}, fields ...string) (stri
 			}
 			var f reflect.StructField
 			if len(names) > 2 {
-				f, found = v.validationSubfield(f1, names[2:])
+				f, found = v.validationSubfield(sv.FieldByName(names[1]), names[2:])
 				if !found {
 					return fieldErr.Field(), "", err
 				}
