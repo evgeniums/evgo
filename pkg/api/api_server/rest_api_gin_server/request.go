@@ -160,7 +160,9 @@ func (r *Request) Close(sctx context.Context, successMessage ...string) {
 	}
 
 	r.RequestBase.Close(sctx, "")
-	r.server.logGinRequest(r.Logger(), r.initialPath, r.start, r.ginCtx, r.LoggerFields())
+	// Use MainLogger(), not Logger(): see the equivalent comment in grpc_api_server.Request.Close
+	// — Logger() would re-inject a stale "stack" static field into this summary line.
+	r.server.logGinRequest(r.MainLogger(), r.initialPath, r.start, r.ginCtx, r.LoggerFields())
 }
 
 func (r *Request) GetRequestContent() []byte {

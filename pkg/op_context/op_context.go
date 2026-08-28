@@ -31,6 +31,13 @@ type CallContext interface {
 	UnsetLoggerField(name string)
 	LoggerFields() logger.Fields
 
+	// SetFrameworkFrame marks this frame as belonging to transport/auth/interceptor plumbing
+	// rather than application code. Framework frames are trimmed from the displayed "stack" log
+	// field unless the whole path consists of them (i.e. a log originates inside framework code
+	// itself), in which case the full path is shown.
+	SetFrameworkFrame(enable bool)
+	IsFrameworkFrame() bool
+
 	logger.WithLogger
 }
 
@@ -76,6 +83,10 @@ type Context interface {
 	ID() string
 
 	TraceInMethod(methodName string, fields ...logger.Fields) CallContext
+	// TraceInFrameworkMethod is like TraceInMethod, but marks the pushed frame as a framework
+	// frame (transport, auth, interceptors) rather than application code. Use it only at the
+	// call sites that implement request plumbing, not in service/controller code.
+	TraceInFrameworkMethod(methodName string, fields ...logger.Fields) CallContext
 	TraceOutMethod()
 
 	SetGenericError(err generic_error.Error, override ...bool)

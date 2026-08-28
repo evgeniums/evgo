@@ -601,6 +601,10 @@ func (s *Server) logRequest(sctx context.Context, log logger.Logger, start time.
 		"server":  s.Name(),
 	}
 	logger.AppendFields(fields, extraFields)
+	// "stack" is only meaningful while pinpointing an error/debug record deep inside a call
+	// chain; on the request-completion summary line it is redundant with the endpoint/op fields
+	// above, so it is dropped here regardless of what extraFields carried.
+	delete(fields, "stack")
 
 	prefix := utils.OptionalString(s.logPrefix, logPrefix...)
 	if StatusError(callCtx.StatusCode()) {
