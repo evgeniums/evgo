@@ -317,13 +317,21 @@ func (c *Context) EventDispatcher() event_dispatcher.Dispatcher {
 	return c.eventDispatcher
 }
 
-func ConfigFile(defaultConfigFile ...string) string {
+func ConfigFile(buildConfig *app_context.BuildConfig, defaultConfigFile ...string) string {
 	appPath := Application()
 	configPath := fmt.Sprintf("%s.jsonc", appPath[:len(appPath)-len(filepath.Ext(appPath))])
 	configPath = utils.OptionalString(configPath, defaultConfigFile...)
 
 	configFile := flag.String("config", configPath, "Configuration file")
+	version := flag.Bool("version", false, "Print build version information and exit")
+	flag.BoolVar(version, "v", false, "Print build version information and exit (shorthand)")
 	flag.Parse()
+
+	if *version {
+		buildConfig.Print()
+		os.Exit(0)
+	}
+
 	fmt.Printf("Using config file %v\n", *configFile)
 
 	return *configFile

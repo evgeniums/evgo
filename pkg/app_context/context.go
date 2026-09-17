@@ -1,6 +1,7 @@
 package app_context
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/evgeniums/evgo/pkg/cache"
@@ -18,6 +19,11 @@ type BuildConfig struct {
 	Revision   string
 	Label      string
 	ConfigFile string // path to the config file used to initialise the application
+}
+
+// Print writes the build configuration to stdout, e.g. in response to a --version/-v switch.
+func (b *BuildConfig) Print() {
+	fmt.Printf("Label: %s\nVersion: %s\nRevision: %s\nBuild time: %s\n", b.Label, b.Version, b.Revision, b.Time)
 }
 
 type Context interface {

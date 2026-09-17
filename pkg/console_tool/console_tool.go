@@ -29,6 +29,7 @@ type MainOptions struct {
 	DbSection    string `short:"d" long:"database-section" description:"Database section in configuration file" default:"db"`
 	Tenancy      string `short:"t" long:"tenancy" description:"Tenancy to invoke the command in. Can be either tenancy's ID or in the form of customer_name/role."`
 	Args         string `short:"a" long:"args" description:"Additional configuration arguments."`
+	Version      bool   `short:"v" long:"version" description:"Print build version information and exit"`
 }
 
 type Dummy struct{}
@@ -189,6 +190,10 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) (multi
 func (c *ConsoleUtility) Parse() {
 	var err error
 	c.Args, err = c.Parser.Parse()
+	if c.Opts.Version {
+		c.BuildConfig.Print()
+		os.Exit(0)
+	}
 	if err == nil && len(c.Args) != 0 {
 		fmt.Printf("Additional args: %v\n", c.Args)
 	}

@@ -38,8 +38,8 @@ type Main struct {
 	App      app_with_multitenancy.AppWithMultitenancy
 }
 
-func ConfigFile(defaultConfigFile ...string) string {
-	return app_default.ConfigFile(defaultConfigFile...)
+func ConfigFile(buildConfig *app_context.BuildConfig, defaultConfigFile ...string) string {
+	return app_default.ConfigFile(buildConfig, defaultConfigFile...)
 }
 
 func New(buildConfig *app_context.BuildConfig, tenancyDbModels *multitenancy.TenancyDbModels, runnerConfig *RunnerConfig, appConfig ...app_with_multitenancy.AppConfigI) *Main {
@@ -47,7 +47,7 @@ func New(buildConfig *app_context.BuildConfig, tenancyDbModels *multitenancy.Ten
 	// get name of configuration file
 	configFile := runnerConfig.DefaultConfigFile
 	if !runnerConfig.ForceDefaultConfigFlag {
-		configFile = ConfigFile(runnerConfig.DefaultConfigFile)
+		configFile = ConfigFile(buildConfig, runnerConfig.DefaultConfigFile)
 	}
 
 	// init db gorm models
