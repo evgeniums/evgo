@@ -63,7 +63,10 @@ func DbDsnBuilder(t *testing.T, config *db.DBConfig) (string, error) {
 	case "sqlite":
 		dsn := SqlitePath(config)
 		t.Logf("Sqlite database DSN: %s\n", dsn)
-		return dsn, nil
+		// Same options as the production db_gorm.DbDsnBuilder: without them a background work
+		// scheduler racing a test's own transaction fails instantly with "database is locked"
+		// instead of waiting for the other writer.
+		return dsn + "?_txlock=immediate&_busy_timeout=5000", nil
 	}
 
 	return "", errors.New("unknown database provider")

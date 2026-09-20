@@ -660,6 +660,9 @@ func (s *WorkSchedule[T]) Run(ctx context.Context) {
 		period = 5
 	}
 
+	// The reader is tracked in the same WaitGroup as the workers so that Shutdown really waits for
+	// an in-flight readWorks/ClaimDueWorks database access to finish, not just for the workers.
+	s.wg.Add(1)
 	go func() {
 
 		ticker := time.NewTicker(time.Second * time.Duration(period))
@@ -667,6 +670,7 @@ func (s *WorkSchedule[T]) Run(ctx context.Context) {
 		defer func() {
 			ticker.Stop()
 			close(s.queue)
+			s.wg.Done()
 		}()
 
 		for {
