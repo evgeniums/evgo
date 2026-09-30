@@ -80,6 +80,9 @@ func InitDbModels(t *testing.T, testDir string, dbModels []interface{}, config .
 	SetupGormDB(t)
 	dbPaths := SqliteDatabasesPath()
 	t.Logf("Sqlite DB folder: %s", dbPaths)
+	// dbPaths is the single shared SqliteFolder, not a per-test/per-package subfolder, so wiping it
+	// here is unsafe under any concurrency (parallel packages, or two separate `go test` runs
+	// against the same folder) — see whitemservergo/todos/todo-parallel-safe-go-tests.md.
 	if dbPaths != "" && dbPaths != "/" {
 		if utils.FileExists(dbPaths) {
 			require.NoErrorf(t, os.RemoveAll(dbPaths), "failed to remove files from db folder")
