@@ -301,41 +301,45 @@ func DateWithOffset(offset int, inDate ...Date) Date {
 }
 
 const (
-	// epochBit is the 8th bit (0x80).
-	// If this bit is 1, the data is initialized.
+	// epochBit is the 8th bit (0x80). It marks the Unix epoch instant (0 ms, UTC), whose packed
+	// form would otherwise be 0, which means "not set".
 	epochBit = 1 << 7
 	tzMask   = 0x7F
 )
 
-// Pack compresses time into int64: [55-bit Milliseconds][1-bit epoch][7-bit tz]
+// PackDatetime compresses time into int64: [millis << 8][7-bit tz in 15-minute units].
+//
+// Same rule as hatn DateTimePacker (hatn/common/datetime.h): 0 is "not set"; the epoch bit is set
+// only for the epoch instant in UTC so that it does not collide with "not set".
 func PackDatetime(t time.Time) int64 {
 	if t.IsZero() {
 		return 0
 	}
 
-	// 1. Get Unix timestamp in Milliseconds
 	milli := t.UnixMilli()
-	var epoch int64 = 0
-	if milli == 0 {
-		epoch = epochBit
-	}
 
-	// 2. Get timezone offset in 15-min increments
+	// timezone offset in 15-min increments
 	_, offset := t.Zone()
 	tzValue := int64(offset / 60 / 15)
 
-	// 3. Pack: Shift millis left 8 bits, set epoch bit, add tz
+	var epoch int64 = 0
+	if milli == 0 && tzValue == 0 {
+		epoch = epochBit
+	}
+
 	return (milli << 8) | epoch | (tzValue & tzMask)
 }
 
-// Unpack extracts the time from the packed int64
+// UnpackDatetime extracts the time from the packed int64.
+//
+// 0 means "not set" and yields the zero time; any other value is millis = packed>>8 with a
+// 7-bit signed timezone in the low bits. Clients (hatn DateTimePacker) never set the epoch bit
+// for ordinary timestamps, so it must not be required.
 func UnpackDatetime(packed int64) time.Time {
-	// If the epoch bit is 0, we treat it as an uninitialized/zero time
-	if packed&epochBit == 0 {
+	if packed == 0 {
 		return time.Time{}
 	}
 
-	// Extract components
 	milli := packed >> 8
 	tzValue := packed & tzMask
 
