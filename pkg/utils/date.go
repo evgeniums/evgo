@@ -305,12 +305,17 @@ const (
 	// form would otherwise be 0, which means "not set".
 	epochBit = 1 << 7
 	tzMask   = 0x7F
+
+	msPerDay = int64(24 * 60 * 60 * 1000)
 )
 
 // PackDatetime compresses time into int64: [millis << 8][7-bit tz in 15-minute units].
 //
 // Same rule as hatn DateTimePacker (hatn/common/datetime.h): 0 is "not set"; the epoch bit is set
 // only for the epoch instant in UTC so that it does not collide with "not set".
+//
+// A value whose time of day in its own zone is exactly 00:00:00.000 is packed as 00:00:00.001,
+// see the comment in the body.
 func PackDatetime(t time.Time) int64 {
 	if t.IsZero() {
 		return 0
@@ -325,6 +330,10 @@ func PackDatetime(t time.Time) int64 {
 	var epoch int64 = 0
 	if milli == 0 && tzValue == 0 {
 		epoch = epochBit
+	} else if (((milli+tzValue*15*60*1000)%msPerDay)+msPerDay)%msPerDay == 0 {
+		// Released hatn clients cannot parse a time of day of exactly 00:00:00.000 (their Time
+		// treats it as "not set" and the parse throws), so shift such a value by 1 ms.
+		milli++
 	}
 
 	return (milli << 8) | epoch | (tzValue & tzMask)
