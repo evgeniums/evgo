@@ -123,6 +123,22 @@ func (v *PlaygroundValdator) doValidation(s interface{}, fields ...string) (stri
 	return "", "", nil
 }
 
+// FailedRule reports the rule tag (e.g. "max") and its parameter (e.g. "128") of the first failed
+// validation in err, which must be the error returned by PlaygroundValdator.Validate/ValidatePartial.
+// It lets callers map a specific rule failure to a dedicated error code without importing the
+// playground package themselves.
+func FailedRule(err error) (tag string, param string, ok bool) {
+	vErr, isValidationError := err.(*validator.ValidationError)
+	if !isValidationError || vErr.Err == nil {
+		return "", "", false
+	}
+	errs, isPlaygroundErrors := vErr.Err.(playground.ValidationErrors)
+	if !isPlaygroundErrors || len(errs) == 0 {
+		return "", "", false
+	}
+	return errs[0].Tag(), errs[0].Param(), true
+}
+
 const alphaNumericUnderscoreRegexString = "^[a-zA-Z0-9_]+$"
 
 var alphaNumericUnerscoreRegex = regexp.MustCompile(alphaNumericUnderscoreRegexString)
