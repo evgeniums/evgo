@@ -111,6 +111,10 @@ type DB interface {
 
 	NativeHandler() interface{}
 
+	// Ping verifies that the database connection is alive. Unlike Exec it honours ctx
+	// cancellation/deadline, so it is suitable for health checks.
+	Ping(ctx context.Context) error
+
 	Close()
 }
 

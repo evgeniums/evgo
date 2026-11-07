@@ -2,6 +2,7 @@ package db_gorm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/evgeniums/evgo/pkg/common"
@@ -96,6 +97,17 @@ func (g *GormDB) PrepareFilterParser(model interface{}, name string, validator .
 
 func (g *GormDB) NativeHandler() interface{} {
 	return g.db
+}
+
+func (g *GormDB) Ping(ctx context.Context) error {
+	if g.db == nil {
+		return errors.New("database is not initialized")
+	}
+	sqlDB, err := g.db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.PingContext(ctx)
 }
 
 func (g *GormDB) Clone() db.DB {

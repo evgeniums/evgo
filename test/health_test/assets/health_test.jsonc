@@ -1,0 +1,41 @@
+{
+    "testing" : "true",
+    "db":{
+        "db_provider": "sqlite",
+        "db_name" : "health_test.sqlite"
+    },
+    "logger" : {
+        "level" : "debug"
+    },
+    "server": {
+        // NOTE: the "noauth" method is deliberately absent - the health service must register it itself.
+        "auth": {
+            "manager" : {
+                "methods": {
+                    "evgo_login_phash_token_new": {},
+                    "evgo-token": {
+                        "secret": "hdidyuvp98-32kj4p98y",
+                        "access_token_ttl_seconds" : 3600,
+                        "refresh_token_ttl_seconds" : 7200
+                    }
+                }
+            },
+            "default_schema": "evgo-token",
+            "endpoints": {
+                "/auth/login": [
+                    {
+                        "http_method": "POST",
+                        "schema":"evgo_login_phash_token_new"
+                    }
+                ]
+            }
+        },
+        "rest_api_server": {
+            "name": "Health test server",
+            "api_version" : "1.0.0",
+            "host": "127.0.0.1",
+            "port": 5001,
+            "trusted_proxies": ["127.0.0.1"]
+        }
+    }
+}

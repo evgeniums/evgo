@@ -40,6 +40,9 @@ type Config struct {
 	WithoutAuthService   bool
 	WithoutDynamicTables bool
 
+	// Add public, unauthenticated health endpoints (see api_server.HealthService).
+	WithHealthService bool
+
 	MultitenancyBaseServices bool
 
 	DefaultPoolServiceName   string
@@ -71,6 +74,7 @@ type BareBonesServerBase struct {
 	WithoutStatusService bool
 	WithoutAuthService   bool
 	WithoutDynamicTables bool
+	WithHealthService    bool
 
 	MultitenancyBaseServices bool
 }
@@ -94,6 +98,7 @@ func (s *BareBonesServerBase) Construct(users auth_session.WithUserSessionManage
 		s.WithoutDynamicTables = cfg.WithoutDynamicTables
 		s.WithoutStatusService = cfg.WithoutStatusService
 		s.WithoutAuthService = cfg.WithoutAuthService
+		s.WithHealthService = cfg.WithHealthService
 		s.MultitenancyBaseServices = cfg.MultitenancyBaseServices
 
 		s.config.POOL_SERVICE_NAME = cfg.DefaultPoolServiceName
@@ -172,6 +177,13 @@ func (s *BareBonesServerBase) Init(app app_context.Context, tenancyManager multi
 	if !s.WithoutAuthService {
 		s.pimpl.authService = auth_service.NewAuthService(s.MultitenancyBaseServices)
 		api_server.AddServiceToServer(s.pimpl.server, s.pimpl.authService)
+	}
+
+	if s.WithHealthService {
+		err = api_server.AddHealthService(s.pimpl.server, app.Db())
+		if err != nil {
+			return app.Logger().PushFatalStack("failed to add health service", err)
+		}
 	}
 
 	if s.pimpl.smsManager != nil {
