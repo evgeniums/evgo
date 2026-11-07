@@ -19,6 +19,7 @@ import (
 	"github.com/evgeniums/evgo/pkg/op_context/default_op_context"
 	"github.com/evgeniums/evgo/pkg/pool"
 	"github.com/jessevdk/go-flags"
+	"github.com/sirupsen/logrus"
 )
 
 type MainOptions struct {
@@ -77,6 +78,13 @@ func (c *ConsoleUtility) Close() {
 
 func (c *ConsoleUtility) InitCommandContext(group string, command string) (multitenancy.TenancyContext, context.Context) {
 
+	// Stdout is reserved for command results (they may be redirected to a file or piped).
+	// Everything printed or logged while the application initializes goes to stderr; loggers
+	// capture os.Stdout when they are created, so they get stderr too.
+	stdout := os.Stdout
+	os.Stdout = os.Stderr
+	defer func() { os.Stdout = stdout }()
+
 	if c.Opts.Args != "" {
 		c.Args = []string{}
 		args := strings.Split(c.Opts.Args, " ")
@@ -92,7 +100,7 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) (multi
 
 	if c.AppBuilder == nil || c.Opts.Setup && !c.AppBuilder.HasSetupApp() {
 
-		fmt.Println("Using minimal application context for setup")
+		fmt.Fprintln(os.Stderr, "Using minimal application context for setup")
 
 		app := app_default.New(c.BuildConfig)
 		c.App = app
@@ -103,7 +111,7 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) (multi
 		}
 	} else if c.AppBuilder != nil && c.Opts.Setup && c.AppBuilder.HasSetupApp() {
 
-		fmt.Println("Using setup application context")
+		fmt.Fprintln(os.Stderr, "Using setup application context")
 
 		c.App = c.AppBuilder.NewSetupApp(c.BuildConfig)
 		err := c.AppBuilder.InitSetupApp(c.App, c.Opts.ConfigFile, c.Args, c.Opts.ConfigFormat)
@@ -112,7 +120,7 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) (multi
 		}
 	} else {
 
-		fmt.Println("Using normal application context")
+		fmt.Fprintln(os.Stderr, "Using normal application context")
 
 		c.App = c.AppBuilder.NewApp(c.BuildConfig)
 		err := c.AppBuilder.InitApp(c.App, c.Opts.ConfigFile, c.Args, c.Opts.ConfigFormat)
@@ -125,8 +133,21 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) (multi
 	// pass it to external tools that need to re-open the same config.
 	c.BuildConfig.ConfigFile = c.Opts.ConfigFile
 
-	if c.App.Cfg().GetString("logger.destination") != "stdout" {
-		c.App.Cfg().Set("logger.destination", "stdout")
+	// Keep stdout for command results: logs go to stderr.
+	if c.App.Cfg().GetString("logger.destination") == "file" {
+		c.App.Cfg().Set("logger.destination", "stderr")
+		consoleLogger := logger_logrus.New()
+		err := consoleLogger.Init(c.App.Cfg(), c.App.Validator(), "logger")
+		if err != nil {
+			app_context.AbortFatal(c.App, "failed to init console logger", err)
+		}
+		teeLogger := logger.NewTee(c.App.Logger(), consoleLogger)
+		c.App.SetLogger(teeLogger)
+	} else if appLogger, ok := c.App.Logger().(*logger_logrus.LogrusLogger); ok {
+		appLogger.SetOutput(os.Stderr)
+		logrus.SetOutput(os.Stderr)
+	} else {
+		c.App.Cfg().Set("logger.destination", "stderr")
 		consoleLogger := logger_logrus.New()
 		err := consoleLogger.Init(c.App.Cfg(), c.App.Validator(), "logger")
 		if err != nil {
@@ -158,7 +179,7 @@ func (c *ConsoleUtility) InitCommandContext(group string, command string) (multi
 	userName := "unknown"
 	u, e := user.Current()
 	if e != nil || u == nil {
-		fmt.Printf("failed to get OS user information: %s\n", e)
+		fmt.Fprintf(os.Stderr, "failed to get OS user information: %s\n", e)
 	} else {
 		userName = u.Username
 	}
@@ -195,7 +216,7 @@ func (c *ConsoleUtility) Parse() {
 		os.Exit(0)
 	}
 	if err == nil && len(c.Args) != 0 {
-		fmt.Printf("Additional args: %v\n", c.Args)
+		fmt.Fprintf(os.Stderr, "Additional args: %v\n", c.Args)
 	}
 	if err != nil {
 		if err, ok := err.(*flags.Error); ok {

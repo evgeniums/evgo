@@ -177,7 +177,7 @@ func (c *Context) InitWithArgs(configFile string, args []string, configType ...s
 	app_context.SetTimeZone()
 
 	// load configuration
-	fmt.Printf("Application %s using configuration file %s\n", c.Application(), configFile)
+	fmt.Fprintf(os.Stderr, "Application %s using configuration file %s\n", c.Application(), configFile)
 	err := c.initConfig(configFile)
 	if err != nil {
 		return c.Logger().PushFatalStack("failed to load application configuration", err)
@@ -199,7 +199,7 @@ func (c *Context) InitWithArgs(configFile string, args []string, configType ...s
 
 	// log build version
 	log.Info("Build configuration", logger.Fields{"build_time": c.buildConfig.Time, "package_version": c.buildConfig.Version, "git_revision": c.buildConfig.Revision})
-	fmt.Printf("Build configuration: build_time=%s, package_version=%s, git_revision=%s\n", c.buildConfig.Time, c.buildConfig.Version, c.buildConfig.Revision)
+	fmt.Fprintf(os.Stderr, "Build configuration: build_time=%s, package_version=%s, git_revision=%s\n", c.buildConfig.Time, c.buildConfig.Version, c.buildConfig.Revision)
 
 	// log logger configuration
 	object_config.Info(log, c.logrusLogger, logConfigPath)
@@ -332,7 +332,7 @@ func ConfigFile(buildConfig *app_context.BuildConfig, defaultConfigFile ...strin
 		os.Exit(0)
 	}
 
-	fmt.Printf("Using config file %v\n", *configFile)
+	fmt.Fprintf(os.Stderr, "Using config file %v\n", *configFile)
 
 	return *configFile
 }

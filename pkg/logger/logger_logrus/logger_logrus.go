@@ -3,6 +3,7 @@ package logger_logrus
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
@@ -15,7 +16,7 @@ import (
 )
 
 type logrusConfig struct {
-	DESTINATION   string `default:"stdout" validate:"oneof=stdout file" vmessage:"logger destination must be one of: stdout | file"`
+	DESTINATION   string `default:"stdout" validate:"oneof=stdout stderr file" vmessage:"logger destination must be one of: stdout | stderr | file"`
 	FILE          string
 	LEVEL         string `validate:"omitempty,oneof=panic fatal error warn info debug trace" vmessage:"invalid log level, must be one of: panic | fatal | error | warn | info | debug | trace"`
 	DUMP_REQUESTS bool
@@ -41,6 +42,13 @@ func New() *LogrusLogger {
 	// l.logRus.SetFormatter(&logrus.JSONFormatter{})
 
 	return l
+}
+
+// SetOutput redirects the already initialized logger to w.
+func (l *LogrusLogger) SetOutput(w io.Writer) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+	l.logRus.Out = w
 }
 
 func (l *LogrusLogger) ErrorRaw(data ...interface{}) {
@@ -125,10 +133,13 @@ func (l *LogrusLogger) Init(cfg config.Config, vld validator.Validator, configPa
 		if err == nil {
 			l.logRus.Out = writer
 			logrus.SetOutput(writer)
-			fmt.Printf("Using log file %s\n", l.FILE)
+			fmt.Fprintf(os.Stderr, "Using log file %s\n", l.FILE)
 		} else {
-			fmt.Println("failed to log to file, using default console")
+			fmt.Fprintln(os.Stderr, "failed to log to file, using default console")
 		}
+	} else if l.DESTINATION == "stderr" {
+		l.logRus.Out = os.Stderr
+		logrus.SetOutput(os.Stderr)
 	} else {
 		l.logRus.Out = os.Stdout
 		logrus.SetOutput(os.Stdout)
