@@ -28,6 +28,7 @@ import (
 	"github.com/markphelps/optional"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/encoding"
@@ -167,6 +168,10 @@ type Server struct {
 
 	propagateContextId bool
 	propagateAuthUser  bool
+
+	// realIpInterceptor resolves the real client address of a request from TRUSTED_PROXIES and REAL_IP_HEADER; it is
+	// the same interceptor that is installed on the gRPC server, kept to be run by newRequest (see clientAddress).
+	realIpInterceptor grpc.UnaryServerInterceptor
 
 	logPrefix       string
 	streamLogPrefix string
@@ -376,7 +381,8 @@ func (s *Server) Init(ctx app_context.Context, auth auth.Auth, tenancyManager mu
 	} else {
 		ctx.Logger().Warn("Disable crash recovery in testing mode")
 	}
-	unaryInterceptors = append(unaryInterceptors, realip.UnaryServerInterceptor(trustedProxies, realIpHeaders))
+	s.realIpInterceptor = realip.UnaryServerInterceptor(trustedProxies, realIpHeaders)
+	unaryInterceptors = append(unaryInterceptors, s.realIpInterceptor)
 	if len(s.UnaryInterceptors) != 0 {
 		unaryInterceptors = append(unaryInterceptors, s.UnaryInterceptors...)
 	}
@@ -693,4 +699,40 @@ func StatusError(status codes.Code) bool {
 
 func StatusWarn(status codes.Code) bool {
 	return status != codes.OK
+}
+
+// clientAddress returns the real address of the client of a call, without the port: what the realip interceptor
+// resolves (the address from REAL_IP_HEADER when the peer is one of TRUSTED_PROXIES), otherwise the peer address.
+//
+// Unary calls are authenticated, and their session client is recorded, before the interceptor chain runs
+// (handleUnary decodes the request first), so the value the interceptor puts into the context is not there yet.
+// The same interceptor is therefore run here with a handler that only reads its result. Stream calls already carry
+// the value.
+func (s *Server) clientAddress(ctx context.Context) string {
+
+	if addr, ok := realip.FromContext(ctx); ok {
+		return addr.String()
+	}
+
+	if s.realIpInterceptor != nil {
+		resolved := ""
+		_, _ = s.realIpInterceptor(ctx, nil, &grpc.UnaryServerInfo{}, func(next context.Context, _ any) (any, error) {
+			if addr, ok := realip.FromContext(next); ok {
+				resolved = addr.String()
+			}
+			return nil, nil
+		})
+		if resolved != "" {
+			return resolved
+		}
+	}
+
+	p, ok := peer.FromContext(ctx)
+	if !ok || p.Addr == nil {
+		return ""
+	}
+	if addrPort, err := netip.ParseAddrPort(p.Addr.String()); err == nil {
+		return addrPort.Addr().String()
+	}
+	return p.Addr.String()
 }

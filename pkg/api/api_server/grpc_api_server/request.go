@@ -21,7 +21,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 )
 
 type CallContext = context.Context
@@ -136,10 +135,7 @@ func (r *Request) Init(s *Server, ctx CallContext, fields ...logger.Fields) erro
 	}
 
 	// get client address and user agent
-	p, ok := peer.FromContext(ctx)
-	if ok {
-		r.clientIp = p.Addr.String()
-	}
+	r.clientIp = s.clientAddress(ctx)
 	r.userAgent = r.GetRequestHeader("user-agent")
 
 	// check if it is behind gateway whose auth context can be used
